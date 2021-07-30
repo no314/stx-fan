@@ -11837,5 +11837,5 @@ body, a{
 /* HOVER BAR ON DROPDOWN LINKS */
 .dropdown a:hover {background: rgba(110,149,164,0.3);}
 /* DROPDOWN LINK TEXT */
-#li, a.drop {font-weight: 300;color: #000000;}
+#li, a.drop {font-weight: 300;color: #000;}
 .dropdown {position: relative;display: inline-block;}
