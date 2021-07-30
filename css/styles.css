@@ -11762,13 +11762,11 @@ textarea.form-control-lg {
 body, a{
 	margin:0;
 	padding:0;
-    background-image: url("back.jpg");
-    background-repeat: no-repeat;
     background-attachment: fixed;
 	font-family: 'Open Sans', sans-serif;
 	font-size: 16px;
 	line-height: 1.5em;
-    color: #FFFFFF;
+    color: #000000;
     text-align: center;
     font-weight: 400;
     text-decoration: none;
