@@ -6,7 +6,7 @@ Binary rounded Boombox challenge for 3rd edition (cycle 16)
       1.024	- Syvita
       2.048	- Syvita
       4.096	- Dant
-      8.192	- nasir.btc
+      8.192	- 
      16.384	- Friedger
      32.768	- 
      65.536	- 
