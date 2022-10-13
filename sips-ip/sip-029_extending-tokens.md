@@ -6,7 +6,6 @@ Title: Standard Trait Definition for extending tokens
 https://github.com/stacksgov/sips/issues/51#issuecomment-1151670018
 https://github.com/stacksgov/sips/issues/52
 
-
 Author: werner.btc (werner at stx.fan) with help from ? ;-)
 
 Consideration: Technical
@@ -170,7 +169,7 @@ define-trait operable
 ## Marketplace-Trait-&-Commision-Trait
 
 ```
-(use-trait commission-trait .commisions.trait)
+(use-trait commission-trait .commissions.trait)
 (define-trait marketplace
     (
         ;; announce listing to global marketplace
