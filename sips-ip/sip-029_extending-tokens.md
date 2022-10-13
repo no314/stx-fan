@@ -87,28 +87,28 @@ The function takes an amount or unique token identifier together with a principa
 
 This function must never return an error response. It can be defined as read-only, i.e. `define-read-only`.
 
-### Maretplace-Trait function 1: 
+### Marketplace-Trait function 1: 
 `(list-in-ustx (uint uint <commission-trait>) (response bool uint))`
 Werner: I think the discussion in https://github.com/stacksgov/sips/issues/51 landed on using a more generalized interface such as: 
 `(list-in-token (<transferable-trait> uint uint <commission-trait>) (response bool uint))`
 
 Explained in plain English...
 
-### Maretplace-Trait function 2: 
+### Marketplace-Trait function 2: 
 `(unlist-in-ustx (uint) (response bool uint))`
 or generalized 
 `(unlist-in-token (<transferable-trait> uint) (response bool uint))`
 
 Explained in plain English...
 
-### Maretplace-Trait function 3: buy in tokens
+### Marketplace-Trait function 3: buy in tokens
 `(buy-in-ustx (uint <commission-trait>) (response bool uint))`
 or generalized
 `(buy-in-token (<transferable-trait> uint <commission-trait>) (response bool uint))`
 
 ...
 
-### Maretplace-Trait function 4: Get asset
+### Marketplace-Trait function 4: Get asset
 `(get-asset () (response {fq-contract: string, asset-class: string} uint))`
 
 ...
