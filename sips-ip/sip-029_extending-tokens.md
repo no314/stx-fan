@@ -7,7 +7,7 @@ https://github.com/stacksgov/sips/issues/51#issuecomment-1151670018
 https://github.com/stacksgov/sips/issues/52
 
 
-Author: werner.btc (werner@stx.fan)
+Author: werner.btc (werner at stx.fan) with help from ? ;-)
 
 Consideration: Technical
 
@@ -15,7 +15,7 @@ Type: Standard
 
 Status: draft
 
-Created: 7 August 2022
+Created: 12 October 2022
 
 License: CC0-1.0
 
@@ -34,11 +34,13 @@ This SIP’s copyright is held by the Stacks Open Internet Foundation.
 
 Tokens are digital assets registered on a blockchain through a smart contract. A non-fungible token (NFT) is a token that is globally unique and can be identified through its unique identifier.
 
-In blockchains with smart contracts, including the Stacks blockchain, developers and users can use smart contracts to register and interact with non-fungible tokens.
+In blockchains with smart contracts, including the Stacks blockchain, developers and users can use smart contracts to register and interact with (non-)fungible tokens.
 
-To extend the functions of tokens this SIP defines a set of traits with smart contract functions that enable an open, decentralized marketplace for digital assets. These assets must implement the `operable trait` and marketplace trait. Owners of operable assets should be able to list and unlist their token. Buyers should be able to buy the assets from the owner.
+To extend the functions of tokens this SIP defines a set of traits with smart contract functions that enable an open, decentralized marketplace for digital assets. These assets must implement the `operable trait` and `marketplace trait`. Owners of operable assets should be able to list and unlist their token. Buyers should be able to buy the assets from the owner.
 
 The `marketplace trait` can be implemented as part of the asset contract (usually not recommended) or as an independent contract.
+
+Werner: add something about the transferable-trait functions and how they complement the rest.
 
 # Specification
 
@@ -49,27 +51,77 @@ Every SIP-029 compliant smart contract on the Stacks blockchain must(/may?) impl
 3. `commission-functions`, defined in the [Marketplace-Trait-&-Commision-Trait](#Marketplace-Trait & Commision-Trait) section,
 and must meet the requirements for the following functions:
 
-### Transferable-Trait function 1: 
+### Transferable-Trait function 1: Transfer
+`(transfer (uint principal principal) (response bool uint))`
 
+The function changes the ownership of the token for the given identifier (for non-fungible tokens) or amount (for fungible tokens) from the sender principal to the recipient principal.
 
-### Operable-Trait function 1: set-approved
+This function must be defined with define-public, as it alters state, and must be externally callable.
 
+After a successful call to transfer, the function get-owner (for NFT's) must return the recipient of the transfer call as the new owner.
+
+For any call to transfer with an ID greater than the last token ID returned by the get-last-token-id function, the call must return an error response.
+
+It is recommended to use error codes from standardized list of codes and implement the function for converting the error codes to messages function that are defined in a separate SIP.
+Werner: should this final remark still be in here, SIP on wishlist?
+
+### Transferable-Trait function 2: Transfer with memo
+`(transfer-memo (uint principal principal (buff 34) (response bool uint))`
+
+Transfer a token from the sender to the recipient and emit a memo. This function
+follows the exact same procedure as `transfer` but emits the provided memo via
+`(print memo)`. The memo event should be the final event emitted by the
+contract. 
+
+### Operable-Trait function 1: Set approved principal
 `(set-approved (uint principal bool) (response bool uint))`
 
+This function takes a unique token identifier (for non-fungible tokens) or amount (for fungible tokens) a principal and a boolean value (true or false) to approve operations for that token/those tokens by the contract. 
+
+The function must return `(ok true)` on success.
 
 
-### Operable-Trait function 2: is-approved
-
+### Operable-Trait function 2: Check approval status
 `(is-approved (uint principal) (response bool uint))` 
 
+The function takes an amount or unique token identifier together with a principal and returns if that principal is allowed to operate (e.g. transfer) the specified token or amount of tokens.
 
+This function must never return an error response. It can be defined as read-only, i.e. `define-read-only`.
 
 ### Maretplace-Trait function 1: 
-``
+`(list-in-ustx (uint uint <commission-trait>) (response bool uint))`
+Werner: I think the discussion in https://github.com/stacksgov/sips/issues/51 landed on using a more generalized interface such as: 
+`(list-in-token (<transferable-trait> uint uint <commission-trait>) (response bool uint))`
 
-### Commision-Trait function 1:
+Explained in plain English...
+
+### Maretplace-Trait function 2: 
+`(unlist-in-ustx (uint) (response bool uint))`
+or generalized 
+`(unlist-in-token (<transferable-trait> uint) (response bool uint))`
+
+Explained in plain English...
+
+### Maretplace-Trait function 3: buy in tokens
+`(buy-in-ustx (uint <commission-trait>) (response bool uint))`
+or generalized
+`(buy-in-token (<transferable-trait> uint <commission-trait>) (response bool uint))`
+
+...
+
+### Maretplace-Trait function 4: Get asset
+`(get-asset () (response {fq-contract: string, asset-class: string} uint))`
+
+...
 
 
+### Commision-Trait function:
+`(pay (uint uint) (response bool uint))`
+Werner: (this should take an optional token trait if generalized to any token?... should there be an allowlist for token traits in that case or would this always be uSTX?)
+
+An additional action after the marketplace sale happened. Usually a token transfer (fee) to the marketplace.
+
+The function takes 
 
 It is recommended to use error codes from standardized list of codes and implement the function for converting the error codes to messages function that are defined in a separate SIP.
 
@@ -103,14 +155,14 @@ define-trait operable
         ;; set approval for an operator to handle a specified id or amount of the asset
         ;; must return `(ok true)` on success, never `(ok false)`
         ;; @param id-or-amount; identifier of NFT or amount of FTs
-        ;; @param operator: principal that wants top operate the asset
+        ;; @param operator: principal that wants to operate the asset
         ;; @param bool: if true operator can transfer id or up to amount
         (set-approved (uint principal bool) (response bool uint))
 
         ;; read-only function to return the current status of given operator
         ;; if returned `(ok true)` the operator can transfer the NFT with the given id or up to the requested amount of FT
         ;; @param id-or-amount; identifier of NFT or amount of FTs
-        ;; @param operator: principal that wants top operate the asset
+        ;; @param operator: principal that wants to operate the asset
         ;; @param bool: if true operator can transfer id or up to amount
         (is-approved (uint principal) (response bool uint))
 ```
@@ -141,13 +193,12 @@ define-trait operable
         ;; must send a delist event
         ;; @param id; identifier of NFT or amount of FTs
         ;; @param commission: action to happen after sale        
-        (buy-in-ustx (uint  <commission-trait>) (response bool uint))
+        (buy-in-ustx (uint  '<commission-trait>') (response bool uint))
 
         ;; read-only function defining the asset
         (get-asset () (response {fq-contract: string, asset-class: string} uint))
     )
 )
-
 
 (define-trait commission
     (
@@ -269,3 +320,7 @@ Generalized marketplace function (list-in-token vs. list-in-ustx)
 https://github.com/stacksgov/sips/issues/51#issuecomment-1151670018
 Optional send-many trait (from SIP013 semi-fungible token)
 https://github.com/stacksgov/sips/pull/42/files
+
+Examples of commission contracts
+Simple fixed fee: `?`
+Auction contract: `?`
