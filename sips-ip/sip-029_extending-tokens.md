@@ -43,11 +43,14 @@ Werner: add something about the transferable-trait functions and how they comple
 
 # Specification
 
-Every SIP-029 compliant smart contract on the Stacks blockchain must(/may?) implement these traits; 
+Every SIP-029 compliant smart contract on the Stacks blockchain must implement these traits;
 0. `transferable-functions`, defined in the [Transferable-Trait](#Transferable-Trait) section, 
 1. `operable-functions`, defined in the [Operable-Trait](#Operable-Trait) section, 
-2. `marketplace-functions`, defined in the [Marketplace-Trait-&-Commision-Trait](#Marketplace-Trait & Commision-Trait) section, 
-3. `commission-functions`, defined in the [Marketplace-Trait-&-Commision-Trait](#Marketplace-Trait & Commision-Trait) section,
+2. `marketplace-functions`, defined in the [Marketplace-Trait-and-Commision-Trait](#Marketplace-Trait-and-Commision-Trait) section, 
+3. `commission-functions`, defined in the [Marketplace-Trait-and-Commision-Trait](#Marketplace-Trait-and-Commision-Trait) section;
+
+And may implement this trait:
+4. `bulk-transfer-functions, defined in the [(Optional)-Bulk-Transfer-and-Send-Many-Functions](#(Optional)-Bulk-Transfer-and-Send-Many-Functions)
 and must meet the requirements for the following functions:
 
 ### Transferable-Trait function 1: Transfer
@@ -87,31 +90,39 @@ The function takes an amount or unique token identifier together with a principa
 
 This function must never return an error response. It can be defined as read-only, i.e. `define-read-only`.
 
-### Marketplace-Trait function 1: 
+### Marketplace-Trait function 1: List in token
 `(list-in-ustx (uint uint <commission-trait>) (response bool uint))`
 Werner: I think the discussion in https://github.com/stacksgov/sips/issues/51 landed on using a more generalized interface such as: 
 `(list-in-token (<transferable-trait> uint uint <commission-trait>) (response bool uint))`
 
-Explained in plain English...
+This function announces the listing to a global marketplace. This must return `(ok true)` on success, never `(ok false)` and it must send a list event.
 
-### Marketplace-Trait function 2: 
+The Function takes a transferable-trait, a token id or token amount to be listed and the third argument is the price it should be listed at, lastly the function takes the commission trait. 
+
+### Marketplace-Trait function 2: Unlist in token
 `(unlist-in-ustx (uint) (response bool uint))`
 or generalized 
 `(unlist-in-token (<transferable-trait> uint) (response bool uint))`
 
-Explained in plain English...
+This function announces the unlisting to a global marketplace. This must return `(ok true)` on success, never `(ok false)` and it must send a delist event.
 
-### Marketplace-Trait function 3: buy in tokens
-`(buy-in-ustx (uint <commission-trait>) (response bool uint))`
-or generalized
+The Function takes a transferable-trait, a token id or token amount to be unlisted.
+
+### Marketplace-Trait function 3: Buy in tokens and annonce delisting
 `(buy-in-token (<transferable-trait> uint <commission-trait>) (response bool uint))`
 
-...
+This function buys the listed token for the selling price and delists it. 
+
+This function takes transferable-trait and an amount of the token (selling price). Additionally the function takes a commission-trait as defined below it will dictate actions to happen after the sale (owner, artist, marketplace, etc. getting their share of the sale). 
+
+This function must be defined with define-public, as it alters state, and must be externally callable. The function must return `(ok true)` on success.
+
+Werner: Should this be explained here, I do not understand it: https://github.com/stacksgov/sips/issues/60#issuecomment-1050075826 . 
 
 ### Marketplace-Trait function 4: Get asset
 `(get-asset () (response {fq-contract: string, asset-class: string} uint))`
 
-...
+The is a read only function defining the asset. 
 
 
 ### Commision-Trait function:
@@ -124,7 +135,7 @@ The function takes
 
 It is recommended to use error codes from standardized list of codes and implement the function for converting the error codes to messages function that are defined in a separate SIP.
 
-## Transferable-trait
+## Transferable-Trait
 
 ```
 define-trait transferable
@@ -166,7 +177,7 @@ define-trait operable
         (is-approved (uint principal) (response bool uint))
 ```
 
-## Marketplace-Trait-&-Commision-Trait
+## Marketplace-Trait-and-Commision-Trait
 
 ```
 (use-trait commission-trait .commissions.trait)
@@ -210,6 +221,47 @@ define-trait operable
 )
 ```
 
+## (Optional)-Bulk-Transfer-and-Send-Many-Functions 
+--> Werner: Copied from: https://github.com/stacksgov/sips/pull/42/files (semi fungible standard) based on this comment:  https://github.com/stacksgov/sips/issues/52#issuecomment-984417659 (not sure if this was the intention if any adaptations are needed?) the uint after token id may need to be an optional because it can be a semifungible here or a non-fungible token. Should this be optional or an obligatory part of this sip?
+
+SIP029 functions can optionally implement the trait
+`sip029-send-many-trait` to offer a built-in "send-many" features for bulk token
+transfers. Adding this to the token contract itself may have runtime cost
+benefits as of Stacks 2.0. The send-many trait contains 2 additional functions.
+
+### Bulk transfers
+
+`(transfer-many ((transfers (list 200 {token-id: uint, amount: uint, sender: principal, recipient: principal}))) (response bool uint))`
+
+Transfer many tokens in one contract call. Each transfer should follow the exact
+same procedure as if it were an individual `transfer` call. The whole function
+call should fail with an `err` response if one of the transfers fails.
+
+### Bulk transfers with memos
+
+`(transfer-many-memo ((transfers (list 200 {token-id: uint, amount: uint, sender: principal, recipient: principal, memo: (buff 34)}))) (response bool uint))`
+
+Transfer many tokens in one contract call and emit a memo for each. This
+function follows the same procedure as `transfer-many` but will emit the memo
+contained in the tuple after each transfer. The whole function call should fail
+with an `err` response if one of the transfers fails.
+
+## Send-many trait definition
+
+A definition of the optional send-many trait is provided below.
+
+```clarity
+(define-trait sip029-transfer-many-trait
+	(
+		;; Transfer many tokens at once.
+		(transfer-many ((list 200 {token-id: uint, amount: uint, sender: principal, recipient: principal})) (response bool uint))
+		;; Transfer many tokens at once with memos.
+		(transfer-many-memo ((list 200 {token-id: uint, amount: uint, sender: principal, recipient: principal, memo: (buff 34)})) (response bool uint))
+	)
+)
+```
+
+
 ## Security
 As `commission-traits` can call any functions in the name of the tx-sender, it is important that a web app only offers commission contracts that are well understood. In particular, appropriate post-conditions have to be created.
 
@@ -245,47 +297,18 @@ The Stacks blockchain includes a feature known as "Post-Conditions" or "Constrai
 
 For example, when applications call the `transfer` function, they should _always_ use post conditions to specify that the new owner of the NFT is the recipient principal in the `transfer` function call.
 
-# Optional send-many specification
---> Werner: Copied from: https://github.com/stacksgov/sips/pull/42/files (semi fungible standard) based on this comment:  https://github.com/stacksgov/sips/issues/52#issuecomment-984417659 (not sure if this was the intention if any adaptations are needed?) the uint after token id may need to be an optional because it can be a semifungible here or a non-fungible token. Should this be optional or an obligatory part of this sip?
 
-SIP029 functions can be can optionally implement the trait
-`sip029-send-many-trait` to offer a built-in "send-many" features for bulk token
-transfers. Adding this to the token contract itself may have runtime cost
-benefits as of Stacks 2.0. The send-many trait contains 2 additional functions.
+From: https://github.com/stacksgov/sips/issues/60#issuecomment-1050196178
+friedger commented on Feb 24
 
-## Send-many functions
+How do you build post conditions for these txs if they can transfer either STXs or FTs?
+@LNow
+Author
+LNow commented on Feb 24
 
-### Bulk transfers
+The same way Alex/Arkadiko/Stackswaps are doing it. Based on token address user picked on the UI. With one additional if statement.
+If user choose wrapped stx -> STX post-condition, otherwise -> FT post-condition.
 
-`(transfer-many ((transfers (list 200 {token-id: uint, amount: uint, sender: principal, recipient: principal}))) (response bool uint))`
-
-Transfer many tokens in one contract call. Each transfer should follow the exact
-same procedure as if it were an individual `transfer` call. The whole function
-call should fail with an `err` response if one of the transfers fails.
-
-### Bulk transfers with memos
-
-`(transfer-many-memo ((transfers (list 200 {token-id: uint, amount: uint, sender: principal, recipient: principal, memo: (buff 34)}))) (response bool uint))`
-
-Transfer many tokens in one contract call and emit a memo for each. This
-function follows the same procedure as `transfer-many` but will emit the memo
-contained in the tuple after each transfer. The whole function call should fail
-with an `err` response if one of the transfers fails.
-
-## Send-many trait definition
-
-A definition of the optional send-many trait is provided below.
-
-```clarity
-(define-trait sip029-transfer-many-trait
-	(
-		;; Transfer many tokens at once.
-		(transfer-many ((list 200 {token-id: uint, amount: uint, sender: principal, recipient: principal})) (response bool uint))
-		;; Transfer many tokens at once with memos.
-		(transfer-many-memo ((list 200 {token-id: uint, amount: uint, sender: principal, recipient: principal, memo: (buff 34)})) (response bool uint))
-	)
-)
-```
 
 
 # Related Work
@@ -317,9 +340,15 @@ Marketplace function
 https://github.com/stacksgov/sips/issues/51
 Generalized marketplace function (list-in-token vs. list-in-ustx)
 https://github.com/stacksgov/sips/issues/51#issuecomment-1151670018
+implementation 1: https://github.com/radicleart/clarity-market/blob/main/projects/risidio/indige/contracts/indige.clar
+implementation 2: ?
 Optional send-many trait (from SIP013 semi-fungible token)
 https://github.com/stacksgov/sips/pull/42/files
 
 Examples of commission contracts
+SIP010 commision: https://github.com/radicleart/clarity-market/blob/main/projects/risidio/indige/contracts/commission-sip10-nop.clar
 Simple fixed fee: `?`
 Auction contract: `?`
+
+Example Wrapped stx contract (defines STX as SIP010 token)
+https://github.com/radicleart/clarity-market/blob/main/projects/risidio/indige/contracts/wrapped-stx.clar
