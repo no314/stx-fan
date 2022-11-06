@@ -91,8 +91,6 @@ The function takes an amount or unique token identifier together with a principa
 This function must never return an error response. It can be defined as read-only, i.e. `define-read-only`.
 
 ### Marketplace-Trait function 1: List in token
-`(list-in-ustx (uint uint <commission-trait>) (response bool uint))`
-Werner: I think the discussion in https://github.com/stacksgov/sips/issues/51 landed on using a more generalized interface such as: 
 `(list-in-token (<transferable-trait> uint uint <commission-trait>) (response bool uint))`
 
 This function announces the listing to a global marketplace. This must return `(ok true)` on success, never `(ok false)` and it must send a list event.
@@ -100,8 +98,6 @@ This function announces the listing to a global marketplace. This must return `(
 The Function takes a transferable-trait, a token id or token amount to be listed and the third argument is the price it should be listed at, lastly the function takes the commission trait. 
 
 ### Marketplace-Trait function 2: Unlist in token
-`(unlist-in-ustx (uint) (response bool uint))`
-or generalized 
 `(unlist-in-token (<transferable-trait> uint) (response bool uint))`
 
 This function announces the unlisting to a global marketplace. This must return `(ok true)` on success, never `(ok false)` and it must send a delist event.
