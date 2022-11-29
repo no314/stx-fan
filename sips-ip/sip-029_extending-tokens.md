@@ -52,7 +52,7 @@ Every SIP-029 compliant smart contract on the Stacks blockchain must implement t
 
 And may implement this trait:
 
-A. `bulk-transfer-functions`, defined in the [(Optional)-Bulk-Transfer-and-Send-Many-Functions](#(Optional)-Bulk-Transfer-and-Send-Many-Functions)
+5. `bulk-transfer-functions`, defined in the [(Optional)-Bulk-Transfer-and-Send-Many-Functions](#(Optional)-Bulk-Transfer-and-Send-Many-Functions)
 and must meet the requirements for the following functions:
 
 ### Transferable-Trait function 1: Transfer
