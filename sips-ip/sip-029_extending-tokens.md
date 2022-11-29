@@ -50,7 +50,7 @@ Every SIP-029 compliant smart contract on the Stacks blockchain must implement t
 3. `commission-functions`, defined in the [Marketplace-Trait-and-Commision-Trait](#Marketplace-Trait-and-Commision-Trait) section;
 
 And may implement this trait:
-4. `bulk-transfer-functions, defined in the [(Optional)-Bulk-Transfer-and-Send-Many-Functions](#(Optional)-Bulk-Transfer-and-Send-Many-Functions)
+4. `bulk-transfer-functions`, defined in the [(Optional)-Bulk-Transfer-and-Send-Many-Functions](#(Optional)-Bulk-Transfer-and-Send-Many-Functions)
 and must meet the requirements for the following functions:
 
 ### Transferable-Trait function 1: Transfer
