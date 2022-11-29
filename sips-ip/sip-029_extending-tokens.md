@@ -44,13 +44,15 @@ Werner: add something about the transferable-trait functions and how they comple
 # Specification
 
 Every SIP-029 compliant smart contract on the Stacks blockchain must implement these traits;
-0. `transferable-functions`, defined in the [Transferable-Trait](#Transferable-Trait) section, 
-1. `operable-functions`, defined in the [Operable-Trait](#Operable-Trait) section, 
-2. `marketplace-functions`, defined in the [Marketplace-Trait-and-Commision-Trait](#Marketplace-Trait-and-Commision-Trait) section, 
-3. `commission-functions`, defined in the [Marketplace-Trait-and-Commision-Trait](#Marketplace-Trait-and-Commision-Trait) section;
+
+1. `transferable-functions`, defined in the [Transferable-Trait](#Transferable-Trait) section, 
+2. `operable-functions`, defined in the [Operable-Trait](#Operable-Trait) section, 
+3. `marketplace-functions`, defined in the [Marketplace-Trait-and-Commision-Trait](#Marketplace-Trait-and-Commision-Trait) section, 
+4. `commission-functions`, defined in the [Marketplace-Trait-and-Commision-Trait](#Marketplace-Trait-and-Commision-Trait) section;
 
 And may implement this trait:
-4. `bulk-transfer-functions`, defined in the [(Optional)-Bulk-Transfer-and-Send-Many-Functions](#(Optional)-Bulk-Transfer-and-Send-Many-Functions)
+
+A. `bulk-transfer-functions`, defined in the [(Optional)-Bulk-Transfer-and-Send-Many-Functions](#(Optional)-Bulk-Transfer-and-Send-Many-Functions)
 and must meet the requirements for the following functions:
 
 ### Transferable-Trait function 1: Transfer
