@@ -167,9 +167,11 @@ It is recommended to marketplaces to do the following if a user lists something 
 Some examples of how the user would be informed as displayed in December 2022 on Gamma.io and Tradeport.xyz:
 
 **Example 1 tradeport.xyz**
+
 ![image](https://user-images.githubusercontent.com/33360391/208997197-61111244-b597-46fd-9c08-559550a127aa.png)
 
 **Example 2 gamma.io**
+
 ![image](https://user-images.githubusercontent.com/33360391/208997558-6dcbdef7-692f-4b41-b7eb-df429c3cfead.png)
 
 ### Recommendations for error codes
