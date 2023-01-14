@@ -217,8 +217,6 @@ A trait that follows this specification is available on mainnet as: `to add late
 # Alternative for consideration
 Instead of unified trait to allow the use of SIP010, SIP009 and SIP013 tokens for purchase have two traits one for SIP009 and SIP010 and the other for SIP013. This would eleviate the need for a uint that is ignored when using SIP009 and SIP010 but is required for using SIP013 tokens as one would have to define both a token identifier and an amount.
 
-## one trait for FT's and NFT's
-
 ```
 (use-trait commission-trait .commissions.trait)
 (define-trait marketplace
@@ -262,9 +260,6 @@ Instead of unified trait to allow the use of SIP010, SIP009 and SIP013 tokens fo
     )
 )
 ```
-
-## one trait for SFT's
-you want to support SFT on both sides? token listed, and token being payed with? I don't see the point buying with anything other then STX really.
 
 # Reference Implementations list-in-ustx
 
