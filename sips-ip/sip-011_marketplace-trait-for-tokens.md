@@ -177,9 +177,13 @@ Some examples of how the user would be informed as displayed in December 2022 on
 From Friedger 2022: https://github.com/stacksgov/sips/issues/60#issuecomment-1048832083
 
 unsupported token: u500
+
 insufficient balance: u103
+
 not authorized to mint: u403
+
 not authorized to buy: u413 (added by Werner)
+
 
 # Using NFTs in applications
 
