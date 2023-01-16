@@ -1,10 +1,11 @@
 # Preamble
 
-SIP Number: 011
+SIP Number: 022
 
-Title: Standard for non-custodial Marketplace traits
+Title: Standard for generalized non-custodial Marketplace traits
 https://github.com/stacksgov/sips/issues/51#issuecomment-1151670018
 https://github.com/stacksgov/sips/issues/52
+
 
 Authors: werner.btc (werner at stx.fan), Friedger, Mike, Jason and Jamil.
 
@@ -14,7 +15,7 @@ Type: Standard
 
 Status: draft
 
-Created: 31 December 2022
+Created: 10 January 2023
 
 License: CC0-1.0
 
@@ -47,10 +48,12 @@ Every SIP-011 compliant smart contract on the Stacks blockchain must implement t
 1. `marketplace-functions`, defined in the [Marketplace-Trait-and-Commision-Trait](#Marketplace-Trait-and-Commision-Trait) section,
 2. `commission-functions`, defined in the [Marketplace-Trait-and-Commision-Trait](#Marketplace-Trait-and-Commision-Trait) section;
 
-Optionally seperate out royalties, as in the reference?
+Optionally seperate out royalties from commission, as suggested by Jamil?
 3. royalties?
-4. transferable trait (when not listing in uSTX but another SIP010 or SIP013 token)
 
+Note: Not sure about "transferrable trait" instead of token-trait-buy?
+
+\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\ to be updated later \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
 ### Marketplace-Trait function 1: List in token
 `(list-in-token (<transferable-trait> uint uint <commission-trait>) (response bool uint))`
 
@@ -92,6 +95,8 @@ The function takes
 
 It is recommended to use error codes from standardized list of codes and implement the function for converting the error codes to messages function that are defined in a separate SIP.
 
+/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+
 ## Marketplace-Trait-and-Commision-Trait
 Adapted based on most recent discussion here by Friedger and Jamil dec 2022: https://github.com/stacksgov/sips/issues/92#issuecomment-1359529405
 
@@ -102,28 +107,31 @@ Adapted based on most recent discussion here by Friedger and Jamil dec 2022: htt
         ;; announce listing to global marketplace
         ;; must return `(ok true)` on success, never `(ok false)`
         ;; must send a list event
-        ;; @param id; identifier of NFT or SFT (ignored if <token-trait> = FT)
-        ;; @param amount; amount of FT or SFT (ignored if <token-trait> = NFT)
-        ;; @param; token-trait
-        ;; @param price: of sale in smallest denomination of the token defined by <token-trait>
+        ;; @param; token-trait-sell (of token(s) to list)
+        ;; @param id (to list); identifier of NFT or SFT (ignored if <token-trait-sell> = FT)
+        ;; @param amount (to list); amount of FT or SFT (ignored if <token-trait-sell> = NFT)
+        ;; @param; token-trait-buy (to buy with)
+        ;; @param token-id; identifier of NFT or SFT to list for (ignored if <token-trait-buy> = FT)
+        ;; @param price(amount): of sale in smallest denomination of the token defined by <token-trait-buy> (ignored if <token-trait-buy> = NFT)
         ;; @param commission: action to happen after sale
-        (list-in-token (uint <token-trait> uint uint <commission-trait>) (response bool uint))
+        (list-in-token (<token-trait-sell> uint uint <token-trait-buy> uint uint <commission-trait>) (response bool uint))
 
         ;; announce delisting to global marketplace
         ;; must return `(ok true)` on success, never `(ok false)`
         ;; must send a delist event
-        ;; @param id; identifier of NFT or SFT (ignored if <token-trait> = FT)
-        ;; @param amount; amount of FT or SFT (ignored if <token-trait> = NFT) (note: you can also list FT's on a global marketplace)
+        ;; @param id; identifier of NFT or SFT (ignored if <token-trait-sell> = FT)
+        ;; @param amount; amount of FT or SFT (ignored if <token-trait-sell> = NFT) (note: you can also list FT's on a global marketplace)
         (unlist-in-token (uint uint) (response bool uint))
 
         ;; buy and announce delisting to global marketplace
         ;; must return `(ok true)` on success, never `(ok false)`
         ;; commission must match the one set during listing
         ;; must send a delist event
-        ;; @param id; identifier of NFT or SFT (ignored if )
-        ;; @param amount; amount of SFTs (Werner: to support buying SFT's you'd want to add two uints here too)
+        ;; @param; token-trait-buy (token to buy with)
+        ;; @param id; identifier of NFT or SFT (ignored if FT)
+        ;; @param amount; amount of FT or SFT (ignored if NFT)
         ;; @param commission: action to happen after sale        
-        (buy-in-token (uint uint  '<commission-trait>') (response bool uint))
+        (buy-in-token (<token-trait-buy> uint uint '<commission-trait>') (response bool uint))
 
         ;; read-only function defining the asset
         (get-asset () (response {fq-contract: string, asset-class: string} uint))
@@ -134,10 +142,12 @@ Adapted based on most recent discussion here by Friedger and Jamil dec 2022: htt
     (
         ;; additional action after a sale happened, usually a fee transfer for marketplaces
         ;; must return `(ok true)` on success, never `(ok false)`
-        ;; @param id; identifier of NFT
-        ;; @param; token trait
-        ;; @param price: of sale in smallest denomination of the token
-        (pay (uint <token-trait> uint) (response bool uint))
+        ;; @param id; identifier of NFT or SFT (ignored if FT)
+        ;; @param amount; amount of FT or SFT (ignored if NFT)
+        ;; @param; token-trait-buy
+        ;; @param token-id; identifier of NFT or SFT sold for (ignored if <token-trait-buy> = FT)
+        ;; @param price(amount): of sale in smallest denomination of the token defined by <token-trait-buy> (ignored if <token-trait-buy> = NFT)
+        (pay (uint uint <token-trait-buy> uint uint) (response bool uint)) (Note: when buying with SFT's or an NFT, how to fractonalise for commissions if at all? standard rounding down to whole tokens? commissions in STX or no commissions, subscriptions instead?)
     )
 )
 ```
@@ -273,318 +283,12 @@ This SIP is activated after if there are no objections within the community befo
 
 A trait that follows this specification is available on mainnet as: `to add later`
 
-# Alternative for consideration
+# Alternative considered
 Instead of unified trait to allow the use of SIP010, SIP009 and SIP013 tokens for purchase have two traits one for SIP009 and SIP010 and the other for SIP013. This would eleviate the need for a uint that is ignored when using SIP009 and SIP010 but is required for using SIP013 tokens as one would have to define both a token identifier and an amount.
-
-## one trait for FT's and NFT's
-
-```
-(use-trait commission-trait .commissions.trait)
-(define-trait marketplace
-    (
-        ;; announce listing to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; must send a list event
-        ;; @param id; identifier of NFT or amount of FTs
-        ;; @param; token-trait
-        ;; @param price: of sale in micro STX
-        ;; @param commission: action to happen after sale
-        (list-in-token (uint <token-trait> uint <commission-trait>) (response bool uint))
-
-        ;; announce delisting to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; must send a delist event
-        ;; @param id; identifier of NFT or amount of FTs
-        (unlist-in-token (uint) (response bool uint))
-
-        ;; buy and announce delisting to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; commission must match the one set during listing
-        ;; must send a delist event
-        ;; @param id; identifier of NFT or amount of FTs
-        ;; @param commission: action to happen after sale        
-        (buy-in-token (uint  '<commission-trait>') (response bool uint))
-
-        ;; read-only function defining the asset
-        (get-asset () (response {fq-contract: string, asset-class: string} uint))
-    )
-)
-
-(define-trait commission
-    (
-        ;; additional action after a sale happened, usually a fee transfer for marketplaces
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; @param id; identifier of NFT
-        ;; @param; token trait
-        ;; @param price: of sale in micro STX
-        (pay (uint <token-trait> uint) (response bool uint))
-    )
-)
-```
-
-## one trait for SFT's
-you want to support SFT on both sides? token listed, and token being payed with? I don't see the point buying with anything other then STX really.
-
-```
-(use-trait commission-trait .commissions.trait)
-(define-trait marketplace
-    (
-        ;; announce listing to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; must send a list event
-        ;; @param id; identifier of SFT
-        ;; @param amount; amount of SFT 
-        ;; @param; token-trait
-        ;; @param price: of sale in smallest denomination of the token defined by <token-trait>
-        ;; @param commission: action to happen after sale
-        (list-in-token (uint <token-trait> uint uint <commission-trait>) (response bool uint))
-
-        ;; announce delisting to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; must send a delist event
-        ;; @param id; identifier of NFT or amount of FTs
-        (unlist-in-token (uint) (response bool uint))
-
-        ;; buy and announce delisting to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; commission must match the one set during listing
-        ;; must send a delist event
-        ;; @param id; identifier of SFT
-        ;; @param amount; amount of SFTs (Werner: to support buying SFT's you'd want to add two uints here too)
-        ;; @param commission: action to happen after sale        
-        (buy-in-token (uint uint  '<commission-trait>') (response bool uint))
-
-        ;; read-only function defining the asset
-        (get-asset () (response {fq-contract: string, asset-class: string} uint))
-    )
-)
-
-(define-trait commission
-    (
-        ;; additional action after a sale happened, usually a fee transfer for marketplaces
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; @param id; identifier of NFT
-        ;; Werner: (should we add support for SFT here too (so both id and amount?)
-        ;; @param; token trait
-        ;; @param price: of sale in smallest denomination of the token
-        (pay (uint <token-trait> uint) (response bool uint))
-    )
-)
-```
-
-# Reference Implementations list-in-ustx
-
-As used by gamma.io when deploying a contract via their Create flow.
-
-`;; awesome-saus-1
-;; contractType: continuous
-
-(impl-trait 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.nft-trait)
-;;(impl-trait .nft-trait.nft-trait)
-
-(define-non-fungible-token awesome-saus-1 uint)
-
-(define-constant DEPLOYER tx-sender)
-
-(define-constant ERR-NOT-AUTHORIZED u101)
-(define-constant ERR-INVALID-USER u102)
-(define-constant ERR-LISTING u103)
-(define-constant ERR-WRONG-COMMISSION u104)
-(define-constant ERR-NOT-FOUND u105)
-(define-constant ERR-NFT-MINT u106)
-(define-constant ERR-CONTRACT-LOCKED u107)
-(define-constant ERR-METADATA-FROZEN u111)
-(define-constant ERR-INVALID-PERCENTAGE u114)
-
-(define-data-var last-id uint u0)
-(define-data-var artist-address principal 'SP...)
-(define-data-var locked bool false)
-(define-data-var metadata-frozen bool false)
-
-(define-map cids uint (string-ascii 64))
-
-(define-public (lock-contract)
-  (begin
-    (asserts! (or (is-eq tx-sender (var-get artist-address)) (is-eq tx-sender DEPLOYER)) (err ERR-NOT-AUTHORIZED))
-    (var-set locked true)
-    (ok true)))
-
-(define-public (set-artist-address (address principal))
-  (begin
-    (asserts! (or (is-eq tx-sender (var-get artist-address)) (is-eq tx-sender DEPLOYER)) (err ERR-INVALID-USER))
-    (ok (var-set artist-address address))))
-
-(define-public (burn (token-id uint))
-  (begin
-    (asserts! (is-owner token-id tx-sender) (err ERR-NOT-AUTHORIZED))
-    (asserts! (is-none (map-get? market token-id)) (err ERR-LISTING))
-    (nft-burn? awesome-saus-1 token-id tx-sender)))
-
-(define-public (set-token-uri (hash (string-ascii 64)) (token-id uint))
-  (begin
-    (asserts! (or (is-eq tx-sender (var-get artist-address)) (is-eq tx-sender DEPLOYER)) (err ERR-NOT-AUTHORIZED))
-    (asserts! (not (var-get metadata-frozen)) (err ERR-METADATA-FROZEN))
-    (print { notification: "token-metadata-update", payload: { token-class: "nft", token-ids: (list token-id), contract-id: (as-contract tx-sender) }})
-    (map-set cids token-id hash)
-    (ok true)))
-
-(define-public (freeze-metadata)
-  (begin
-    (asserts! (or (is-eq tx-sender (var-get artist-address)) (is-eq tx-sender DEPLOYER)) (err ERR-NOT-AUTHORIZED))
-    (var-set metadata-frozen true)
-    (ok true)))
-
-(define-private (is-owner (token-id uint) (user principal))
-    (is-eq user (unwrap! (nft-get-owner? awesome-saus-1 token-id) false)))
-
-(define-public (transfer (id uint) (sender principal) (recipient principal))
-  (begin
-    (asserts! (is-eq tx-sender sender) (err ERR-NOT-AUTHORIZED))
-    (asserts! (is-none (map-get? market id)) (err ERR-LISTING))
-    (trnsfr id sender recipient)))
-
-(define-read-only (get-owner (token-id uint))
-  (ok (nft-get-owner? awesome-saus-1 token-id)))
-
-(define-read-only (get-last-token-id)
-  (ok (var-get last-id)))
-
-(define-read-only (get-token-uri (token-id uint))
-  (ok (some (concat "ipfs://" (unwrap-panic (map-get? cids token-id))))))
-
-(define-read-only (get-artist-address)
-  (ok (var-get artist-address)))
-
-(define-public (claim (uris (list 25 (string-ascii 64))))
-  (mint-many uris))
-
-(define-private (mint-many (uris (list 25 (string-ascii 64))))
-  (let
-    (
-      (token-id (+ (var-get last-id) u1))
-      (art-addr (var-get artist-address))
-      (id-reached (fold mint-many-iter uris token-id))
-      (current-balance (get-balance tx-sender))
-    )
-    (asserts! (or (is-eq tx-sender DEPLOYER) (is-eq tx-sender art-addr)) (err ERR-NOT-AUTHORIZED))
-    (asserts! (is-eq (var-get locked) false) (err ERR-CONTRACT-LOCKED))
-    (var-set last-id (- id-reached u1))
-    (map-set token-count tx-sender (+ current-balance (- id-reached token-id)))
-    (ok id-reached)))
-
-(define-private (mint-many-iter (hash (string-ascii 64)) (next-id uint))
-  (begin
-    (unwrap! (nft-mint? awesome-saus-1 next-id tx-sender) next-id)
-    (map-set cids next-id hash)
-    (+ next-id u1)))
-
-;; NON-CUSTODIAL FUNCTIONS START
-(use-trait commission-trait 'SP3D6PV2ACBPEKYJTCMH7HEN02KP87QSP8KTEH335.commission-trait.commission)
-
-(define-map token-count principal uint)
-(define-map market uint {price: uint, commission: principal, royalty: uint})
-
-(define-read-only (get-balance (account principal))
-  (default-to u0
-    (map-get? token-count account)))
-
-(define-private (trnsfr (id uint) (sender principal) (recipient principal))
-  (match (nft-transfer? awesome-saus-1 id sender recipient)
-    success
-      (let
-        ((sender-balance (get-balance sender))
-        (recipient-balance (get-balance recipient)))
-          (map-set token-count
-            sender
-            (- sender-balance u1))
-          (map-set token-count
-            recipient
-            (+ recipient-balance u1))
-          (ok success))
-    error (err error)))
-
-(define-private (is-sender-owner (id uint))
-  (let ((owner (unwrap! (nft-get-owner? awesome-saus-1 id) false)))
-    (or (is-eq tx-sender owner) (is-eq contract-caller owner))))
-
-(define-read-only (get-listing-in-ustx (id uint))
-  (map-get? market id))
-
-(define-public (list-in-ustx (id uint) (price uint) (comm-trait <commission-trait>))
-  (let ((listing  {price: price, commission: (contract-of comm-trait), royalty: (var-get royalty-percent)}))
-    (asserts! (is-sender-owner id) (err ERR-NOT-AUTHORIZED))
-    (map-set market id listing)
-    (print (merge listing {a: "list-in-ustx", id: id}))
-    (ok true)))
-
-(define-public (unlist-in-ustx (id uint))
-  (begin
-    (asserts! (is-sender-owner id) (err ERR-NOT-AUTHORIZED))
-    (map-delete market id)
-    (print {a: "unlist-in-ustx", id: id})
-    (ok true)))
-
-(define-public (buy-in-ustx (id uint) (comm-trait <commission-trait>))
-  (let ((owner (unwrap! (nft-get-owner? awesome-saus-1 id) (err ERR-NOT-FOUND)))
-      (listing (unwrap! (map-get? market id) (err ERR-LISTING)))
-      (price (get price listing))
-      (royalty (get royalty listing)))
-    (asserts! (is-eq (contract-of comm-trait) (get commission listing)) (err ERR-WRONG-COMMISSION))
-    (try! (stx-transfer? price tx-sender owner))
-    (try! (pay-royalty price royalty))
-    (try! (contract-call? comm-trait pay id price))
-    (try! (trnsfr id owner tx-sender))
-    (map-delete market id)
-    (print {a: "buy-in-ustx", id: id})
-    (ok true)))
-
-(define-data-var royalty-percent uint u500)
-
-(define-read-only (get-royalty-percent)
-  (ok (var-get royalty-percent)))
-
-(define-public (set-royalty-percent (royalty uint))
-  (begin
-    (asserts! (or (is-eq tx-sender (var-get artist-address)) (is-eq tx-sender DEPLOYER)) (err ERR-INVALID-USER))
-    (asserts! (and (>= royalty u0) (<= royalty u1000)) (err ERR-INVALID-PERCENTAGE))
-    (ok (var-set royalty-percent royalty))))
-
-(define-private (pay-royalty (price uint) (royalty uint))
-  (let (
-    (royalty-amount (/ (* price royalty) u10000))
-  )
-  (if (and (> royalty-amount u0) (not (is-eq tx-sender (var-get artist-address))))
-    (try! (stx-transfer? royalty-amount tx-sender (var-get artist-address)))
-    (print false)
-  )
-  (ok true)))
-
-;; NON-CUSTODIAL FUNCTIONS END
-
-(var-set last-id u0)
-
-(define-data-var license-uri (string-ascii 80) "https://arweave.net/zmc1WTspIhFyVY82bwfAIcIExLFH5lUcHHUN0wXg4W8/0")
-(define-data-var license-name (string-ascii 40) "PUBLIC")
-
-(define-read-only (get-license-uri)
-  (ok (var-get license-uri)))
-  
-(define-read-only (get-license-name)
-  (ok (var-get license-name)))
-  
-(define-public (set-license-uri (uri (string-ascii 80)))
-  (begin
-    (asserts! (or (is-eq tx-sender (var-get artist-address)) (is-eq tx-sender DEPLOYER)) (err ERR-NOT-AUTHORIZED))
-    (ok (var-set license-uri uri))))
-
-(define-public (set-license-name (name (string-ascii 40)))
-  (begin
-    (asserts! (or (is-eq tx-sender (var-get artist-address)) (is-eq tx-sender DEPLOYER)) (err ERR-NOT-AUTHORIZED))
-    (ok (var-set license-name name))))`
 
 # Reference Implementations list-in-token 
 
-
+To be developed
 
 ## Source code
 
@@ -602,6 +306,7 @@ Examples of commission contracts
 SIP010 commision: https://github.com/radicleart/clarity-market/blob/main/projects/risidio/indige/contracts/commission-sip10-nop.clar
 Simple fixed fee: `?`
 Auction contract: `?`
+Marketplace commission and royalties split: gamma.io example
 
 Example Wrapped stx contract (defines STX as SIP010 token)
 https://github.com/radicleart/clarity-market/blob/main/projects/risidio/indige/contracts/wrapped-stx.clar
