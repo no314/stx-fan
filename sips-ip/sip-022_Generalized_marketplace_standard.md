@@ -1,6 +1,6 @@
 # Preamble
 
-SIP Number: 022
+SIP Number: 022?
 
 Title: Standard for generalized non-custodial Marketplace traits
 https://github.com/stacksgov/sips/issues/51#issuecomment-1151670018
