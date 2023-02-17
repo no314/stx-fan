@@ -3,8 +3,6 @@
 SIP Number: 011
 
 Title: Standard for non-custodial Marketplace traits
-https://github.com/stacksgov/sips/issues/51#issuecomment-1151670018
-https://github.com/stacksgov/sips/issues/52
 
 Authors: werner.btc (werner at stx.fan), Friedger, Mike, Jason and Jamil.
 
@@ -55,25 +53,23 @@ Optionally seperate out royalties, as in the reference?
 
 This function announces the listing to a global marketplace. This must return `(ok true)` on success, never `(ok false)` and it must send a list event.
 
-The Function takes a token id or token amount to be listed and the third argument is the price in uSTX (millionth of a STX) it should be listed at, lastly the function takes the commission trait. 
+The Function takes a token id or token amount to be listed and the third argument is the price in uSTX (millionth of a STX) it should be listed at, lastly the function takes the commission trait.
 
 ### Marketplace-Trait function 2: Unlist in ustx
 `(unlist-in-ustx (uint) (response bool uint))`
 
-This function announces the unlisting to a global marketplace. This must return `(ok true)` on success, never `(ok false)` and it must send a delist event.
+This function announces the unlisting to a global marketplace. This must return `(ok true)` on success, never `(ok false)` and it must send a unlist event.
 
-The Function takes a transferable-trait, a token id or token amount to be unlisted.
+The Function takes a token id or token amount to be unlisted.
 
-### Marketplace-Trait function 3: Buy in ustx and annonce delisting
+### Marketplace-Trait function 3: Buy in ustx and annonce unlisting
 `(buy-in-ustx (uint <commission-trait>) (response bool uint))`
 
-This function buys the listed token for the selling price and delists it.
+This function buys the listed token for the selling price and unlists it.
 
-This function takes an amount of the token (selling price). Additionally the function takes a commission-trait as defined below it will dictate actions to happen after the sale (owner, artist, marketplace, etc. getting their share of the sale). 
+This function takes an amount of the token (selling price). Additionally the function takes a commission-trait as defined below it will dictate actions to happen after the sale (owner, artist, marketplace, etc. getting their share of the sale).
 
-This function must be defined with define-public, as it alters state, and must be externally callable. The function must return `(ok true)` on success.
-
-Werner: Should this be explained here, I do not understand it: https://github.com/stacksgov/sips/issues/60#issuecomment-1050075826 .
+This function must be defined with define-public, as it alters state, and must be externally callable. The function must return `(ok true)` on success, never `(ok false)`.
 
 ### Marketplace-Trait function 4: Get asset
 `(get-asset () (response {fq-contract: string, asset-class: string} uint))`
@@ -84,9 +80,11 @@ The is a read only function defining the asset.
 ### Commision-Trait function:
 `(pay (uint uint) (response bool uint))`
 
-An additional action after the marketplace sale happened. Usually a token transfer (fee) to the marketplace.
+An additional action after the marketplace sale happened. Usually a token transfer to the marketplace.
 
-The function takes an identifier of an NFT and an amount in uSTX. The functioni must return `(ok true)` on success, never `(ok false)`
+The function takes an identifier of an NFT and and the price in micro STX (uSTX). The function must return `(ok true)` on success, never `(ok false)`
+
+Optionally seperate out royalties, as in the reference: See from line 440.
 
 It is recommended to use error codes from standardized list of codes and implement the function for converting the error codes to messages function that are defined in a separate SIP.
 
@@ -96,40 +94,20 @@ It is recommended to use error codes from standardized list of codes and impleme
 (use-trait commission-trait .commisions.trait)
 (define-trait marketplace
     (
-        ;; announce listing to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; must send a list event
-        ;; @param id; identifier of NFT or amount of FTs
-        ;; @param price: of sale in micro STX
-        ;; @param commission: action to happen after sale
+
         (list-in-ustx (uint uint <commission-trait>) (response bool uint))
 
-        ;; announce delisting to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; must send a delist event
-        ;; @param id; identifier of NFT or amount of FTs
         (unlist-in-ustx (uint) (response bool uint))
 
-        ;; buy and announce delisting to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; commission must match the one set during listing
-        ;; must send a delist event
-        ;; @param id; identifier of NFT or amount of FTs
-        ;; @param commission: action to happen after sale        
         (buy-in-ustx (uint  <commission-trait>) (response bool uint))
 
-        ;; read-only function defining the asset
         (get-asset () (response {fq-contract: string, asset-class: string} uint))
+
     )
 )
 
-
 (define-trait commission
     (
-        ;; additional action after a sale happened, usually a fee transfer for marketplaces
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; @param id; identifier of NFT
-        ;; @param price: of sale in micro STX
         (pay (uint uint) (response bool uint))
     )
 )
@@ -154,6 +132,7 @@ The native asset functions include:
 - `nft-transfer?`
 
 The following requirements for using native asset functions are defined:
+
 ### Transfer
 
 If the `transfer` function is called from a client without a [post-condition](https://docs.blockstack.org/understand-stacks/transactions#post-conditions) in deny mode or without any NFT condition about a changed owner, then the function call must fail with `abort_by_post_condition`.
@@ -184,8 +163,7 @@ insufficient balance: u103
 
 not authorized to mint: u403
 
-not authorized to buy: u413 (added by Werner)
-
+Werner: Are there other recommendations for error codes? What are Gamma.io and Tradeport.xyz currently using?
 
 # Using NFTs in applications
 
@@ -216,56 +194,13 @@ Not applicable
 
 # Activation
 
-This SIP is considered activated after no objections within the community before Bitcoin tip #800,000. There are already 20 or more contracts that have been deployed to mainnet that have implemented this standard. It only aims to formalize it through this SIP.
+This SIP is considered activated after no objections within the community before Bitcoin tip #800,000. There are already over 20 contracts deployed to mainnet that have implemented this standard. The aim with this document is to formalize it through this SIP.
 
 A trait that follows this specification is available on mainnet as: `to add later`
 
 # Alternative for consideration
 Instead of unified trait to allow the use of SIP010, SIP009 and SIP013 tokens for purchase have two traits one for SIP009 and SIP010 and the other for SIP013. This would eleviate the need for a uint that is ignored when using SIP009 and SIP010 but is required for using SIP013 tokens as one would have to define both a token identifier and an amount.
 
-```
-(use-trait commission-trait .commissions.trait)
-(define-trait marketplace
-    (
-        ;; announce listing to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; must send a list event
-        ;; @param id; identifier of NFT or amount of FTs
-        ;; @param; token-trait
-        ;; @param price: of sale in micro STX
-        ;; @param commission: action to happen after sale
-        (list-in-token (uint <token-trait> uint <commission-trait>) (response bool uint))
-
-        ;; announce delisting to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; must send a delist event
-        ;; @param id; identifier of NFT or amount of FTs
-        (unlist-in-token (uint) (response bool uint))
-
-        ;; buy and announce delisting to global marketplace
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; commission must match the one set during listing
-        ;; must send a delist event
-        ;; @param id; identifier of NFT or amount of FTs
-        ;; @param commission: action to happen after sale        
-        (buy-in-token (uint  '<commission-trait>') (response bool uint))
-
-        ;; read-only function defining the asset
-        (get-asset () (response {fq-contract: string, asset-class: string} uint))
-    )
-)
-
-(define-trait commission
-    (
-        ;; additional action after a sale happened, usually a fee transfer for marketplaces
-        ;; must return `(ok true)` on success, never `(ok false)`
-        ;; @param id; identifier of NFT
-        ;; @param; token trait
-        ;; @param price: of sale in micro STX
-        (pay (uint <token-trait> uint) (response bool uint))
-    )
-)
-```
 
 # Reference Implementations list-in-ustx
 
@@ -483,7 +418,7 @@ As used by gamma.io when deploying a contract via their Create flow.
 # Sources
 Marketplace function
 https://github.com/stacksgov/sips/issues/51
-Generalized marketplace function (list-in-token vs. list-in-ustx)
+Generalized marketplace function (list-in-token vs. list-in-ustx) For future SIP. 
 https://github.com/stacksgov/sips/issues/51#issuecomment-1151670018
 implementation 1: https://github.com/radicleart/clarity-market/blob/main/projects/risidio/indige/contracts/indige.clar
 implementation 2: ?
@@ -494,6 +429,3 @@ Examples of commission contracts
 SIP010 commision: https://github.com/radicleart/clarity-market/blob/main/projects/risidio/indige/contracts/commission-sip10-nop.clar
 Simple fixed fee: `?`
 Auction contract: `?`
-
-Example Wrapped stx contract (defines STX as SIP010 token)
-https://github.com/radicleart/clarity-market/blob/main/projects/risidio/indige/contracts/wrapped-stx.clar
