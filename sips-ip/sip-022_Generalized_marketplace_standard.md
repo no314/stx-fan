@@ -1,11 +1,8 @@
 # Preamble
 
-SIP Number: 022?
+SIP Number: 022
 
-Title: Standard for generalized non-custodial Marketplace traits
-https://github.com/stacksgov/sips/issues/51#issuecomment-1151670018
-https://github.com/stacksgov/sips/issues/52
-
+Title: The Generalized Standard for non-custodial Marketplace traits
 
 Authors: werner.btc (werner at stx.fan), Friedger, Mike, Jason and Jamil.
 
@@ -19,6 +16,7 @@ Created: 10 January 2023
 
 License: CC0-1.0
 
+Sign-off: Brice Dobry <brice@hiro.so>, Technical Consideration Advisory Boards (CAB) Chair
 Sign-off: Jude Nelson <jude@stacks.org>, Technical Steering Committee Chair
 
 # Abstract
