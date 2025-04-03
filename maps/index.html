@@ -1,112 +1,241 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-        <meta name="description" content="stx.fan is a site for fans of Stacks and for that link you needed to find on your quest to a user owned internet." />
-		<meta name="author" content="https://stx.fan" />
-		<!-- Open Graph / Facebook -->
-		<meta property="og:type" content="website" />
-		<meta property="og:url" content="https://stx.fan/" />
-		<meta property="og:title" content="stx.fan" />
-		<meta property="og:description" content="stx.fan is a site for fans of Stacks and for that link you needed to find on your quest to a user owned internet." />
-		<meta property="og:image" content="https://stx.fan/assets/widescreen-logo.png" />
-		<meta property="og:image:width" content="1092" />
-		<meta property="og:image:height" content="463" />
-		<!-- Twitter -->
-		<meta property="twitter:card" content="summary_large_image" />
-		<meta property="twitter:url" content="https://stx.fan/" />
-		<meta property="twitter:title" content="stx.fan" />
-		<meta property="twitter:description" content="stx.fan is a site for fans of Stacks and for that link you needed to find on your quest to a user owned internet." />
-		<meta property="twitter:image" content="https://stx.fan/assets/widescreen-logo.png" />
-        <title>stx.fan - Ecosystem maps</title>
-        <!-- Favicon-->
-        <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
-        <!-- Bootstrap icons-->
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet" />
-        <!-- Core theme CSS (includes Bootstrap)-->
-        <link href="css/styles.css" rel="stylesheet" /><br>
-		<!-- Responsive galery -->
-		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-  		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/magnific-popup.js/1.1.0/magnific-popup.min.css" />
-    </head>
-    <body>
-        <!-- Responsive navbar-->
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-            <div class="sticky-top"><a class="navbar-brand active nav-link" href="https://stx.fan">stx.fan - Ecosystem maps and Infographs</a>
-            </div>
-        </nav>
-		<!-- BEGIN: Page Content -->		
-		        <div class="container">
- <div class="py-5">
-  <h1 class="text-center display-3"> Ecosystem maps by Ethan </h1>
-  <hr class="text-center w-25 border-dark"/>
- </div>
- <div class="row no-gutters gallerys"/>
-  <div class="col-lg-4 col-md-4 col-sm-6 col-12"/> 
-   <a href="images/map0001.jpg" target="_blank">
-    <img src="images/map0001.jpg" alt="September 2021 Ecosystem map by Ethan" class="img-fluid">
-   </a>
-  </div>
-<!-- 
-  <div class="col-lg-4 col-md-4 col-sm-6 col-12"> 
-   <a href="images/map0002.jpg" target="_blank">
-    <img src="images/map0002.jpg" class="img-fluid">
-   </a>
-  </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>stx.fan - ecosystem maps through the years</title>
+    <style>
+        /* Basic Reset & Body Styling */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-  <div class="col-lg-4 col-md-4 col-sm-6 col-12"> 
-   <a href="images/map0003.jpg" target="_blank">
-    <img src="images/map0003.jpg" class="img-fluid">
-   </a>
-  </div>
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* Prevent body scrollbars */
+            font-family: sans-serif;
+            background-color: #111; /* Dark background for contrast */
+        }
 
-  <div class="col-lg-4 col-md-4 col-sm-6 col-12"> 
-   <a href="images/map0004.jpg" target="_blank">
-    <img src="images/map0004.jpg" class="img-fluid">
-   </a>
-  </div>
+        /* Slider Container */
+        .slider-container {
+            position: relative;
+            width: 100vw; /* Full viewport width */
+            height: 100vh; /* Full viewport height */
+            overflow: hidden; /* Hide slides outside container */
+        }
 
-  <div class="col-lg-4 col-md-4 col-sm-6 col-12"> 
-   <a href="images/map0005.jpg" target="_blank">
-    <img src="images/map0005.jpg" class="img-fluid">
-   </a>
-  </div>
+        /* Individual Slides */
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex; /* Use flexbox for centering */
+            justify-content: center;
+            align-items: center;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.6s ease-in-out; /* Smooth fade transition */
+            visibility: hidden; /* Hide element when not active */
+        }
 
-  <div class="col-lg-4 col-md-4 col-sm-6 col-12"> 
-   <a href="images/map0006.jpg" target="_blank">
-    <img src="images/map0006.jpg" class="img-fluid">
-   </a>
-  </div>
--->
- </div>
-</div>
+        .slide.active {
+            opacity: 1; /* Visible when active */
+            visibility: visible;
+            z-index: 1; /* Ensure active slide is on top */
+        }
+
+        /* Image Styling */
+        .slide img {
+            display: block;
+            max-width: 95%;  /* Max width to prevent touching edges */
+            max-height: 90%; /* Max height leave space for date/controls */
+            object-fit: contain; /* Scale image while preserving aspect ratio */
+            user-select: none; /* Prevent image dragging */
+            -webkit-user-drag: none; /* Prevent image dragging in Safari/Chrome */
+        }
+
+        /* Date Label Styling */
+        .date-label {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 1rem;
+            z-index: 2; /* Above the image */
+            user-select: none;
+        }
+
+        /* Slider Navigation Buttons */
+        .slider-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.4);
+            color: white;
+            border: none;
+            font-size: 2.5rem; /* Larger buttons */
+            padding: 10px 15px;
+            cursor: pointer;
+            z-index: 10; /* Above everything */
+            user-select: none;
+            transition: background-color 0.3s ease;
+            line-height: 1; /* Adjust line height for better vertical centering */
+        }
+
+        .slider-btn:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        .prev-btn {
+            left: 15px;
+            border-radius: 0 5px 5px 0; /* Rounded corners */
+        }
+
+        .next-btn {
+            right: 15px;
+            border-radius: 5px 0 0 5px; /* Rounded corners */
+        }
+
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 600px) {
+            .date-label {
+                font-size: 0.85rem;
+                padding: 6px 10px;
+                bottom: 10px;
+                left: 10px;
+            }
+            .slider-btn {
+                font-size: 2rem;
+                padding: 8px 10px;
+            }
+            .prev-btn {
+                left: 5px;
+            }
+            .next-btn {
+                right: 5px;
+            }
+            .slide img {
+                 max-width: 98%; /* Allow slightly larger image on mobile */
+                 max-height: 95%;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="slider-container">
+
+        <!-- Slide 1 -->
+        <!-- CHANGE HERE: Removed 'active' class -->
+        <div class="slide">
+            <img src="images/map0001.jpg" alt="Stacks Ecosystem Map - August 2021">
+            <div class="date-label">August 2021</div>
+        </div>
+
+        <!-- Slide 2 -->
+        <div class="slide">
+            <img src="images/map0002.jpg" alt="Stacks Ecosystem Map - December 2023">
+            <div class="date-label">December 2023</div>
+        </div>
+
+        <!-- Slide 3 -->
+        <!-- CHANGE HERE: Added 'active' class -->
+        <div class="slide active">
+            <img src="images/map0003.jpg" alt="Stacks Ecosystem Map - March 2025">
+            <div class="date-label">March 2025</div>
+        </div>
+
+        <!--
+          >>> HOW TO ADD MORE MAPS <<<
+          1. Add the new image file (e.g., map0004.jpg) to the 'images' folder.
+          2. Copy one of the <div class="slide">...</div> blocks above (WITHOUT the 'active' class).
+          3. Paste the copied block *just BEFORE* the slide that currently has the 'active' class.
+          4. Update the 'src', 'alt', and date label for the new slide.
+          5. Move the 'active' class from the old last slide to the NEW last slide you just added.
+          The JavaScript will automatically include the new slide and start on it.
+        -->
+
+        <!-- Navigation Buttons -->
+        <button class="slider-btn prev-btn" aria-label="Previous map"><</button>
+        <button class="slider-btn next-btn" aria-label="Next map">></button>
+
+    </div>
+
+    <script>
+        // Select all slides and buttons
+        const slides = document.querySelectorAll('.slide');
+        const prevBtn = document.querySelector('.prev-btn');
+        const nextBtn = document.querySelector('.next-btn');
+
+        // Calculate total number of slides
+        const totalSlides = slides.length;
+
+        // CHANGE HERE: Initialize currentSlideIndex to the LAST slide's index
+        let currentSlideIndex = totalSlides > 0 ? totalSlides - 1 : 0;
+
+        // Function to show a specific slide
+        function showSlide(index) {
+            // Loop through all slides
+            slides.forEach((slide, i) => {
+                // Remove 'active' class from all slides
+                slide.classList.remove('active');
+                // Add 'active' class to the target slide
+                if (i === index) {
+                    slide.classList.add('active');
+                }
+            });
+        }
+
+        // Function to show the next slide
+        function nextSlide() {
+            // Increment index, loop back to 0 if it exceeds the total
+            currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
+            showSlide(currentSlideIndex);
+        }
+
+        // Function to show the previous slide
+        function prevSlide() {
+            // Decrement index, loop back to the last slide if it goes below 0
+            currentSlideIndex = (currentSlideIndex - 1 + totalSlides) % totalSlides;
+            showSlide(currentSlideIndex);
+        }
+
+        // Add event listeners to buttons
+        nextBtn.addEventListener('click', nextSlide);
+        prevBtn.addEventListener('click', prevSlide);
+
+        // Optional: Add keyboard navigation (left/right arrow keys)
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowRight') {
+                nextSlide(); // Right arrow should still go "forward" in time (older maps) in this view
+            } else if (event.key === 'ArrowLeft') {
+                prevSlide(); // Left arrow should still go "backward" in time (newer maps) in this view
+            }
+        });
+
+        // Ensure the correct slide is active according to JS (handles edge cases)
+        // This will ensure the JS state matches the initial HTML state.
+        if (totalSlides > 0) {
+             showSlide(currentSlideIndex);
+        }
 
 
+        // Hide buttons if there's only one slide
+        if (totalSlides <= 1) {
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+        }
 
+    </script>
 
-
-
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/magnific-popup.js/1.1.0/jquery.magnific-popup.min.js"></script>
-
-  <script>
-   $(document).ready(function(){
-    $('.gallerys').magnificPopup({
-     type: 'image',
-     delegate: 'a',
-     gallery: {
-      enabled : true
-     }
-    });
-   });
-  </script>
-
-        <!-- Bootstrap core JS-->
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
-        <!-- Core theme JS-->
-        <script src="js/scripts.js"></script>
-    </body>
+</body>
 </html>
