@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dynamic Mailto Example</title>
+  <script>
+    function sendSupportEmail() {
+      const version = "3.1.0"; // Replace or inject dynamically
+      const subject = `Question or Issue with version ${version} of Leather`;
+      const body = `Dear Support,\n\nI'm experiencing an issue with version ${version} of Leather.\n\nRegards,`;
+
+      const mailtoLink = `mailto:support@leather.io?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailtoLink;
+    }
+  </script>
+  <style>
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      background-color: #222;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #444;
+    }
+  </style>
+</head>
+<body>
+  <h2>Contact Support</h2>
+  <p>If you're experiencing issues with the app, click the button below to send us an email.</p>
+  <button onclick="sendSupportEmail()">Email Support</button>
+</body>
+</html>
