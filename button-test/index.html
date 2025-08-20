@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Leather Support Mailto</title>
+  <script>
+    function detectOS() {
+      const platform = navigator.userAgent || navigator.platform || "Unknown";
+
+      if (/Android/i.test(platform)) return "Android";
+      if (/iPhone|iPad|iPod/i.test(platform)) return "iOS";
+      if (/Win/i.test(platform)) return "Windows";
+      if (/Mac/i.test(platform)) return "MacOS";
+      if (/Linux/i.test(platform)) return "Linux";
+      return "Unknown";
+    }
+
+    function sendSupportEmail() {
+      const version = "3.1.0"; // Replace dynamically if needed
+      const os = detectOS();
+
+      const subject = `Question or Issue with version ${version} of Leather`;
+      const body = `I am using version ${version} of Leather on ${os}, and I have an issue, some feedback and/or a question:\n\n` +
+                   `This is what I see:\n- \n\n` +
+                   `This is what I expect:\n- \n\n` +
+                   `Feel free to add a screenshot to show us.\n\n` +
+                   `And/or feel free to share any questions you have here.\n`;
+
+      const mailtoLink = `mailto:support@leather.io?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailtoLink;
+    }
+  </script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #222;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #444;
+    }
+  </style>
+</head>
+<body>
+<h2>Contact Leather Support</h2>
+  <p>Use  support@leather.io to contact us, or</p>
+  <p>Click the button below to start an email with your default email application and the Leather version and operating system already filled in.</p>
+<button onclick="sendSupportEmail()">Email Support</button>
+</body>
+</html>
