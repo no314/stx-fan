@@ -1,43 +1,104 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Front Form</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Contact Form</title>
+  <style>
+    body {
+      font-family: Inter, sans-serif;
+      background-color: #0d0d0d;
+      color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .form-container {
+      background-color: #1a1a1a;
+      padding: 2rem;
+      border-radius: 1.5rem;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      max-width: 500px;
+      width: 100%;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: #ffffff;
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #d1d1d1;
+    }
+    input[type="text"],
+    input[type="email"],
+    input[type="file"],
+    textarea {
+      width: 100%;
+      padding: 0.75rem;
+      background-color: #2a2a2a;
+      border: 1px solid #333;
+      border-radius: 0.75rem;
+      color: #fff;
+      margin-bottom: 1.25rem;
+      font-size: 1rem;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    input[type="submit"] {
+      width: 100%;
+      background-color: #f7931a;
+      color: #0d0d0d;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    input[type="submit"]:hover {
+      background-color: #ffa72e;
+    }
+  </style>
 </head>
 <body>
 
-<form
-  method="POST"
-  name="fa-form-1"
-  action="https://webhook.frontapp.com/forms/50d1c719ca0a60c39f4a/H3Oob8jazco2neZsnUajB3PS5xJf8s3x4U_IZilFLBvlFE9UVSqGRZ6FrpztNbXp9YWmRTiksXMlppaENfrSHcuVNN_K91mEqpNoJy54w99MOXLRqB-ES8ktFOhylA"
-  enctype="multipart/form-data"
-  accept-charset="utf-8"
->
+  <form
+    class="form-container"
+    method="POST"
+    name="fa-form-1"
+    action="https://webhook.frontapp.com/forms/50d1c719ca0a60c39f4a/H3Oob8jazco2neZsnUajB3PS5xJf8s3x4U_IZilFLBvlFE9UVSqGRZ6FrpztNbXp9YWmRTiksXMlppaENfrSHcuVNN_K91mEqpNoJy54w99MOXLRqB-ES8ktFOhylA"
+    enctype="multipart/form-data"
+    accept-charset="utf-8"
+  >
+    <h1>Contact Us</h1>
 
-  <div>
-    <label for="name">Name</label>
-    <input type="text" name="name" required>
-  </div>
+    <label for="name">Your name</label>
+    <input type="text" name="name" id="name" required>
 
-  <div>
-    <label for="email">Email</label>
-    <input type="email" name="email" required>
-  </div>
+    <label for="email">Your email</label>
+    <input type="email" name="email" id="email" required>
 
-  <div>
+    <label for="subject">Subject</label>
+    <input type="text" name="subject" id="subject" required>
+
     <label for="body">Message</label>
-    <textarea name="body" required></textarea>
-  </div>
+    <textarea name="body" id="body" required></textarea>
 
-  <div>
     <label for="attachment">Attachment</label>
-    <input type="file" name="attachment">
-  </div>
+    <input type="file" name="attachment" id="attachment">
 
-  <div>
     <input type="submit" value="Send">
-  </div>
-
-</form>
+  </form>
 
 </body>
 </html>
