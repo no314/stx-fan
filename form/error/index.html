@@ -35,6 +35,8 @@
     .support {
       color: #f7931a;
       font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
     }
     .button {
       display: inline-block;
@@ -52,11 +54,32 @@
       background-color: #ffa72e;
     }
   </style>
+  <script>
+    function detectOS() {
+      const ua = navigator.userAgent;
+      if (/Android/i.test(ua)) return "Android";
+      if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
+      if (/Mac/i.test(ua)) return "MacOS";
+      if (/Win/i.test(ua)) return "Windows";
+      if (/Linux/i.test(ua)) return "Linux";
+      return "Unknown";
+    }
+
+    function openSupportEmail() {
+      const os = detectOS();
+      const subject = `Leather question/feedback/issue I am using ${os}`;
+      const body = `I am using your product on ${os} and I have a question, issue and/or feedback.%0A%0A`;
+      const mailto = `mailto:support@leather.io?subject=${encodeURIComponent(subject)}&body=${body}`;
+      window.location.href = mailto;
+    }
+  </script>
 </head>
 <body>
   <div class="card">
     <h1>Something went wrong</h1>
-    <p>We couldn’t submit your form. You can try again later, or contact us at <span class="support">support@leather.io</span>.</p>
+    <p>We couldn’t submit your form. You can try again later, or contact us at
+      <span class="support" onclick="openSupportEmail()">support@leather.io</span>.
+    </p>
     <a href="/" class="button">Back to home</a>
   </div>
 </body>
