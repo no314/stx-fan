@@ -1,3 +1,10 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Front Form</title>
+</head>
+<body>
+
 <form
   method="POST"
   name="fa-form-1"
@@ -6,26 +13,31 @@
   accept-charset="utf-8"
 >
 
-
   <div>
     <label for="name">Name</label>
-    <input type="text" name="name">
+    <input type="text" name="name" required>
   </div>
 
   <div>
     <label for="email">Email</label>
-    <input type="email" name="email">
+    <input type="email" name="email" required>
   </div>
 
   <div>
-    <textarea name="body"></textarea>
+    <label for="body">Message</label>
+    <textarea name="body" required></textarea>
   </div>
 
   <div>
+    <label for="attachment">Attachment</label>
     <input type="file" name="attachment">
   </div>
 
-   <div id="html_element"></div>
   <div>
     <input type="submit" value="Send">
-  </div></form>
+  </div>
+
+</form>
+
+</body>
+</html>
