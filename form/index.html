@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Contact Form</title>
   <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: Inter, sans-serif;
       background-color: #0d0d0d;
@@ -16,6 +20,7 @@
       min-height: 100vh;
       margin: 0;
     }
+
     .form-container {
       background-color: #1a1a1a;
       padding: 2rem;
@@ -24,18 +29,21 @@
       max-width: 500px;
       width: 100%;
     }
+
     h1 {
       font-size: 1.5rem;
       margin-bottom: 1.5rem;
       color: #ffffff;
       text-align: center;
     }
+
     label {
       display: block;
       margin-bottom: 0.5rem;
       font-weight: 500;
       color: #d1d1d1;
     }
+
     input[type="text"],
     input[type="email"],
     input[type="file"],
@@ -49,11 +57,14 @@
       margin-bottom: 1.25rem;
       font-size: 1rem;
     }
+
     textarea {
       resize: vertical;
       min-height: 100px;
     }
+
     input[type="submit"] {
+      display: block;
       width: 100%;
       background-color: #f7931a;
       color: #0d0d0d;
@@ -64,7 +75,9 @@
       font-weight: 600;
       cursor: pointer;
       transition: background-color 0.3s ease;
+      margin-top: 1rem;
     }
+
     input[type="submit"]:hover {
       background-color: #ffa72e;
     }
