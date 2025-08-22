@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Leather Support Mailto</title>
   <script>
-    function detectOS() {
+    function detectOS() { //would this work in the product?
       const platform = navigator.userAgent || navigator.platform || "Unknown";
 
       if (/Android/i.test(platform)) return "Android";
@@ -16,7 +16,7 @@
     }
 
     function sendSupportEmail() {
-      const version = "3.1.0"; // Replace dynamically if needed
+      const version = "3.1.0"; // Replace dynamically
       const os = detectOS();
 
       const subject = `Question or Issue with version ${version} of Leather`;
