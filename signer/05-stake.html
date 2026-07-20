@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>5 · Stake to a signer — Signer Sidekick</title>
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2430;--border:#2a3441;--fg:#e6edf3;--muted:#9aa7b4;--accent:#f7931a;--accent2:#5b8def;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--testnet:#238636;--mainnet:#b62324;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:var(--accent2)}.wrap{max-width:820px;margin:0 auto;padding:20px}
+.netbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;font-weight:600;margin-bottom:18px}
+.netbar.testnet{background:rgba(35,134,54,.15);border:1px solid var(--testnet)}.netbar.mainnet{background:rgba(182,35,36,.15);border:1px solid var(--mainnet)}
+.netbar .tier{margin-left:auto;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;background:#0008}
+select,input,button{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
+input{width:100%;font-family:var(--mono);font-size:13px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+button{background:var(--accent);color:#111;border:none;font-weight:700;cursor:pointer}button:hover{filter:brightness(1.08)}button:disabled{opacity:.45;cursor:not-allowed}
+button.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--border)}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:13px;margin:22px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.sub{color:var(--muted);margin:0 0 18px;font-size:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px}.kv:last-child{border-bottom:none}
+.kv .v{font-family:var(--mono);font-size:12.5px;text-align:right;word-break:break-all}
+.status{font-size:13px;padding:10px 12px;border-radius:8px;margin-top:12px;display:none}.status.show{display:block}
+.status.info{background:rgba(91,141,239,.12);border:1px solid var(--accent2)}.status.ok{background:rgba(63,185,80,.12);border:1px solid var(--ok)}.status.err{background:rgba(248,81,73,.12);border:1px solid var(--bad)}
+.stakeline{font-size:12.5px;color:var(--muted);margin-top:6px;min-height:17px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.stakeline .amt{color:var(--fg);font-family:var(--mono)}
+.spin{width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;display:inline-block;flex:0 0 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.reg-ok{color:var(--ok)}.reg-bad{color:var(--bad)}.reg-warn{color:var(--warn)}
+details{margin-top:12px}summary{cursor:pointer;color:var(--muted);font-size:13px}
+code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-family:var(--mono);font-size:12px}
+.foot{color:var(--muted);font-size:12px;margin-top:24px;border-top:1px solid var(--border);padding-top:14px}
+small{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="netbar" id="netbar"><span id="netlabel">TESTNET</span>
+    <select id="network"><option value="pox5-testnet" selected>PoX-5 Testnet (0x80000005)</option><option value="mainnet">Mainnet (0x00000001)</option></select>
+    <span class="tier" id="tier">TIER 1</span>
+  </div>
+  <h1>Stake to a signer</h1>
+  <p class="sub">Locks your own STX toward a signer by calling <code>pox-5 stake</code>. There is no pool manager and no aggregate-commit — naming the <code>signer-manager</code> attributes your stake to that signer, and the lock takes effect next reward cycle. A signer staking their own STX uses this same page pointed at their own manager.</p>
+
+  <div class="card">
+    <div class="row"><button id="connect">Connect wallet</button><span class="v" id="addr" style="font-family:var(--mono);font-size:12.5px"></span></div>
+    <div class="kv" style="margin-top:8px"><span>Available balance</span><span class="v" id="bal">—</span></div>
+  </div>
+
+  <div class="card">
+    <label>Signer-manager contract (which signer you stake to)</label>
+    <input id="manager" placeholder="ST....signer-manager" spellcheck="false">
+    <div id="stakeline" class="stakeline"></div>
+    <div id="regline" class="stakeline"></div>
+
+    <div class="two">
+      <div>
+        <label>Amount to lock (STX)</label>
+        <input id="amount" placeholder="50000" spellcheck="false">
+      </div>
+      <div>
+        <label>Lock duration (cycles, 1–96)</label>
+        <input id="cycles" placeholder="6" spellcheck="false">
+      </div>
+    </div>
+
+    <details>
+      <summary>Reward Bitcoin address (optional — sets where PoX rewards go)</summary>
+      <label>BTC reward address (leave blank to send none / clear)</label>
+      <input id="btc" placeholder="bc1... / 1... / 3... (tb1.../m.../n... on testnet)" spellcheck="false">
+      <label>max-fee (uSTX, used by the manager fee logic; 0 if unsure)</label>
+      <input id="maxfee" placeholder="0" spellcheck="false">
+    </details>
+
+    <div class="kv" style="margin-top:14px"><span>start-burn-ht (auto — current burn height)</span><span class="v" id="startht">—</span></div>
+    <div class="kv"><span>Post-condition mode</span><span class="v">deny (0 conditions — stake locks your STX in place, no transfer)</span></div>
+    <div class="row" style="margin-top:12px"><button id="stake" disabled>Stake</button><button class="ghost" id="refresh">Refresh reads</button></div>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="card" id="result" style="display:none">
+    <h2>Broadcast</h2>
+    <div class="kv"><span>Transaction ID</span><span class="v" id="txid"></span></div>
+    <div class="kv"><span>Track</span><span class="v"><a id="txlink" target="_blank" rel="noopener">API tx status →</a></span></div>
+    <div class="kv"><span>Unlocks at cycle</span><span class="v" id="unlock">—</span></div>
+    <p><small>Your STX locks for the next cycle onward. Individual stakes below 50,000 STX still count toward the signer's aggregate. Monitor with dApp 6.</small></p>
+  </div>
+
+  <p class="foot">Real value moves at Tier 2 (mainnet) — this locks STX. Testnet = Tier 1 (faucet). Gates enforced by the contract: signer must be registered with a valid grant, not during the prepare phase, and your balance must cover the amount.</p>
+</div>
+
+<script type="module">
+import { connect, request } from "https://esm.sh/@stacks/connect@8.2.6";
+import { principalCV, uintCV, bufferCV, tupleCV, someCV, noneCV, serializeCV, cvToHex, hexToCV, ClarityType } from "https://esm.sh/@stacks/transactions@7.5.0";
+import { poxAddressToTuple } from "https://esm.sh/@stacks/stacking@7.5.0";
+
+const NETWORKS = {
+  "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,cls:"testnet",expectedPox:"ST000000000000000000002AMW42H.pox-5"},
+  "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,cls:"mainnet",expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
+};
+const MIN_USTX=50_000_000_000n;
+const $=id=>document.getElementById(id);
+let account=null, poxInfo=null;
+function net(){return NETWORKS[$("network").value];}
+function paintNet(){const n=net();$("netbar").className="netbar "+n.cls;$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
+function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
+const fmtStx=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";
+const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
+// STX decimal string -> uSTX bigint (exact, no float)
+function stxToU(s){
+  s=String(s).trim(); if(!/^\d+(\.\d{1,6})?$/.test(s)) return null;
+  const [a,b=""]=s.split("."); return BigInt(a)*1_000_000n + BigInt((b+"000000").slice(0,6));
+}
+paintNet();
+$("network").addEventListener("change",()=>{paintNet();resetReads();scheduleStake();});
+
+async function callReadOnly(api,contractId,fn,sender,args){
+  const [addr,name]=contractId.split(".");
+  const r=await fetch(`${api}/v2/contracts/call-read/${addr}/${name}/${fn}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender,arguments:args})});
+  const j=await r.json();
+  if(!j.okay) throw new Error(fn+": "+(j.cause||"read failed"));
+  return hexToCV(j.result);
+}
+
+function resetReads(){ poxInfo=null; $("bal").textContent="—"; $("startht").textContent="—"; }
+function gate(){ $("stake").disabled=!(account&&$("manager").value.trim()&&stxToU($("amount").value)!=null&&/^\d+$/.test($("cycles").value.trim())); }
+["manager","amount","cycles"].forEach(id=>$(id).addEventListener("input",gate));
+$("manager").addEventListener("input",scheduleStake);
+$("refresh").addEventListener("click",loadReads);
+
+$("connect").addEventListener("click",async()=>{
+  const n=net();
+  try{
+    say("Approve the wallet connection…");
+    const res=await connect({network:$("network").value,forceWalletSelect:true});
+    const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
+    if(!e){say("No STX address returned.","err");return;}
+    account=e.address.toUpperCase(); $("addr").textContent=account;
+    if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch network and reconnect.`,"err"); else say("Connected.","ok");
+    await loadReads(); gate();
+  }catch(e){say("Connect failed: "+(e?.message||e),"err");}
+});
+
+async function loadReads(){
+  const n=net();
+  try{
+    poxInfo=await fetch(n.api+"/v2/pox").then(r=>r.json());
+    $("startht").textContent=poxInfo.current_burnchain_block_height;
+    if(poxInfo.contract_id!==n.expectedPox) say(`Live PoX-5 ${poxInfo.contract_id} ≠ expected ${n.expectedPox}. Wrong network.`,"err");
+    if(account){
+      const bal=await fetch(`${n.api}/extended/v1/address/${account}/balances`).then(r=>r.json());
+      const unlocked=BigInt(bal?.stx?.balance??"0")-BigInt(bal?.stx?.locked??"0");
+      $("bal").textContent=`${fmtStx(bal?.stx?.balance??"0")} (unlocked ${fmtStx(unlocked<0n?0n:unlocked)})`;
+    }
+    // prepare-phase warning (non-blocking)
+    if(poxInfo.next_cycle && poxInfo.next_cycle.blocks_until_prepare_phase<=0){
+      say("Heads up: the network appears to be in the prepare phase — the contract rejects stake now. Wait for the next cycle.","info");
+    }
+  }catch(e){ /* non-fatal */ }
+}
+
+// Non-blocking staked-amount + registration line for the entered signer-manager
+let stakeTimer=null;
+function scheduleStake(){
+  clearTimeout(stakeTimer);
+  const m=$("manager").value.trim();
+  if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(m)){ $("stakeline").innerHTML=""; $("regline").innerHTML=""; return; }
+  stakeTimer=setTimeout(()=>loadStaked(m),450);
+}
+async function loadStaked(manager){
+  const n=net();
+  $("stakeline").innerHTML='<span class="spin"></span><span>loading currently staked STX to this signer-manager…</span>';
+  $("regline").innerHTML="";
+  try{
+    const pox = poxInfo || await fetch(n.api+"/v2/pox").then(r=>r.json());
+    const poxId=pox.contract_id, next=pox.reward_cycle_id+1;
+    const cv=await callReadOnly(n.api,poxId,"get-amount-delegated-for-signer",manager,[cvToHex(principalCV(manager)),cvToHex(uintCV(BigInt(next)))]);
+    const amt=cv.type===ClarityType.UInt?BigInt(cv.value):0n;
+    const meets=amt>=MIN_USTX;
+    $("stakeline").innerHTML=`<span><span class="amt">${fmtStx(amt)}</span> staked to this signer for cycle #${next} · ${meets?"meets":"below"} 50,000 STX min</span>`;
+    // registration pre-check (advisory)
+    try{
+      const info=await callReadOnly(n.api,poxId,"get-signer-info",manager,[cvToHex(principalCV(manager))]);
+      const registered = info.type===ClarityType.OptionalSome && info.value?.type===ClarityType.Buffer;
+      $("regline").innerHTML = registered
+        ? '<span class="reg-ok">✓ signer is registered</span>'
+        : '<span class="reg-bad">✗ signer not registered yet — stake will be rejected until register-self is done</span>';
+    }catch{ $("regline").innerHTML='<span class="reg-warn">could not check registration</span>'; }
+  }catch(e){ $("stakeline").innerHTML='<span>couldn’t load staked amount (check network / principal)</span>'; }
+}
+
+$("stake").addEventListener("click",async()=>{
+  const n=net();
+  const manager=$("manager").value.trim();
+  const amountU=stxToU($("amount").value);
+  const cycles=$("cycles").value.trim();
+  if(!n.stxPrefix.test(account)){say(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
+  if(amountU==null){say("Amount must be a number with up to 6 decimals.","err");return;}
+  const nc=Number(cycles);
+  if(!Number.isInteger(nc)||nc<1||nc>96){say("Cycles must be an integer 1–96.","err");return;}
+  try{
+    say("Refreshing chain state…");
+    await loadReads();
+    if(!poxInfo){say("Could not read PoX state; try Refresh.","err");return;}
+    if(poxInfo.contract_id!==n.expectedPox){say(`Live PoX-5 ${poxInfo.contract_id} ≠ expected ${n.expectedPox}. Blocked.`,"err");return;}
+    const poxId=poxInfo.contract_id;
+    const startHt=poxInfo.current_burnchain_block_height;
+
+    // signer-calldata: optional {pox-addr:{version,hashbytes}, max-fee}
+    let calldataArg=cvToHex(noneCV());
+    const btc=$("btc").value.trim();
+    if(btc){
+      let poxTuple; try{ poxTuple=poxAddressToTuple(btc); }catch{ say("Invalid BTC reward address.","err"); return; }
+      const maxfee=$("maxfee").value.trim()||"0";
+      if(!/^\d+$/.test(maxfee)){say("max-fee must be a whole number of uSTX.","err");return;}
+      const tuple=tupleCV({ "pox-addr":poxTuple, "max-fee":uintCV(BigInt(maxfee)) });
+      const ser=serializeCV(tuple);
+      const bytes = typeof ser==="string" ? hexToBytes(ser) : ser;
+      calldataArg=cvToHex(someCV(bufferCV(bytes)));
+    }
+
+    const args=[
+      cvToHex(principalCV(manager)),
+      cvToHex(uintCV(amountU)),
+      cvToHex(uintCV(BigInt(nc))),
+      cvToHex(uintCV(BigInt(startHt))),
+      calldataArg
+    ];
+    say("Building stake request… review carefully in your wallet before signing.");
+    const params={
+      contract:poxId, functionName:"stake", functionArgs:args,
+      network:$("network").value, address:account,
+      sponsored:false, postConditionMode:"deny", postConditions:[]
+    };
+    const res=await request("stx_callContract",params);
+    const txid=(res?.txid||"").replace(/^0x/i,"");
+    if(!/^[0-9a-f]{64}$/i.test(txid)){say("Wallet returned no usable txid. Check wallet activity.","err");return;}
+    $("txid").textContent="0x"+txid.toLowerCase();
+    $("txlink").href=`${n.api}/extended/v1/tx/0x${txid.toLowerCase()}`;
+    $("unlock").textContent=`#${poxInfo.reward_cycle_id+1+nc} (locked ${nc} cycles from next cycle)`;
+    $("result").style.display="block";
+    say("Broadcast submitted. Verify the lock in dApp 6.","ok");
+  }catch(e){
+    const code=e&&typeof e==="object"&&"code"in e?Number(e.code):null;
+    say(code===4001||code===-31001?"Signing cancelled in wallet.":"Stake request failed: "+(e?.message||e),"err");
+  }
+});
+</script>
+</body>
+</html>

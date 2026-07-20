@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>1 · Connect + Preflight — Signer Sidekick</title>
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2430;--border:#2a3441;--fg:#e6edf3;--muted:#9aa7b4;--accent:#f7931a;--accent2:#5b8def;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--testnet:#238636;--mainnet:#b62324;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:var(--accent2)}.wrap{max-width:820px;margin:0 auto;padding:20px}
+.netbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;font-weight:600;margin-bottom:18px}
+.netbar.testnet{background:rgba(35,134,54,.15);border:1px solid var(--testnet)}
+.netbar.mainnet{background:rgba(182,35,36,.15);border:1px solid var(--mainnet)}
+.netbar .tier{margin-left:auto;font-size:12px;font-weight:700;letter-spacing:.5px;padding:3px 8px;border-radius:6px;background:#0008}
+select,input,button{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
+button{background:var(--accent);color:#111;border:none;font-weight:700;cursor:pointer}button:hover{filter:brightness(1.08)}button:disabled{opacity:.45;cursor:not-allowed}
+button.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--border)}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:13px;margin:22px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.sub{color:var(--muted);margin:0 0 18px;font-size:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px}.kv:last-child{border-bottom:none}
+.kv .v{font-family:var(--mono);font-size:13px;text-align:right;word-break:break-all}
+.check{display:flex;align-items:flex-start;gap:9px;padding:8px 0;font-size:14px}
+.check .dot{width:16px;height:16px;border-radius:50%;flex:0 0 16px;margin-top:3px}
+.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}.dot.idle{background:#3a4553}
+.status{font-size:13px;padding:10px 12px;border-radius:8px;margin-top:12px;display:none}.status.show{display:block}
+.status.info{background:rgba(91,141,239,.12);border:1px solid var(--accent2)}.status.ok{background:rgba(63,185,80,.12);border:1px solid var(--ok)}.status.err{background:rgba(248,81,73,.12);border:1px solid var(--bad)}
+.foot{color:var(--muted);font-size:12px;margin-top:24px;border-top:1px solid var(--border);padding-top:14px}
+small{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="netbar" id="netbar">
+    <span id="netlabel">TESTNET</span>
+    <select id="network">
+      <option value="pox5-testnet" selected>PoX-5 Testnet (0x80000005)</option>
+      <option value="mainnet">Mainnet (0x00000001)</option>
+    </select>
+    <span class="tier" id="tier">TIER 1</span>
+  </div>
+
+  <h1>Connect + Preflight</h1>
+  <p class="sub">Step 0 of the signing flow. Connect your <b>staking / manager-admin wallet</b> (the funded one — Ledger-backed on mainnet) over SIP-030, confirm it is on the right chain, and check it is ready to deploy and register. This is your funded admin key, <b>not</b> the signer key that lives on the node. Switching to Mainnet is deliberate (red banner, Tier 2) but allowed.</p>
+
+  <div class="card">
+    <div class="row">
+      <button id="connect">Connect wallet (SIP-030)</button>
+      <button id="disconnect" class="ghost" disabled>Disconnect</button>
+      <button id="refresh" class="ghost" disabled>Refresh reads</button>
+    </div>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Wallet</h2>
+    <div class="kv"><span>STX address</span><span class="v" id="addr">—</span></div>
+    <div class="kv"><span>Public key</span><span class="v" id="pubkey">—</span></div>
+    <div class="kv"><span>STX balance</span><span class="v" id="bal">—</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Network / PoX-5</h2>
+    <div class="kv"><span>Expected PoX-5 (pinned)</span><span class="v" id="exppox">—</span></div>
+    <div class="kv"><span>Live PoX-5 contract</span><span class="v" id="poxc">—</span></div>
+    <div class="kv"><span>Current cycle</span><span class="v" id="cycle">—</span></div>
+    <div class="kv"><span>PoX active</span><span class="v" id="active">—</span></div>
+    <div class="kv"><span>Signer-set minimum</span><span class="v" id="minustx">—</span></div>
+    <div class="kv"><span>Burn height</span><span class="v" id="burn">—</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Preflight checks</h2>
+    <div id="checks">
+      <div class="check"><span class="dot idle"></span><span>Connect a wallet to run checks.</span></div>
+    </div>
+  </div>
+
+  <p class="foot">Reads come from the public Hiro API; the wallet holds your key and never exposes it here. Testnet = Tier 1 (structural safeguards on, financial safeguards N/A). Mainnet = Tier 2. Part of the signer-sidekick standalone dApp set.</p>
+</div>
+
+<script type="module">
+import { connect, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
+
+const NETWORKS = {
+  "pox5-testnet": { label:"TESTNET", tier:"TIER 1", chainId:0x80000005, api:"https://api.testnet-pox5.hiro.so", stxPrefix:/^S[TN]/, cls:"testnet", expectedPox:"ST000000000000000000002AMW42H.pox-5" },
+  "mainnet":      { label:"MAINNET", tier:"TIER 2", chainId:0x00000001, api:"https://api.hiro.so",            stxPrefix:/^S[PM]/, cls:"mainnet",  expectedPox:"SP000000000000000000002Q6VF78.pox-5" }
+};
+const MIN_USTX = 50_000_000_000n; // POX5_SIGNER_SET_MIN_USTX, pinned in packages/protocol/contracts.ts
+const $ = id => document.getElementById(id);
+let account = null;
+
+function net(){ return NETWORKS[$("network").value]; }
+function paintNet(){
+  const n = net();
+  $("netbar").className = "netbar " + n.cls;
+  $("netlabel").textContent = n.label;
+  $("tier").textContent = n.tier;
+  $("exppox").textContent = n.expectedPox;
+}
+function say(msg, kind="info"){ const s=$("status"); s.textContent=msg; s.className="status show "+kind; }
+function stx(ustx){ return (Number(BigInt(ustx))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX"; }
+
+$("network").addEventListener("change", ()=>{ paintNet(); reset(); });
+paintNet();
+
+function reset(){
+  account=null;
+  for(const id of ["addr","pubkey","bal","poxc","cycle","active","minustx","burn"]) $(id).textContent="—";
+  paintNet();
+  $("checks").innerHTML='<div class="check"><span class="dot idle"></span><span>Connect a wallet to run checks.</span></div>';
+  $("disconnect").disabled=true; $("refresh").disabled=true;
+  $("status").className="status";
+}
+
+$("connect").addEventListener("click", async ()=>{
+  try{
+    say("Opening wallet… approve the connection request.","info");
+    const res = await connect({ network: $("network").value, forceWalletSelect: true });
+    const addresses = res?.addresses || [];
+    const stxEntry = addresses.find(a => typeof a.address==="string" && /^S/.test(a.address));
+    if(!stxEntry){ say("No STX address returned by the wallet.","err"); return; }
+    account = { address: stxEntry.address.toUpperCase(), publicKey: stxEntry.publicKey || "" };
+    $("addr").textContent = account.address;
+    $("pubkey").textContent = account.publicKey || "—";
+    $("disconnect").disabled=false; $("refresh").disabled=false;
+    say("Connected. Running reads…","ok");
+    await loadReads();
+  }catch(e){ say("Connect failed / cancelled: "+(e?.message||e),"err"); }
+});
+
+$("disconnect").addEventListener("click", async ()=>{ try{ await disconnect(); }catch{} reset(); });
+$("refresh").addEventListener("click", loadReads);
+
+async function loadReads(){
+  const n = net();
+  try{
+    const [pox, bal] = await Promise.all([
+      fetch(n.api+"/v2/pox").then(r=>r.json()),
+      fetch(`${n.api}/extended/v1/address/${account.address}/balances`).then(r=>r.json())
+    ]);
+    const balance = BigInt(bal?.stx?.balance ?? "0");
+    $("bal").textContent = stx(balance);
+    $("poxc").textContent = pox.contract_id;
+    $("cycle").textContent = `#${pox.reward_cycle_id} (next in ${pox.next_reward_cycle_in} blocks)`;
+    $("active").textContent = pox.current_cycle?.is_pox_active ? "yes" : "no";
+    $("minustx").textContent = stx(pox.min_amount_ustx ?? MIN_USTX.toString());
+    $("burn").textContent = pox.current_burnchain_block_height;
+    runChecks(pox, balance);
+    say("Reads updated.","ok");
+  }catch(e){ say("Read failed: "+(e?.message||e),"err"); }
+}
+
+function runChecks(pox, balance){
+  const n = net();
+  const rows = [];
+  const add = (state, text) => rows.push(`<div class="check"><span class="dot ${state}"></span><span>${text}</span></div>`);
+
+  const prefixOk = n.stxPrefix.test(account.address);
+  add(prefixOk?"ok":"bad", prefixOk
+    ? `Wallet address matches ${n.label} format.`
+    : `Address ${account.address} is NOT a ${n.label} address. Switch the wallet's network (${n.cls==="testnet"?"Leather custom network key <code>pox5-testnet</code>":"mainnet"}) and reconnect.`);
+
+  const ok = pox.contract_id===n.expectedPox;
+  add(ok?"ok":"bad", ok ? `PoX-5 contract pinned: ${n.expectedPox}.` : `Live PoX-5 ${pox.contract_id} ≠ expected ${n.expectedPox}. Wrong network — do not continue.`);
+
+  const active = !!pox.current_cycle?.is_pox_active;
+  add(active?"ok":"warn", active ? "PoX-5 is active this cycle." : "PoX-5 is not active this cycle — do not continue Fresh setup until it is.");
+
+  const min = BigInt(pox.min_amount_ustx ?? MIN_USTX.toString());
+  const enough = balance >= min;
+  add(enough?"ok":"warn", enough
+    ? `Balance covers the signer-set minimum (${stx(min)}).`
+    : `Balance ${stx(balance)} is below the signer-set minimum ${stx(min)}. Fund this address before registering.`);
+
+  const feeBuffer = balance > 0n;
+  add(feeBuffer?"ok":"bad", feeBuffer ? "Address holds STX for transaction fees." : `Address has zero STX — cannot pay fees. Fund it${n.cls==="testnet"?" from the faucet":""} first.`);
+
+  $("checks").innerHTML = rows.join("");
+}
+</script>
+</body>
+</html>

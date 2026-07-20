@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2 · Signer Key (offline) — Signer Sidekick</title>
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2430;--border:#2a3441;--fg:#e6edf3;--muted:#9aa7b4;--accent:#f7931a;--accent2:#5b8def;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:820px;margin:0 auto;padding:20px}
+.netbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;font-weight:600;margin-bottom:18px;background:rgba(210,153,34,.12);border:1px solid var(--warn)}
+.netbar .tier{margin-left:auto;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;background:#0008}
+button{font:inherit;background:var(--accent);color:#111;border:none;font-weight:700;cursor:pointer;border-radius:8px;padding:9px 13px}
+button:hover{filter:brightness(1.08)}button:disabled{opacity:.45;cursor:not-allowed}
+button.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--border)}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:13px;margin:22px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.sub{color:var(--muted);margin:0 0 18px;font-size:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px}
+.warnbox{background:rgba(248,81,73,.1);border:1px solid var(--bad);border-radius:10px;padding:14px;font-size:13.5px;margin-bottom:16px}
+.warnbox b{color:var(--bad)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:14px;align-items:center}.kv:last-child{border-bottom:none}
+.kv .v{font-family:var(--mono);font-size:12.5px;text-align:right;word-break:break-all;user-select:all}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label.ck{display:flex;gap:9px;align-items:flex-start;font-size:14px;margin:8px 0}
+.seed{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+.seed .w{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:13px;user-select:all}
+.seed .w b{color:var(--muted);font-weight:600;margin-right:6px;font-size:11px}
+pre{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--mono);font-size:12.5px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+.net-on{background:var(--bad);color:#fff;font-weight:700;padding:3px 8px;border-radius:6px;font-size:12px}
+.net-off{background:var(--ok);color:#052e12;font-weight:700;padding:3px 8px;border-radius:6px;font-size:12px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{background:var(--panel2);color:var(--fg);border:none;border-radius:0;padding:8px 14px;font-weight:600}
+.seg button.on{background:var(--accent);color:#111}
+code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-family:var(--mono);font-size:12.5px}
+small{color:var(--muted)}.foot{color:var(--muted);font-size:12px;margin-top:24px;border-top:1px solid var(--border);padding-top:14px}
+a{color:var(--accent2)}
+@media(max-width:560px){.seed{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="netbar"><span>SIGNER KEY GENERATION — OFFLINE ONLY</span><span class="tier">SENSITIVE</span></div>
+  <h1>Signer key helper</h1>
+  <p class="sub">Generates the key material for the <b>signer</b> — a BIP39 seed phrase, its account-0 Stacks address, the account-0 private key, and the compressed public key. This is a distinct identity from your funded, hardware-backed manager-admin wallet, and it lives on the signer node, so keep the two isolated.</p>
+
+  <div class="warnbox">
+    <b>Read before using.</b> A browser is not the ideal place to make a production seed phrase. Preferred path is the node host, offline (e.g. <code>stacks-cli make_keychain</code>, or your standard BIP39 tooling), then place the key in the signer config per the <a href="https://docs.stacks.co/operate/run-a-signer" target="_blank" rel="noopener">signer guide</a>.
+    Use this page only if you can run it <b>fully offline / air-gapped</b>: after the libraries load once, turn off Wi-Fi, generate, write the seed phrase down on paper, transfer the key by a trusted channel, then wipe the clipboard and this tab.
+    Never paste the seed phrase or private key into a website, the other dApps in this set, chat, or email. The other dApps only ever need the <b>public</b> key or the <b>address</b>.
+  </div>
+
+  <div class="card">
+    <h2>Network state</h2>
+    <div class="row" style="justify-content:space-between">
+      <span>This tab currently reports as: <span id="netstate">checking…</span></span>
+      <button class="ghost" id="recheck">Re-check</button>
+    </div>
+    <label class="ck"><input type="checkbox" id="ack1"><span>I have disconnected this machine from the network (or accept the risk on a throwaway testnet key).</span></label>
+    <label class="ck"><input type="checkbox" id="ack2"><span>I understand this seed / key goes on the signer node and must be kept separate from my funded / hardware-wallet key.</span></label>
+    <div class="row" style="margin-top:6px">
+      <span style="color:var(--muted);font-size:13px">Seed length:</span>
+      <div class="seg" id="len"><button data-bits="256" class="on">24 words</button><button data-bits="128">12 words</button></div>
+    </div>
+    <div class="row" style="margin-top:12px"><button id="gen" disabled>Generate signer seed + key</button><button class="ghost" id="clear" disabled>Wipe from screen</button></div>
+  </div>
+
+  <div class="card" id="out" style="display:none">
+    <h2>Master seed phrase (BIP39) — write this down</h2>
+    <div class="seed" id="seed"></div>
+    <h2 style="margin-top:22px">Account 0</h2>
+    <div class="kv"><span>Stacks address — testnet (<code>ST…</code>)</span><span class="v" id="addrT"></span></div>
+    <div class="kv"><span>Stacks address — mainnet (<code>SP…</code>)</span><span class="v" id="addrM"></span></div>
+    <div class="kv"><span>Private key (66-hex, for signer config)</span><span class="v" id="priv"></span></div>
+    <div class="kv"><span>Compressed public key (used by <code>register-self</code> / grant)</span><span class="v" id="pub"></span></div>
+    <p><small>Derivation path <code>m/44'/5757'/0'/0/0</code> via <code>@stacks/wallet-sdk</code>. The address is the same account on both networks — fund the <code>ST…</code> form for the PoX-5 testnet. Confirm the private-key format your signer build expects.</small></p>
+    <h2>Signer config field (verify against your signer version)</h2>
+    <pre id="cfg"></pre>
+  </div>
+
+  <p class="foot">Crypto libraries load once at startup; after that first load, disconnect before generating. Even on testnet the "keys never touch a website" habit is kept so the pattern is safe when promoted to mainnet.</p>
+</div>
+
+<script type="module">
+import { generateSecretKey, generateWallet, getStxAddress } from "https://esm.sh/@stacks/wallet-sdk@7.5.0";
+import * as secp from "https://esm.sh/@noble/secp256k1@2.1.0";
+const $=id=>document.getElementById(id);
+const toHex=b=>Array.from(b,x=>x.toString(16).padStart(2,"0")).join("");
+let bits=256;
+
+function checkNet(){
+  $("netstate").innerHTML = navigator.onLine
+    ? '<span class="net-on">ONLINE — disconnect before generating a real key</span>'
+    : '<span class="net-off">offline</span>';
+}
+checkNet();
+window.addEventListener("online",checkNet); window.addEventListener("offline",checkNet);
+$("recheck").addEventListener("click",checkNet);
+
+$("len").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b)return;
+  bits=Number(b.dataset.bits);
+  [...$("len").children].forEach(x=>x.classList.toggle("on",x===b));
+});
+
+function gate(){ $("gen").disabled = !($("ack1").checked && $("ack2").checked); }
+$("ack1").addEventListener("change",gate);
+$("ack2").addEventListener("change",gate);
+
+$("gen").addEventListener("click",async()=>{
+  $("gen").disabled=true;
+  try{
+    const mnemonic = generateSecretKey(bits);            // 128->12 words, 256->24 words
+    const wallet = await generateWallet({ secretKey: mnemonic, password: "" });
+    const acct = wallet.accounts[0];
+    const privHex = acct.stxPrivateKey;                  // 66-hex (32-byte key + 01 compression flag)
+    const rawKey = privHex.length===66 ? privHex.slice(0,64) : privHex;
+    const pubHex = toHex(secp.getPublicKey(Uint8Array.from(rawKey.match(/../g).map(h=>parseInt(h,16))), true));
+    const addrT = getStxAddress({ account: acct, network: "testnet" });
+    const addrM = getStxAddress({ account: acct, network: "mainnet" });
+
+    $("seed").innerHTML = mnemonic.split(" ").map((w,i)=>`<div class="w"><b>${i+1}</b>${w}</div>`).join("");
+    $("addrT").textContent = addrT;
+    $("addrM").textContent = addrM;
+    $("priv").textContent = privHex;
+    $("pub").textContent = pubHex;
+    $("cfg").textContent =
+`# stacks-signer config (Config.toml) — confirm key format against your build
+stacks_private_key = "${privHex}"
+# signer address (testnet): ${addrT}
+# signer public key (share this, e.g. for register-self / signer-grant):
+# ${pubHex}`;
+    $("out").style.display="block";
+    $("clear").disabled=false;
+  }catch(e){
+    $("cfg").textContent="Generation failed: "+(e?.message||e);
+    $("out").style.display="block";
+  }finally{ gate(); }
+});
+
+$("clear").addEventListener("click",()=>{
+  $("seed").innerHTML="";
+  for(const id of ["addrT","addrM","priv","pub"]) $(id).textContent="";
+  $("cfg").textContent=""; $("out").style.display="none"; $("clear").disabled=true;
+});
+</script>
+</body>
+</html>
