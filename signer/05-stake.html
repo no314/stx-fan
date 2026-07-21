@@ -43,7 +43,7 @@ small{color:var(--muted)}
     <span class="tier" id="tier">TIER 1</span>
   </div>
   <h1>Stake to a signer</h1>
-  <p class="sub">Locks your own STX toward a signer by calling <code>pox-5 stake</code> (any wallet — not admin-gated). No pool manager and no aggregate-commit — naming the <code>signer-manager</code> attributes your stake to that signer, and the lock takes effect next reward cycle. Staking <b>locks</b> STX (it is not "sent"), so it needs the two staking post-conditions: a <code>staking-postcondition</code> for the locked amount and a <code>pox-postcondition</code> (will-perform). A plain STX post-condition fails with <code>SentEq 0</code>. Ledger users need Stacks App <b>0.26.15+</b> to sign these.</p>
+  <p class="sub">Locks your own STX toward a signer by calling <code>pox-5 stake</code> (any wallet — not admin-gated). No pool manager and no aggregate-commit — naming the <code>signer-manager</code> attributes your stake to that signer, and the lock takes effect next reward cycle. Staking <b>locks</b> STX (it is not "sent"), so it needs a <code>staking-postcondition</code> for the locked amount — a plain STX post-condition fails with <code>SentEq 0</code>. (No <code>pox-postcondition</code>: <code>stake</code> performs no separate PoX action, so asserting one fails with <code>performed=false</code>.) Ledger users need Stacks App <b>0.26.15+</b> to sign these.</p>
 
   <div class="card">
     <div class="row"><button id="connect">Connect wallet</button><span class="v" id="addr" style="font-family:var(--mono);font-size:12.5px"></span></div>
@@ -135,7 +135,7 @@ function gate(){ $("stake").disabled=!(account&&$("manager").value.trim()&&stxTo
 function updatePc(){
   const u=stxToU($("amount").value);
   if($("pcmode").value==="allow"){ $("pcdesc").textContent="allow (no post-conditions) — use only if deny aborts"; return; }
-  $("pcdesc").textContent = u!=null ? `deny · staking-postcondition (locks = ${fmtStx(u)}) + pox-postcondition (will-perform)` : "deny · staking + pox post-conditions (enter an amount)";
+  $("pcdesc").textContent = u!=null ? `deny · staking-postcondition (locks = ${fmtStx(u)})` : "deny · staking-postcondition (enter an amount)";
 }
 ["manager","amount","cycles"].forEach(id=>$(id).addEventListener("input",gate));
 $("pcmode").addEventListener("change",updatePc);
@@ -244,15 +244,14 @@ $("stake").addEventListener("click",async()=>{
     say("Building stake request… review carefully in your wallet before signing.");
     const pcMode=$("pcmode").value;
     // Staking LOCKS STX (it is not "sent"), so a plain stx-postcondition fails "SentEq 0".
-    // Two staking-specific post-conditions cover it: the locked amount + the pox action.
+    // `stake` only moves the "staked" bucket; it performs no separate PoX action
+    // (a pox-postcondition "will-perform" fails with performed=false). So one staking-postcondition
+    // for the locked amount is the correct and sufficient cover.
     // @stacks/connect 8.2.6 only whitelists stx/ft/nft object post-conditions and would try to
-    // Cl.serialize these newer types ("Invalid Clarity Value"). So we pre-serialize to wire hex —
+    // Cl.serialize this newer type ("Invalid Clarity Value"). So we pre-serialize to wire hex —
     // connect passes string post-conditions through untouched and the wallet deserializes them.
     const postConditions = pcMode==="deny"
-      ? [
-          postConditionToHex({ type:"staking-postcondition", address:account, condition:"eq", amount:amountU.toString() }),
-          postConditionToHex({ type:"pox-postcondition", address:account, condition:"will-perform" })
-        ]
+      ? [ postConditionToHex({ type:"staking-postcondition", address:account, condition:"eq", amount:amountU.toString() }) ]
       : [];
     const params={
       contract:poxId, functionName:"stake", functionArgs:args,
