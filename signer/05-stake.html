@@ -99,7 +99,7 @@ small{color:var(--muted)}
 
 <script type="module">
 import { connect, request } from "https://esm.sh/@stacks/connect@8.2.6";
-import { principalCV, uintCV, bufferCV, tupleCV, someCV, noneCV, serializeCV, cvToHex, hexToCV, ClarityType } from "https://esm.sh/@stacks/transactions@7.5.0";
+import { principalCV, uintCV, bufferCV, tupleCV, someCV, noneCV, serializeCV, cvToHex, hexToCV, ClarityType, postConditionToHex } from "https://esm.sh/@stacks/transactions@7.5.0";
 import { poxAddressToTuple } from "https://esm.sh/@stacks/stacking@7.5.0";
 
 const NETWORKS = {
@@ -244,11 +244,14 @@ $("stake").addEventListener("click",async()=>{
     say("Building stake request… review carefully in your wallet before signing.");
     const pcMode=$("pcmode").value;
     // Staking LOCKS STX (it is not "sent"), so a plain stx-postcondition fails "SentEq 0".
-    // The two staking-specific post-conditions cover it: the locked amount + the pox action.
+    // Two staking-specific post-conditions cover it: the locked amount + the pox action.
+    // @stacks/connect 8.2.6 only whitelists stx/ft/nft object post-conditions and would try to
+    // Cl.serialize these newer types ("Invalid Clarity Value"). So we pre-serialize to wire hex —
+    // connect passes string post-conditions through untouched and the wallet deserializes them.
     const postConditions = pcMode==="deny"
       ? [
-          { type:"staking-postcondition", address:account, condition:"eq", amount:amountU.toString() },
-          { type:"pox-postcondition", address:account, condition:"will-perform" }
+          postConditionToHex({ type:"staking-postcondition", address:account, condition:"eq", amount:amountU.toString() }),
+          postConditionToHex({ type:"pox-postcondition", address:account, condition:"will-perform" })
         ]
       : [];
     const params={
