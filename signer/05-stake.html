@@ -43,7 +43,7 @@ small{color:var(--muted)}
     <span class="tier" id="tier">TIER 1</span>
   </div>
   <h1>Stake to a signer</h1>
-  <p class="sub">Locks your own STX toward a signer by calling <code>pox-5 stake</code>. There is no pool manager and no aggregate-commit — naming the <code>signer-manager</code> attributes your stake to that signer, and the lock takes effect next reward cycle. A signer staking their own STX uses this same page pointed at their own manager.</p>
+  <p class="sub">Locks your own STX toward a signer by calling <code>pox-5 stake</code> (any wallet — not admin-gated). No pool manager and no aggregate-commit — naming the <code>signer-manager</code> attributes your stake to that signer, and the lock takes effect next reward cycle. On this network the STX lock is subject to post-conditions, so this sends a deny-mode STX post-condition equal to the staked amount.</p>
 
   <div class="card">
     <div class="row"><button id="connect">Connect wallet</button><span class="v" id="addr" style="font-family:var(--mono);font-size:12.5px"></span></div>
@@ -76,7 +76,12 @@ small{color:var(--muted)}
     </details>
 
     <div class="kv" style="margin-top:14px"><span>start-burn-ht (auto — current burn height)</span><span class="v" id="startht">—</span></div>
-    <div class="kv"><span>Post-condition mode</span><span class="v">deny (0 conditions — stake locks your STX in place, no transfer)</span></div>
+    <label>Post-condition mode</label>
+    <select id="pcmode">
+      <option value="deny" selected>Deny + STX post-condition (recommended)</option>
+      <option value="allow">Allow (fallback — use only if deny still aborts)</option>
+    </select>
+    <div class="kv"><span>Post-condition</span><span class="v" id="pcdesc">—</span></div>
     <div class="row" style="margin-top:12px"><button id="stake" disabled>Stake</button><button class="ghost" id="refresh">Refresh reads</button></div>
     <div id="status" class="status"></div>
   </div>
@@ -126,8 +131,15 @@ async function callReadOnly(api,contractId,fn,sender,args){
 }
 
 function resetReads(){ poxInfo=null; $("bal").textContent="—"; $("startht").textContent="—"; }
-function gate(){ $("stake").disabled=!(account&&$("manager").value.trim()&&stxToU($("amount").value)!=null&&/^\d+$/.test($("cycles").value.trim())); }
+function gate(){ $("stake").disabled=!(account&&$("manager").value.trim()&&stxToU($("amount").value)!=null&&/^\d+$/.test($("cycles").value.trim())); updatePc(); }
+function updatePc(){
+  const u=stxToU($("amount").value);
+  if($("pcmode").value==="allow"){ $("pcdesc").textContent="allow (no post-conditions) — use only if deny aborts"; return; }
+  $("pcdesc").textContent = u!=null ? `deny · STX post-condition: sender sends = ${fmtStx(u)}` : "deny · STX post-condition (enter an amount)";
+}
 ["manager","amount","cycles"].forEach(id=>$(id).addEventListener("input",gate));
+$("pcmode").addEventListener("change",updatePc);
+updatePc();
 $("manager").addEventListener("input",scheduleStake);
 $("refresh").addEventListener("click",loadReads);
 
@@ -230,10 +242,15 @@ $("stake").addEventListener("click",async()=>{
       calldataArg
     ];
     say("Building stake request… review carefully in your wallet before signing.");
+    const pcMode=$("pcmode").value;
+    // The node counts the stacking lock as STX movement; deny mode needs a matching STX post-condition.
+    const postConditions = pcMode==="deny"
+      ? [{ type:"stx-postcondition", address:account, condition:"eq", amount:amountU.toString() }]
+      : [];
     const params={
       contract:poxId, functionName:"stake", functionArgs:args,
       network:$("network").value, address:account,
-      sponsored:false, postConditionMode:"deny", postConditions:[]
+      sponsored:false, postConditionMode:pcMode, postConditions
     };
     const res=await request("stx_callContract",params);
     const txid=(res?.txid||"").replace(/^0x/i,"");
