@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>7 · Claim rewards — Signer Sidekick</title>
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2430;--border:#2a3441;--fg:#e6edf3;--muted:#9aa7b4;--accent:#f7931a;--accent2:#5b8def;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--testnet:#238636;--mainnet:#b62324;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:var(--accent2)}.wrap{max-width:820px;margin:0 auto;padding:20px}
+.netbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;font-weight:600;margin-bottom:18px}
+.netbar.testnet{background:rgba(35,134,54,.15);border:1px solid var(--testnet)}.netbar.mainnet{background:rgba(182,35,36,.15);border:1px solid var(--mainnet)}
+.netbar .tier{margin-left:auto;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;background:#0008}
+select,input,button{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
+input,select{width:100%;font-family:var(--mono);font-size:13px}
+input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+button{background:var(--accent);color:#111;border:none;font-weight:700;cursor:pointer}button:hover{filter:brightness(1.08)}button:disabled{opacity:.45;cursor:not-allowed}
+button.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--border)}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:13px;margin:22px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.sub{color:var(--muted);margin:0 0 16px;font-size:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px}.kv:last-child{border-bottom:none}
+.kv .v{font-family:var(--mono);font-size:12.5px;text-align:right;word-break:break-all}
+.status{font-size:13px;padding:10px 12px;border-radius:8px;margin-top:12px;display:none}.status.show{display:block}
+.status.info{background:rgba(91,141,239,.12);border:1px solid var(--accent2)}.status.ok{background:rgba(63,185,80,.12);border:1px solid var(--ok)}.status.err{background:rgba(248,81,73,.12);border:1px solid var(--bad)}
+code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-family:var(--mono);font-size:12px}
+.flow{display:flex;align-items:stretch;gap:8px;margin:6px 0 2px;flex-wrap:wrap}
+.node{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center;font-size:12.5px}
+.node b{display:block;font-size:13px;margin-bottom:2px}
+.arrow{display:flex;flex-direction:column;justify-content:center;align-items:center;color:var(--muted);font-size:11px;min-width:120px}
+.arrow .a{font-size:18px;color:var(--accent)}
+.arrow code{font-size:10.5px}
+.bar{position:relative;height:26px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:6px}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;background:rgba(247,147,26,.35)}
+.bar .mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--mono)}
+.ends{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:3px}
+details{margin-top:8px}summary{cursor:pointer;color:var(--muted);font-size:13px;font-weight:600}
+.note{background:rgba(210,153,34,.1);border:1px solid var(--warn);border-radius:10px;padding:11px 13px;font-size:12.5px;margin:10px 0}.note b{color:var(--warn)}
+.spin{width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+.slist{max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:8px;margin-top:8px}
+.srow{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px}.srow:last-child{border:none}
+.srow .amt{color:var(--muted)}
+.foot{color:var(--muted);font-size:12px;margin-top:24px;border-top:1px solid var(--border);padding-top:14px}
+small{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="netbar" id="netbar"><span id="netlabel">TESTNET</span>
+    <select id="network" style="width:auto"><option value="pox5-testnet" selected>PoX-5 Testnet (0x80000005)</option><option value="mainnet">Mainnet (0x00000001)</option></select>
+    <span class="tier" id="tier">TIER 1</span>
+  </div>
+  <h1>Claim rewards</h1>
+  <p class="sub">Yield is <b>sBTC</b> and is claimed in two steps. Both calls are <b>permissionless</b> — anyone can run either for anyone (you pay only the tx fee; the sBTC always goes to the staker, never the caller).</p>
+
+  <div class="card">
+    <h2>How it flows</h2>
+    <div class="flow">
+      <div class="node"><b>PoX-5</b>protocol rewards</div>
+      <div class="arrow"><span class="a">→</span><code>claim-rewards</code><span>step 1 · pool</span></div>
+      <div class="node"><b>signer-manager</b>pool contract</div>
+      <div class="arrow"><span class="a">→</span><code>claim-staker-rewards</code><span>step 2 · per staker</span></div>
+      <div class="node"><b>Staker</b>you</div>
+    </div>
+    <p style="margin:8px 0 0"><small><b>Step 1 (<code>claim-rewards</code>)</b> pulls the signer's whole cycle reward from PoX-5 <b>into the signer-manager contract</b>. <b>Step 2 (<code>claim-staker-rewards</code>)</b> pays one staker their share <b>out of the signer-manager contract</b>. Step 1 must happen once per cycle before step 2 — if nobody has run it, there is nothing to claim yet. Since both are permissionless, a staker can run step 1 themselves and then step 2.</small></p>
+    <div class="note" style="margin-top:10px">This tool manages <b>STX</b> staking rewards. The sBTC <b>bond</b> parameters (bond periods, bond index) are for the Bitcoin-staking side and are left empty here — they apply only to sBTC bond positions, which this tool doesn't cover.</div>
+  </div>
+
+  <div class="card">
+    <h2>Cycle</h2>
+    <div class="kv"><span>Current cycle</span><span class="v" id="curcycle">—</span></div>
+    <div class="bar"><div class="fill" id="barfill" style="width:0%"></div><div class="mid" id="barmid">—</div></div>
+    <div class="ends"><span id="barstart">start —</span><span id="barend">— end</span></div>
+    <div class="note" style="margin-top:12px"><b>Which cycle?</b> Claim <b>completed</b> cycles. Claiming a cycle with nothing accrued yet just reverts (<code>ERR_NO_CLAIMABLE_REWARDS</code>) and costs the tx fee — it isn't harmful. On mainnet the first PoX-5 cycle is <b>141</b>.</div>
+    <label>Reward cycle</label>
+    <div class="two">
+      <select id="cyclesel"><option>loading…</option></select>
+      <input id="cycle" placeholder="or type a cycle #" inputmode="numeric">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row"><button id="connect">Connect wallet</button><span class="v" id="addr" style="font-family:var(--mono);font-size:12.5px"></span></div>
+    <label>Signer-manager contract principal</label>
+    <input id="manager" placeholder="ST....signer-manager" spellcheck="false">
+  </div>
+
+  <div class="card">
+    <h2>Step 1 — Collect pool rewards (claim-rewards)</h2>
+    <p class="sub" style="margin:0 0 10px">Run once per cycle. Pulls the signer's rewards from PoX-5 <b>into the signer-manager contract</b>. Anyone can do this.</p>
+    <div class="row" style="margin-top:4px"><button id="collect" disabled>Collect pool rewards</button></div>
+    <div id="cstatus" class="status"></div>
+    <div id="cresult" style="display:none;margin-top:8px"><div class="kv"><span>txid</span><span class="v"><a id="ctx" target="_blank" rel="noopener"></a></span></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Step 2 — Claim a staker's rewards (claim-staker-rewards)</h2>
+    <label>Staker address (defaults to your connected wallet; change it to claim for anyone staking with this signer-manager contract)</label>
+    <input id="staker" placeholder="ST... staker principal" spellcheck="false">
+    <div class="row" style="margin-top:12px"><button id="claim" disabled>Claim staker rewards</button></div>
+    <div class="note" style="margin-top:10px">Runs in <b>originator</b> post-condition mode: nothing can leave your (the caller's) wallet without a post-condition, while the manager and PoX-5 contracts are still allowed to move the sBTC reward to the staker. You send nothing, so none of your own assets can move.</div>
+    <div id="sstatus" class="status"></div>
+    <div id="sresult" style="display:none;margin-top:8px"><div class="kv"><span>txid</span><span class="v"><a id="stx" target="_blank" rel="noopener"></a></span></div></div>
+  </div>
+
+  <div class="card">
+    <details id="poolsec">
+      <summary>Pool operator — check who was staking (advanced, slow)</summary>
+      <p class="sub" style="margin:10px 0">A full roster of a pool's stakers <b>cannot</b> be built in-browser from the public API (the contract-events endpoint times out). Enter the addresses you want to check — your own, or a candidate list from your own node/indexer — and this verifies each against the manager + cycle using fast read-only calls. Loading a long list can take a while.</p>
+      <label>Addresses to check (one per line or comma-separated)</label>
+      <textarea id="candidates" style="width:100%;font-family:var(--mono);font-size:12px;min-height:90px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:9px 11px" placeholder="ST...&#10;ST...&#10;ST..."></textarea>
+      <div class="row" style="margin-top:10px"><button id="check" class="ghost">Check staking for the cycle above</button><span id="checkprog" style="font-size:12.5px;color:var(--muted)"></span></div>
+      <div class="row" style="margin-top:10px"><input id="filter" placeholder="filter results…" style="flex:1"><button id="copy" class="ghost" disabled>Copy staking addresses</button></div>
+      <div class="slist" id="slist" style="display:none"></div>
+    </details>
+  </div>
+
+  <p class="foot">Not claiming does not forfeit rewards — a staker's share is held in the manager and can't be swept by the admin. sBTC without a pox-addr; native L1 BTC if the staker set one. Testnet = Tier 1, mainnet = Tier 2.</p>
+</div>
+
+<script type="module">
+import { connect, request } from "https://esm.sh/@stacks/connect@8.2.6";
+import { principalCV, uintCV, listCV, someCV, noneCV, cvToHex, hexToCV, ClarityType } from "https://esm.sh/@stacks/transactions@7.5.0";
+
+const NETWORKS={
+  "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,cls:"testnet",expectedPox:"ST000000000000000000002AMW42H.pox-5"},
+  "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,cls:"mainnet",expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
+};
+const $=id=>document.getElementById(id);
+let account=null, pox=null, poxId=null;
+function net(){return NETWORKS[$("network").value];}
+function paintNet(){const n=net();$("netbar").className="netbar "+n.cls;$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
+function cstat(m,k="info"){const s=$("cstatus");s.textContent=m;s.className="status show "+k;}
+function sstat(m,k="info"){const s=$("sstatus");s.textContent=m;s.className="status show "+k;}
+const stx=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+paintNet();
+$("network").addEventListener("change",()=>{paintNet();loadPox();});
+
+async function callReadOnly(api,contractId,fn,sender,args){
+  const [addr,name]=contractId.split(".");
+  const r=await fetch(`${api}/v2/contracts/call-read/${addr}/${name}/${fn}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender,arguments:args})});
+  const j=await r.json();
+  if(!j.okay) throw new Error(fn+": "+(j.cause||"read failed"));
+  return hexToCV(j.result);
+}
+
+async function loadPox(){
+  const n=net();
+  try{
+    pox=await fetch(n.api+"/v2/pox").then(r=>r.json()); poxId=pox.contract_id;
+    const cyc=pox.reward_cycle_id, len=pox.reward_cycle_length, until=pox.next_reward_cycle_in;
+    const end=pox.current_burnchain_block_height+until, start=end-len;
+    const pct=Math.max(0,Math.min(100,Math.round((len-until)/len*100)));
+    $("curcycle").textContent=`#${cyc}`;
+    $("barfill").style.width=pct+"%"; $("barmid").textContent=`cycle #${cyc} · ${pct}% done`;
+    $("barstart").textContent="start burn "+start; $("barend").textContent="end burn "+end;
+    // first pox-5 cycle from contract_versions
+    const pv=(pox.contract_versions||[]).find(v=>String(v.contract_id).endsWith(".pox-5"));
+    const first=pv?pv.first_reward_cycle_id:cyc;
+    const sel=$("cyclesel"); sel.innerHTML="";
+    const top=cyc, bottom=Math.max(first, cyc-60);
+    for(let c=top;c>=bottom;c--){
+      const o=document.createElement("option"); o.value=c;
+      o.textContent = c===cyc?`#${c} (current)`:(c===cyc-1?`#${c} (last completed)`:`#${c}`);
+      sel.appendChild(o);
+    }
+    const def=cyc>first?cyc-1:first; sel.value=def; $("cycle").value=def;
+  }catch(e){ $("barmid").textContent="could not load PoX info"; }
+}
+$("cyclesel").addEventListener("change",()=>{ $("cycle").value=$("cyclesel").value; });
+loadPox();
+
+function gate(){ const ok=account&&$("manager").value.trim()&&/^\d+$/.test($("cycle").value.trim()); $("collect").disabled=!ok; $("claim").disabled=!ok; }
+["manager","cycle"].forEach(id=>$(id).addEventListener("input",gate));
+
+$("connect").addEventListener("click",async()=>{
+  const n=net();
+  try{
+    cstat("Approve the wallet connection…");
+    const res=await connect({network:$("network").value,forceWalletSelect:true});
+    const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
+    if(!e){cstat("No STX address returned.","err");return;}
+    account=e.address.toUpperCase(); $("addr").textContent=account;
+    if(!$("staker").value) $("staker").value=account;
+    cstat("Connected.","ok"); gate();
+  }catch(e){cstat("Connect failed: "+(e?.message||e),"err");}
+});
+
+function cycleVal(){ return BigInt($("cycle").value.trim()); }
+
+$("collect").addEventListener("click",async()=>{
+  const n=net(); const manager=$("manager").value.trim();
+  if(!n.stxPrefix.test(account)){cstat(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
+  try{
+    cstat("Building claim-rewards… review in wallet.");
+    // STX-only: no sBTC bond periods -> empty list. Originator mode protects the caller's assets.
+    const params={ contract:manager, functionName:"claim-rewards",
+      functionArgs:[ cvToHex(listCV([])), cvToHex(uintCV(cycleVal())) ],
+      network:$("network").value, address:account, sponsored:false, postConditionMode:"originator", postConditions:[] };
+    const res=await request("stx_callContract",params);
+    const t=(res?.txid||"").replace(/^0x/i,"");
+    if(!/^[0-9a-f]{64}$/i.test(t)){cstat("No usable txid returned. Check wallet activity.","err");return;}
+    $("ctx").textContent="0x"+t.toLowerCase(); $("ctx").href=`${n.api}/extended/v1/tx/0x${t.toLowerCase()}`; $("cresult").style.display="block";
+    cstat("Submitted. If it reverts with no-claimable-rewards, that cycle has nothing to collect.","ok");
+  }catch(e){ const c=e&&typeof e==="object"&&"code"in e?Number(e.code):null; cstat(c===4001||c===-31001?"Signing cancelled.":"claim-rewards failed: "+(e?.message||e),"err"); }
+});
+
+$("claim").addEventListener("click",async()=>{
+  const n=net(); const manager=$("manager").value.trim(); const staker=$("staker").value.trim()||account;
+  if(!n.stxPrefix.test(account)){sstat(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
+  if(!/^S[A-Z0-9]{20,50}$/.test(staker)){sstat("Enter a valid staker principal (ST.../SP...).","err");return;}
+  try{
+    sstat("Building claim-staker-rewards… review in wallet.");
+    // STX-only: no sBTC bond -> bond-index none. Originator mode protects the caller's assets.
+    const params={ contract:manager, functionName:"claim-staker-rewards",
+      functionArgs:[ cvToHex(principalCV(staker)), cvToHex(uintCV(cycleVal())), cvToHex(noneCV()) ],
+      network:$("network").value, address:account, sponsored:false, postConditionMode:"originator", postConditions:[] };
+    const res=await request("stx_callContract",params);
+    const t=(res?.txid||"").replace(/^0x/i,"");
+    if(!/^[0-9a-f]{64}$/i.test(t)){sstat("No usable txid returned. Check wallet activity.","err");return;}
+    $("stx").textContent="0x"+t.toLowerCase(); $("stx").href=`${n.api}/extended/v1/tx/0x${t.toLowerCase()}`; $("sresult").style.display="block";
+    sstat("Submitted. If it reverts, run step 1 (collect) for this cycle first, or there were no rewards for this staker.","ok");
+  }catch(e){ const c=e&&typeof e==="object"&&"code"in e?Number(e.code):null; sstat(c===4001||c===-31001?"Signing cancelled.":"claim-staker-rewards failed: "+(e?.message||e),"err"); }
+});
+
+// ---- Pool operator: per-address staking check (reliable; no full enumeration) ----
+let staking=[];
+$("check").addEventListener("click",async()=>{
+  const n=net(); const manager=$("manager").value.trim();
+  if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(manager)){$("checkprog").textContent="enter the signer-manager principal above first";return;}
+  if(!/^\d+$/.test($("cycle").value.trim())){$("checkprog").textContent="set a cycle above first";return;}
+  const cycle=cycleVal();
+  const addrs=[...new Set($("candidates").value.split(/[\s,]+/).map(s=>s.trim()).filter(a=>/^S[A-Z0-9]{20,50}$/.test(a)))];
+  if(!addrs.length){$("checkprog").textContent="paste some addresses to check";return;}
+  staking=[]; $("slist").innerHTML=""; $("slist").style.display="block"; $("copy").disabled=true;
+  let done=0;
+  for(const a of addrs){
+    $("checkprog").innerHTML=`<span class="spin"></span> checking ${++done}/${addrs.length}…`;
+    try{
+      const cv=await callReadOnly(n.api, poxId||n.expectedPox, "get-signer-cycle-membership", a, [cvToHex(principalCV(a)),cvToHex(uintCV(cycle))]);
+      if(cv.type===ClarityType.OptionalSome){
+        const t=cv.value; // {amount-ustx, signer}
+        const amt = t.value?.["amount-ustx"]?.value ?? t.value?.["amount-ustx"];
+        const signer = t.value?.["signer"]?.value ?? "";
+        if(String(signer)===manager) staking.push({addr:a, amount: amt?BigInt(amt):0n});
+      }
+    }catch(e){ /* skip unreadable */ }
+    await sleep(120); // ~8/sec, gentle on the public API
+  }
+  renderStaking();
+  $("checkprog").textContent=`${staking.length} of ${addrs.length} were staking with this manager in cycle #${cycle}`;
+  $("copy").disabled=staking.length===0;
+});
+function renderStaking(){
+  const f=$("filter").value.trim().toLowerCase();
+  const rows=staking.filter(s=>!f||s.addr.toLowerCase().includes(f));
+  $("slist").innerHTML = rows.length? rows.map(s=>`<div class="srow"><span>${s.addr}</span><span class="amt">${stx(s.amount)}</span></div>`).join("") : '<div class="srow"><span>no matches</span></div>';
+}
+$("filter").addEventListener("input",renderStaking);
+$("copy").addEventListener("click",async()=>{
+  const f=$("filter").value.trim().toLowerCase();
+  const list=staking.filter(s=>!f||s.addr.toLowerCase().includes(f)).map(s=>s.addr).join("\n");
+  try{ await navigator.clipboard.writeText(list); $("copy").textContent="Copied ✓"; setTimeout(()=>$("copy").textContent="Copy staking addresses",1500); }catch{ $("copy").textContent="copy failed"; }
+});
+</script>
+</body>
+</html>

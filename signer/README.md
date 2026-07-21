@@ -92,6 +92,7 @@ Sidekick's backend seals each transaction into an integrity-checked intent and t
 - `04-register-self.html` — verify the signer grant against live PoX-5, then broadcast `register-self`; shows staked amount.
 - `05-stake.html` — lock STX to a signer via `pox-5 stake`; shows staked amount + registration pre-check.
 - `06-rewards-status.html` — read-only registration / grant / delegated-vs-minimum / activity dashboard.
+- `07-claim-rewards.html` — claim sBTC yield: `claim-rewards` (pool collect, pox-5 → manager) then `claim-staker-rewards` (per staker, manager → user). Permissionless; cycle picker + progress bar; allow-mode (dynamic reward amounts); collapsed pool-operator per-address staking check (full roster needs an indexer — the public events endpoint times out).
 - `05-rewards-status.html` — redirect stub → `06-rewards-status.html` (old name kept for links).
 
 Library pins: `@stacks/connect@8.2.6` (latest, maintained by stx-labs), `@stacks/transactions@7.5.0`, `@stacks/stacking@7.5.0`, `@stacks/wallet-sdk@7.5.0`, `@noble/secp256k1@2.1.0`.
