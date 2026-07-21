@@ -60,15 +60,16 @@ small{color:var(--muted)}
     <label>Clarity source (paste the rendered <code>&lt;name&gt;.clar</code>)</label>
     <textarea id="src" placeholder=";; rendered signer-manager.clar from `sidekick manager render`" spellcheck="false"></textarea>
     <div class="pin">
-      <b>Provenance check.</b> Compare these against <code>sourceSha256</code> / <code>canonicalSha256</code> in your deployment manifest. On mainnet they must also match the pinned reference above.
+      <b>Provenance check.</b> Compare these against <code>sourceSha256</code> / <code>canonicalSha256</code> in your deployment manifest. On mainnet they must also match the pinned reference above. The <b>canonical</b> hash is the reliable comparator — the raw hash changes with whitespace/line-endings (e.g. GitHub's copy button strips the trailing newline), so a raw mismatch with a canonical match just means reformatted whitespace.
       <div class="kv"><span>Raw source SHA-256</span><span class="v" id="hash">—</span></div>
       <div class="kv"><span>Canonical SHA-256 (comments/whitespace stripped)</span><span class="v" id="chash">—</span></div>
       <div class="kv"><span>Reference match</span><span class="v" id="match"><span class="badge b-idle">—</span></span></div>
       <div class="kv"><span>Embedded PoX-5 principal</span><span class="v" id="embpox">—</span></div>
       <div class="kv"><span>Will deploy as</span><span class="v" id="principal">—</span></div>
-      <div class="kv"><span>Clarity version</span><span class="v">6</span></div>
+      <div class="kv"><span>Clarity version payload</span><span class="v" id="cver">—</span></div>
       <div class="kv"><span>Post-condition mode</span><span class="v">deny (0 conditions — no assets move on deploy)</span></div>
     </div>
+    <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:12px 0 4px"><input type="checkbox" id="omitver" checked style="width:auto;margin-top:3px"><span>Ledger-compatible: omit the clarity version (serializes as the legacy <code>0x01</code> SmartContract payload). At epoch 4.0 the node assigns the epoch-default Clarity (v6), so you get the same runtime version. Uncheck to force explicit Clarity 6 (<code>0x06</code> VersionedSmartContract), which older Ledger Stacks apps reject.</span></label>
     <div class="row"><button id="deploy" disabled>Deploy contract</button><button class="ghost" id="rehash">Recompute hash</button></div>
     <div id="status" class="status"></div>
   </div>
@@ -177,6 +178,9 @@ function gate(){ $("deploy").disabled = !(account && $("cname").value.trim() && 
 $("src").addEventListener("input",refreshHash);
 $("cname").addEventListener("input",()=>{updatePrincipal();gate();});
 $("rehash").addEventListener("click",refreshHash);
+function updateCver(){ $("cver").textContent = $("omitver").checked ? "omitted → 0x01 (node assigns epoch-default Clarity 6)" : "explicit Clarity 6 → 0x06 (older Ledger apps reject this)"; }
+$("omitver").addEventListener("change",updateCver);
+updateCver();
 
 $("connect").addEventListener("click",async()=>{
   const n=net();
@@ -201,10 +205,13 @@ $("deploy").addEventListener("click",async()=>{
   try{
     say("Building deploy request… review carefully in your wallet before signing.");
     const params={
-      name, clarityCode, clarityVersion:6,
+      name, clarityCode,
       network:$("network").value, address:account,
       sponsored:false, postConditionMode:"deny", postConditions:[]
     };
+    // Omit clarityVersion => 0x01 SmartContract payload (Ledger-compatible; node assigns epoch-default Clarity 6).
+    // Include it only when the user explicitly forces explicit Clarity 6 (0x06 VersionedSmartContract).
+    if(!$("omitver").checked) params.clarityVersion=6;
     const res=await request("stx_deployContract",params);
     const txid=(res?.txid||"").replace(/^0x/i,"");
     if(!/^[0-9a-f]{64}$/i.test(txid)){say("Wallet returned no usable txid. Check wallet activity before retrying.","err");return;}
