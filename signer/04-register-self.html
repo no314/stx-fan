@@ -58,6 +58,7 @@ small{color:var(--muted)}
     <input id="authid" placeholder="e.g. 1" spellcheck="false">
     <label>Signer output JSON (paste the full object from <code>generate-staking-signature --json</code>)</label>
     <textarea id="grant" placeholder='{"signerKey":"03...","signerSignature":"...","authId":"1","signerManager":"ST....signer-manager"}' spellcheck="false"></textarea>
+    <p style="font-size:12px;color:var(--muted);margin:6px 0 0">Generate on the <b>signer host</b> (private key stays on the node):<br><code style="display:inline-block;margin-top:3px;white-space:normal">stacks-signer generate-staking-signature --config /etc/stacks-signer/config.toml --signer-manager &lt;manager&gt; --auth-id &lt;id&gt; --json</code><br>Adjust the config path to yours. Confirm flags with <code>--help</code> for your build. For testing, dApp 2 (offline key helper) can also produce this JSON.</p>
     <div class="row"><button id="verify" disabled>Verify against live PoX-5</button></div>
     <div id="checks"></div>
     <div id="status" class="status"></div>

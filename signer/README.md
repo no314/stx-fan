@@ -51,9 +51,11 @@ dApps 4 and 5 show, under the signer-manager input, a non-blocking line that slo
 
 dApp 3 links the repo's reference contracts and shows raw + canonical SHA-256 of the pasted source (canonicalization ported from `manager-adapter.ts`):
 
-- Mainnet has a fixed reference pinned in [`known-managers.ts`](https://github.com/stx-labs/signer-sidekick/blob/main/packages/protocol/src/known-managers.ts): raw `c0a2cc8e83de2b1bc60e07c5e0f5da8991c6f79eb05d077bba8cb984eee226b3`, canonical `7fd58a7591ff0ae1643eb7e71ea2867385bcac237a3ea819f52301310c0d2e27`. dApp 3 auto-flags match/mismatch.
-- Testnet has no single fixed hash: the source embeds the live testnet sBTC principal, so compare against your own `sidekick manager render` manifest. The [devnet artifact](https://github.com/stx-labs/signer-sidekick/blob/main/contracts/reference-manager/generated/devnet/signer-manager.clar) is the closest reference.
-- The only intended difference between networks is the embedded PoX-5 boot principal and sBTC deployer — see [`PROVENANCE.md`](https://github.com/stx-labs/signer-sidekick/blob/main/contracts/PROVENANCE.md).
+- Mainnet reference pinned in [`known-managers.ts`](https://github.com/stx-labs/signer-sidekick/blob/main/packages/protocol/src/known-managers.ts): raw `c0a2cc8e83de2b1bc60e07c5e0f5da8991c6f79eb05d077bba8cb984eee226b3`, canonical `7fd58a7591ff0ae1643eb7e71ea2867385bcac237a3ea819f52301310c0d2e27`.
+- Testnet reference is [no314/stx-fan `signer-manager`](https://github.com/no314/stx-fan/blob/main/signer/contract/signer-manager) (canonical `409e8cfa6a447e159062536aff677ca6df7e04e5c7ced92189b6dd90a4689c51`), which points sBTC token/registry/withdrawal at `SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1`. The sidekick devnet artifact embeds sBTC contracts that don't exist on pox5-testnet and fails there.
+- dApp 3 auto-flags a match on raw **or** canonical. The difference between networks is the embedded PoX-5 boot principal and sBTC contracts — verify the embedded sBTC contracts exist on your target network.
+
+**Deploy payload / Ledger (temporary).** The manager uses Clarity-4+ constructs (`as-contract?`), so it must deploy as a Clarity-6 VersionedSmartContract (`0x06`, `clarityVersion: 6`). The Ledger Stacks app can't sign `0x06` yet, and omitting the version (`0x01`) makes the node analyse under the network's default Clarity (v3) → `as-contract?` unresolved → deploy aborts. So: **deploy from a software wallet**, then use dApp 3's **Admin rotation** to move admin to your cold/Ledger key (`update-admin` is a normal `0x02` call the Ledger signs). Once the Ledger app supports Clarity 6, deploy straight from hardware.
 
 ## Running them
 
@@ -85,8 +87,8 @@ Sidekick's backend seals each transaction into an integrity-checked intent and t
 
 - `index.html` — hub linking all dApps in flow order (1–6).
 - `01-connect-preflight.html` — connect admin wallet, verify chain/address, balance, PoX-active, readiness.
-- `02-signer-key-helper.html` — offline BIP39 seed + account-0 address/key/pubkey for the signer.
-- `03-deploy-manager.html` — deploy the reviewed `signer-manager` contract with reference-hash check.
+- `02-signer-key-helper.html` — offline BIP39 seed + account-0 address/key/pubkey for the signer, plus an advanced/testing **signer grant JSON generator** (reproduces the pox-5 grant hash and signs it → the JSON dApp 4 expects; network-specific).
+- `03-deploy-manager.html` — deploy the `signer-manager` (Clarity-6 / `0x06`) from a **software wallet** (Ledger can't sign this payload yet — temporary), with reference-hash check and an **admin-rotation** card (`update-admin`) to move admin to a cold/Ledger key.
 - `04-register-self.html` — verify the signer grant against live PoX-5, then broadcast `register-self`; shows staked amount.
 - `05-stake.html` — lock STX to a signer via `pox-5 stake`; shows staked amount + registration pre-check.
 - `06-rewards-status.html` — read-only registration / grant / delegated-vs-minimum / activity dashboard.

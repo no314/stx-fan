@@ -13,6 +13,9 @@
 button{font:inherit;background:var(--accent);color:#111;border:none;font-weight:700;cursor:pointer;border-radius:8px;padding:9px 13px}
 button:hover{filter:brightness(1.08)}button:disabled{opacity:.45;cursor:not-allowed}
 button.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--border)}
+input,select{width:100%;font-family:var(--mono);font-size:13px;color:var(--fg);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+.gstat{font-size:13px;padding:10px 12px;border-radius:8px;margin-top:12px;display:none;border:1px solid var(--border)}
 h1{font-size:20px;margin:0 0 4px}h2{font-size:13px;margin:22px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
 .sub{color:var(--muted);margin:0 0 18px;font-size:14px}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px}
@@ -77,15 +80,44 @@ a{color:var(--accent2)}
     <pre id="cfg"></pre>
   </div>
 
+  <div class="card">
+    <h2>Signer grant JSON (advanced / testing)</h2>
+    <div class="warnbox" style="background:rgba(210,153,34,.1);border-color:var(--warn)">
+      <b style="color:var(--warn)">Mostly for testing.</b> This computes the <code>register-self</code> grant signature <b>in the browser</b>, so it needs the signer private key here. On a real signer you generate it on the node with <code>stacks-signer generate-staking-signature</code> and the key never leaves the host. It also works for mainnet, but you generally shouldn't need it there.
+    </div>
+    <label>Network (sets the domain <code>chain-id</code> — the signature is network-specific)</label>
+    <select id="g-net"><option value="testnet" selected>PoX-5 Testnet (chain-id 0x80000005)</option><option value="mainnet">Mainnet (chain-id 0x00000001)</option></select>
+    <div id="g-mwarn" class="warnbox" style="display:none;background:rgba(182,35,36,.12);border-color:var(--bad)"><b style="color:var(--bad)">Mainnet:</b> you are handling a mainnet signer key in a browser — only if you fully accept the risk.</div>
+    <label>Signer private key (64-hex, or 66-hex with the <code>01</code> flag)</label>
+    <input id="g-priv" placeholder="paste signer private key" spellcheck="false">
+    <div class="row" style="margin-top:6px"><button class="ghost" id="g-usegen">Use key generated above</button></div>
+    <label>Signer-manager principal</label>
+    <input id="g-manager" placeholder="ST....signer-manager" spellcheck="false">
+    <label>auth-id (reuse this exact value when you register)</label>
+    <input id="g-authid" placeholder="1" spellcheck="false">
+    <div class="row" style="margin-top:12px"><button id="g-gen">Generate grant JSON</button></div>
+    <div id="g-status" class="gstat"></div>
+    <div id="g-out" style="display:none">
+      <div class="kv"><span>Message hash (should match PoX-5 <code>get-signer-grant-message-hash</code>)</span><span class="v" id="g-hash"></span></div>
+      <div class="kv"><span>Signer public key (derived from the key)</span><span class="v" id="g-pub"></span></div>
+      <h2>Signer output JSON — paste into dApp 4</h2>
+      <pre id="g-json"></pre>
+      <p><small>dApp 4 independently re-fetches the live hash from PoX-5 and blocks broadcast unless this signature verifies against it — so a wrong entry here fails safely.</small></p>
+    </div>
+  </div>
+
   <p class="foot">Crypto libraries load once at startup; after that first load, disconnect before generating. Even on testnet the "keys never touch a website" habit is kept so the pattern is safe when promoted to mainnet.</p>
 </div>
 
 <script type="module">
 import { generateSecretKey, generateWallet, getStxAddress } from "https://esm.sh/@stacks/wallet-sdk@7.5.0";
 import * as secp from "https://esm.sh/@noble/secp256k1@2.1.0";
+import { stringAsciiCV, tupleCV, uintCV, principalCV, serializeCV } from "https://esm.sh/@stacks/transactions@7.5.0";
 const $=id=>document.getElementById(id);
 const toHex=b=>Array.from(b,x=>x.toString(16).padStart(2,"0")).join("");
+const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
 let bits=256;
+let lastPriv=null;
 
 function checkNet(){
   $("netstate").innerHTML = navigator.onLine
@@ -113,6 +145,7 @@ $("gen").addEventListener("click",async()=>{
     const wallet = await generateWallet({ secretKey: mnemonic, password: "" });
     const acct = wallet.accounts[0];
     const privHex = acct.stxPrivateKey;                  // 66-hex (32-byte key + 01 compression flag)
+    lastPriv = privHex;                                  // remembered for the grant generator below
     const rawKey = privHex.length===66 ? privHex.slice(0,64) : privHex;
     const pubHex = toHex(secp.getPublicKey(Uint8Array.from(rawKey.match(/../g).map(h=>parseInt(h,16))), true));
     const addrT = getStxAddress({ account: acct, network: "testnet" });
@@ -141,6 +174,50 @@ $("clear").addEventListener("click",()=>{
   $("seed").innerHTML="";
   for(const id of ["addrT","addrM","priv","pub"]) $(id).textContent="";
   $("cfg").textContent=""; $("out").style.display="none"; $("clear").disabled=true;
+});
+
+// ---- Signer grant JSON generator (advanced / testing) ----
+// Reproduces PoX-5 get-signer-grant-message-hash exactly and signs it with the signer key.
+//   hash = sha256( SIP018_MSG_PREFIX ++ sha256(consensus(domain)) ++ sha256(consensus(msg)) )
+//   domain = { name:"pox-5-signer", version:"1.0.0", chain-id:<net> }
+//   msg    = { topic:"grant-authorization", signer-manager:<principal>, auth-id:<uint> }
+const SIP018_PREFIX = Uint8Array.from([0x53,0x49,0x50,0x30,0x31,0x38]); // 0x534950303138
+const CHAIN_ID = { testnet: 2147483653n /*0x80000005*/, mainnet: 1n /*0x00000001*/ };
+const concatBytes=(...arr)=>{const n=arr.reduce((s,a)=>s+a.length,0);const o=new Uint8Array(n);let i=0;for(const a of arr){o.set(a,i);i+=a.length;}return o;};
+const sha256b=async b=>new Uint8Array(await crypto.subtle.digest("SHA-256",b));
+const serBytes=cv=>{const s=serializeCV(cv);return hexToBytes(typeof s==="string"?s:toHex(s));};
+function gsay(msg,kind){ const e=$("g-status"); e.textContent=msg; e.style.display="block"; e.style.borderColor = kind==="err"?"var(--bad)":kind==="ok"?"var(--ok)":"var(--warn)"; e.style.background = kind==="err"?"rgba(248,81,73,.1)":kind==="ok"?"rgba(63,185,80,.1)":"rgba(210,153,34,.1)"; }
+
+$("g-net").addEventListener("change",()=>{ $("g-mwarn").style.display = $("g-net").value==="mainnet" ? "block":"none"; });
+$("g-usegen").addEventListener("click",()=>{ if(lastPriv){ $("g-priv").value=lastPriv; gsay("Filled the private key generated above.","ok"); } else { gsay("Generate a seed/key above first, or paste a key.","err"); } });
+
+$("g-gen").addEventListener("click",async()=>{
+  try{
+    const chainId=CHAIN_ID[$("g-net").value];
+    let priv=$("g-priv").value.trim().replace(/^0x/i,"");
+    if(!/^[0-9a-fA-F]{64}([0-9a-fA-F]{2})?$/.test(priv)){ gsay("Private key must be 64 hex chars (or 66 with the 01 flag).","err"); return; }
+    const raw=priv.slice(0,64);
+    const manager=$("g-manager").value.trim();
+    if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(manager)){ gsay("Enter a valid signer-manager principal (ST....name).","err"); return; }
+    const authIdStr=$("g-authid").value.trim();
+    if(!/^(0|[1-9][0-9]*)$/.test(authIdStr)){ gsay("auth-id must be a non-negative integer.","err"); return; }
+    const authId=BigInt(authIdStr);
+
+    const privBytes=hexToBytes(raw);
+    const pub=toHex(secp.getPublicKey(privBytes,true));           // compressed 33-byte signer key
+    const domain=tupleCV({ name:stringAsciiCV("pox-5-signer"), version:stringAsciiCV("1.0.0"), "chain-id":uintCV(chainId) });
+    const msg=tupleCV({ topic:stringAsciiCV("grant-authorization"), "signer-manager":principalCV(manager), "auth-id":uintCV(authId) });
+    const hash=await sha256b(concatBytes(SIP018_PREFIX, await sha256b(serBytes(domain)), await sha256b(serBytes(msg))));
+    const sig=await secp.signAsync(hash, privBytes);              // recoverable RSV
+    const rsv=toHex(sig.toCompactRawBytes())+sig.recovery.toString(16).padStart(2,"0");
+
+    const json={ signerKey:pub, signerSignature:rsv, authId:authIdStr, signerManager:manager };
+    $("g-hash").textContent="0x"+toHex(hash);
+    $("g-pub").textContent=pub;
+    $("g-json").textContent=JSON.stringify(json,null,2);
+    $("g-out").style.display="block";
+    gsay("Grant JSON generated. Copy it into dApp 4 (network must match).","ok");
+  }catch(e){ gsay("Generation failed: "+(e?.message||e),"err"); }
 });
 </script>
 </body>
