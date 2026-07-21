@@ -268,7 +268,7 @@
                             ERR_NO_CLAIMABLE_REWARDS
                         )))
                         (withdrawal-request (try! (contract-call?
-                            'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.sbtc-withdrawal
+                            'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-withdrawal
                             initiate-withdrawal-request amount
                             (get pox-addr l1-info) (get max-fee l1-info)
                         )))
