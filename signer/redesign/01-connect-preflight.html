@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Connect and preflight · Signer Sidekick</title>
+<link rel="stylesheet" href="stacks.css">
+</head>
+<body class="net-testnet">
+<div class="wrap">
+  <div class="wordmark">Signer Sidekick</div>
+  <div class="netbar" id="netbar">
+    <span id="netlabel">TESTNET</span>
+    <select id="network" aria-label="Network">
+      <option value="pox5-testnet" selected>PoX-5 Testnet</option>
+      <option value="mainnet">Mainnet</option>
+    </select>
+    <span class="tier" id="tier">TIER 1</span>
+  </div>
+
+  <h1>Connect and preflight</h1>
+  <p class="sub">Confirm the network, wallet, and balance before you deploy and register. Connect the funded signer-manager admin wallet.<span class="info" tabindex="0" role="button" aria-label="About the admin wallet" data-tip="This is the funded admin wallet, not the signer key. The signer key stays on the signer host and is never connected here. On mainnet, hold this admin key in a hardware or cold wallet, in line with your organisation's security policy.">i</span></p>
+
+  <div class="card">
+    <div class="row">
+      <button id="connect">Connect wallet</button>
+      <button id="disconnect" class="ghost" disabled>Disconnect</button>
+      <button id="refresh" class="ghost" disabled>Refresh</button>
+    </div>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Wallet</h2>
+    <div class="kv"><span>Address</span><span class="v" id="addr">Not connected</span></div>
+    <div class="kv"><span>Public key</span><span class="v" id="pubkey">Not connected</span></div>
+    <div class="kv"><span>STX balance</span><span class="v" id="bal">Not connected</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Network and PoX-5</h2>
+    <div class="kv"><span>Expected PoX-5 contract</span><span class="v" id="exppox">…</span></div>
+    <div class="kv"><span>Live PoX-5 contract</span><span class="v" id="poxc">…</span></div>
+    <div class="kv"><span>Reward cycle</span><span class="v" id="cycle">…</span></div>
+    <div class="kv"><span>PoX active</span><span class="v" id="active">…</span></div>
+    <div class="kv"><span>Signer-set minimum<span class="info" tabindex="0" role="button" aria-label="About the minimum" data-tip="A signer needs at least 50,000 STX delegated to it in aggregate for the upcoming cycle. A single staker can contribute less; it counts toward the total.">i</span></span><span class="v" id="minustx">…</span></div>
+    <div class="kv"><span>Burn height</span><span class="v" id="burn">…</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Readiness</h2>
+    <div id="checks">
+      <div class="check"><span class="mark idle">·</span><span>Connect a wallet to run the checks.</span></div>
+    </div>
+  </div>
+
+  <p class="foot">Reads come from the public Stacks (Hiro) API. Your key stays in the wallet and is never sent here. Signer Sidekick is interim tooling: confirm the network, contract, and results yourself. The accent is violet on testnet and Stacks orange on mainnet.</p>
+</div>
+
+<script type="module">
+import { connect, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
+
+const NETWORKS = {
+  "pox5-testnet": { label:"TESTNET", tier:"TIER 1", chainId:0x80000005, api:"https://api.testnet-pox5.hiro.so", stxPrefix:/^S[TN]/, mainnet:false, expectedPox:"ST000000000000000000002AMW42H.pox-5" },
+  "mainnet":      { label:"MAINNET", tier:"TIER 2", chainId:0x00000001, api:"https://api.hiro.so",            stxPrefix:/^S[PM]/, mainnet:true,  expectedPox:"SP000000000000000000002Q6VF78.pox-5" }
+};
+const MIN_USTX = 50_000_000_000n; // POX5_SIGNER_SET_MIN_USTX
+const $ = id => document.getElementById(id);
+let account = null;
+
+function net(){ return NETWORKS[$("network").value]; }
+function paintNet(){
+  const n = net();
+  document.body.classList.toggle("net-mainnet", n.mainnet);
+  document.body.classList.toggle("net-testnet", !n.mainnet);
+  $("netlabel").textContent = n.label;
+  $("tier").textContent = n.tier;
+  $("exppox").textContent = n.expectedPox;
+}
+function say(msg, kind="info"){ const s=$("status"); s.textContent=msg; s.className="status show "+kind; }
+function stx(u){ return (Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX"; }
+
+$("network").addEventListener("change", ()=>{ paintNet(); reset(); });
+paintNet();
+
+function reset(){
+  account=null;
+  for(const id of ["addr","pubkey","bal"]) $(id).textContent="Not connected";
+  for(const id of ["poxc","cycle","active","minustx","burn"]) $(id).textContent="…";
+  paintNet();
+  $("checks").innerHTML='<div class="check"><span class="mark idle">·</span><span>Connect a wallet to run the checks.</span></div>';
+  $("disconnect").disabled=true; $("refresh").disabled=true;
+  $("status").className="status";
+}
+
+$("connect").addEventListener("click", async ()=>{
+  try{
+    say("Approve the connection request in your wallet.","info");
+    const res = await connect({ network: $("network").value, forceWalletSelect: true });
+    const entry = (res?.addresses||[]).find(a => typeof a.address==="string" && /^S/.test(a.address));
+    if(!entry){ say("The wallet returned no STX address.","err"); return; }
+    account = { address: entry.address.toUpperCase(), publicKey: entry.publicKey || "" };
+    $("addr").textContent = account.address;
+    $("pubkey").textContent = account.publicKey || "…";
+    $("disconnect").disabled=false; $("refresh").disabled=false;
+    say("Connected. Loading network reads.","ok");
+    await loadReads();
+  }catch(e){ say("Connection failed or was cancelled.","err"); }
+});
+
+$("disconnect").addEventListener("click", async ()=>{ try{ await disconnect(); }catch{} reset(); });
+$("refresh").addEventListener("click", loadReads);
+
+async function loadReads(){
+  const n = net();
+  try{
+    const [pox, bal] = await Promise.all([
+      fetch(n.api+"/v2/pox").then(r=>r.json()),
+      fetch(`${n.api}/extended/v1/address/${account.address}/balances`).then(r=>r.json())
+    ]);
+    const balance = BigInt(bal?.stx?.balance ?? "0");
+    $("bal").textContent = stx(balance);
+    $("poxc").textContent = pox.contract_id;
+    $("cycle").textContent = `#${pox.reward_cycle_id}, next in ${pox.next_reward_cycle_in} blocks`;
+    $("active").textContent = pox.current_cycle?.is_pox_active ? "yes" : "no";
+    $("minustx").textContent = stx(pox.min_amount_ustx ?? MIN_USTX.toString());
+    $("burn").textContent = pox.current_burnchain_block_height;
+    runChecks(pox, balance);
+    say("Reads updated.","ok");
+  }catch(e){ say("Could not load reads from the API.","err"); }
+}
+
+function runChecks(pox, balance){
+  const n = net();
+  const rows = [];
+  const add = (mark, text) => rows.push(`<div class="check"><span class="mark ${mark}">${mark==="ok"?"✓":mark==="bad"?"✕":mark==="warn"?"!":"·"}</span><span>${text}</span></div>`);
+
+  const prefixOk = n.stxPrefix.test(account.address);
+  add(prefixOk?"ok":"bad", prefixOk
+    ? `Wallet is a ${n.label} address.`
+    : `Wallet is not a ${n.label} address. Switch the wallet network and reconnect.<span class="info" tabindex="0" role="button" aria-label="Network help" data-tip="On testnet, add a Leather custom network with key pox5-testnet and API https://api.testnet-pox5.hiro.so, then select the correct account.">i</span>`);
+
+  const poxOk = pox.contract_id===n.expectedPox;
+  add(poxOk?"ok":"bad", poxOk ? `PoX-5 contract matches the pinned ${n.expectedPox}.` : `Live PoX-5 ${pox.contract_id} does not match ${n.expectedPox}. Wrong network.`);
+
+  const active = !!pox.current_cycle?.is_pox_active;
+  add(active?"ok":"warn", active ? "PoX-5 is active this cycle." : "PoX-5 is not active this cycle. Do not continue setup until it is.");
+
+  const min = BigInt(pox.min_amount_ustx ?? MIN_USTX.toString());
+  const enough = balance >= min;
+  add(enough?"ok":"warn", enough ? `Balance covers the signer-set minimum, ${stx(min)}.` : `Balance ${stx(balance)} is below the signer-set minimum ${stx(min)}. Fund this address before staking.`);
+
+  const hasFees = balance > 0n;
+  add(hasFees?"ok":"bad", hasFees ? "Address holds STX for transaction fees." : `Address has no STX. Fund it${n.mainnet?"":" from the faucet"} before signing.`);
+
+  $("checks").innerHTML = rows.join("");
+}
+</script>
+</body>
+</html>
