@@ -8,7 +8,17 @@
 </head>
 <body class="net-testnet">
 <div class="wrap">
-  <div class="wordmark">Signer Sidekick</div>
+  <header class="topbar">
+    <span class="wordmark">Signer Sidekick</span>
+    <div class="wallet" id="wallet">
+      <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
+      <div class="menu" id="menu" role="menu" hidden>
+        <button class="menuitem" id="refresh" role="menuitem">Refresh reads</button>
+        <button class="menuitem" id="disconnect" role="menuitem">Disconnect</button>
+      </div>
+    </div>
+  </header>
+
   <div class="netbar" id="netbar">
     <span id="netlabel">TESTNET</span>
     <select id="network" aria-label="Network">
@@ -20,15 +30,7 @@
 
   <h1>Connect and preflight</h1>
   <p class="sub">Confirm the network, wallet, and balance before you deploy and register. Connect the funded signer-manager admin wallet.<span class="info" tabindex="0" role="button" aria-label="About the admin wallet" data-tip="This is the funded admin wallet, not the signer key. The signer key stays on the signer host and is never connected here. On mainnet, hold this admin key in a hardware or cold wallet, in line with your organisation's security policy.">i</span></p>
-
-  <div class="card">
-    <div class="row">
-      <button id="connect">Connect wallet</button>
-      <button id="disconnect" class="ghost" disabled>Disconnect</button>
-      <button id="refresh" class="ghost" disabled>Refresh</button>
-    </div>
-    <div id="status" class="status"></div>
-  </div>
+  <div id="status" class="status"></div>
 
   <div class="card">
     <h2>Wallet</h2>
@@ -66,7 +68,7 @@ const NETWORKS = {
 };
 const MIN_USTX = 50_000_000_000n; // POX5_SIGNER_SET_MIN_USTX
 const $ = id => document.getElementById(id);
-let account = null;
+let account = null, menuOpen = false;
 
 function net(){ return NETWORKS[$("network").value]; }
 function paintNet(){
@@ -79,40 +81,50 @@ function paintNet(){
 }
 function say(msg, kind="info"){ const s=$("status"); s.textContent=msg; s.className="status show "+kind; }
 function stx(u){ return (Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX"; }
+function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
+
+function paintWallet(){
+  const b=$("walletbtn");
+  if(account){ b.innerHTML = `${shortAddr(account.address)}<span class="caret">▼</span>`; b.classList.add("connected"); }
+  else { b.textContent="Connect wallet"; b.classList.remove("connected"); }
+  b.setAttribute("aria-expanded", menuOpen?"true":"false");
+}
+function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded", o?"true":"false"); }
 
 $("network").addEventListener("change", ()=>{ paintNet(); reset(); });
-paintNet();
+paintNet(); paintWallet();
 
 function reset(){
-  account=null;
+  account=null; openMenu(false);
   for(const id of ["addr","pubkey","bal"]) $(id).textContent="Not connected";
   for(const id of ["poxc","cycle","active","minustx","burn"]) $(id).textContent="…";
-  paintNet();
+  paintNet(); paintWallet();
   $("checks").innerHTML='<div class="check"><span class="mark idle">·</span><span>Connect a wallet to run the checks.</span></div>';
-  $("disconnect").disabled=true; $("refresh").disabled=true;
   $("status").className="status";
 }
 
-$("connect").addEventListener("click", async ()=>{
+$("walletbtn").addEventListener("click", (e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
+$("menu").addEventListener("click", e=>e.stopPropagation());
+document.addEventListener("click", ()=>{ if(menuOpen) openMenu(false); });
+$("refresh").addEventListener("click", ()=>{ openMenu(false); if(account) loadReads(); });
+$("disconnect").addEventListener("click", async ()=>{ openMenu(false); try{ await disconnect(); }catch{} reset(); });
+
+async function doConnect(){
   try{
-    say("Approve the connection request in your wallet. Set your wallet to this network first.","info");
-    // Do not pass the pox5-testnet key to connect(): @stacks/connect resolves network names via
-    // StacksNetwork.fromName(), which throws on custom keys and cannot represent chain 0x80000005.
-    // Connect on the wallet's active network, then the checks below confirm it matches this page.
-    const res = await connect({ forceWalletSelect: true });
+    say("Approve the connection request in your wallet.","info");
+    // Pass the network explicitly on connect: without it, Leather defaults to mainnet.
+    // The network key is forwarded to the wallet, which resolves the configured custom network.
+    const res = await connect({ network: $("network").value, forceWalletSelect: true });
     const entry = (res?.addresses||[]).find(a => typeof a.address==="string" && /^S/.test(a.address));
     if(!entry){ say("The wallet returned no STX address.","err"); return; }
     account = { address: entry.address.toUpperCase(), publicKey: entry.publicKey || "" };
     $("addr").textContent = account.address;
     $("pubkey").textContent = account.publicKey || "…";
-    $("disconnect").disabled=false; $("refresh").disabled=false;
+    paintWallet();
     say("Connected. Loading network reads.","ok");
     await loadReads();
   }catch(e){ say("Connection failed or was cancelled.","err"); }
-});
-
-$("disconnect").addEventListener("click", async ()=>{ try{ await disconnect(); }catch{} reset(); });
-$("refresh").addEventListener("click", loadReads);
+}
 
 async function loadReads(){
   const n = net();
