@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rewards and signer status · Signer Sidekick</title>
+<link rel="stylesheet" href="stacks.css?v=3">
+<style>
+.netbar .tier{margin-left:auto;margin-right:0}
+.badge{font-weight:700;padding:2px 8px;border-radius:6px;font-size:var(--fs-xs);font-family:var(--font-mono)}
+.b-ok{background:rgba(63,185,80,.18);color:var(--ok)}
+.b-bad{background:rgba(248,81,73,.18);color:var(--bad)}
+.b-warn{background:rgba(210,153,34,.18);color:var(--warn)}
+.b-idle{background:var(--surface-input);color:var(--text-secondary)}
+.tx{font-family:var(--font-mono);font-size:var(--fs-xs);padding:6px 0;border-bottom:1px solid var(--border)}.tx:last-child{border:none}
+</style>
+</head>
+<body class="net-testnet">
+<div class="wrap">
+  <div class="netbar" id="netbar">
+    <div class="nb-left">
+      <span id="netlabel">TESTNET</span>
+      <select id="network" aria-label="Network">
+        <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
+        <option value="mainnet">Mainnet</option>
+      </select>
+    </div>
+    <span class="tier" id="tier">TIER 1</span>
+  </div>
+
+  <h1>Rewards and signer status</h1>
+  <p class="sub">Read-only. No wallet, no signing. Confirms the manager is registered, its signer-key grant is valid, whether the delegated amount meets the signer-set minimum, and shows recent activity. All from the public Stacks (Hiro) API, with PoX-5 pinned per network.</p>
+
+  <div class="card">
+    <label>Signer-manager contract principal</label>
+    <input id="manager" placeholder="ST....signer-manager" spellcheck="false">
+    <div class="row" style="margin-top:12px"><button id="load" disabled>Load status</button><button id="refresh" class="ghost" disabled>Refresh</button></div>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Network and cycle</h2>
+    <div class="kv"><span>Expected PoX-5 (pinned)</span><span class="v" id="exppox">…</span></div>
+    <div class="kv"><span>Live PoX-5 contract</span><span class="v" id="poxc">…</span></div>
+    <div class="kv"><span>Current cycle</span><span class="v" id="cycle">…</span></div>
+    <div class="kv"><span>PoX active</span><span class="v" id="active">…</span></div>
+    <div class="kv"><span>Signer-set minimum</span><span class="v" id="minustx">…</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Registration</h2>
+    <div class="kv"><span>Registered with PoX-5</span><span class="v" id="registered"><span class="badge b-idle">…</span></span></div>
+    <div class="kv"><span>Signer-key grant valid</span><span class="v" id="grantvalid"><span class="badge b-idle">…</span></span></div>
+    <div class="kv"><span>Registered signer key</span><span class="v" id="signerkey">…</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Stake and rewards</h2>
+    <div class="kv"><span>Delegated to signer (this cycle)</span><span class="v" id="delegated">…</span></div>
+    <div class="kv"><span>Delegated to signer (next cycle)</span><span class="v" id="delegatednext">…</span></div>
+    <div class="kv"><span>Meets signer-set minimum (next)</span><span class="v" id="meetsmin"><span class="badge b-idle">…</span></span></div>
+    <div class="kv"><span>Manager STX balance</span><span class="v" id="bal">…</span></div>
+    <p><small>Per-cycle earned fees and unclaimed staker rewards need cycle and bond-index arguments and are handled in the Claim rewards tool. This page covers registration and eligibility health.</small></p>
+  </div>
+
+  <div class="card">
+    <h2>Recent manager transactions</h2>
+    <div id="txs"><small>Load a manager to see activity.</small></div>
+  </div>
+
+  <p class="foot">All values are public chain reads. Registered and grant valid mirror Sidekick's registration verification (get-signer-info and verify-signer-key-grant on PoX-5). Signer Sidekick is interim tooling.</p>
+</div>
+
+<script type="module">
+import { principalCV, bufferCV, uintCV, cvToHex, hexToCV, ClarityType } from "https://esm.sh/@stacks/transactions@7.5.0";
+const NETWORKS={
+  "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
+  "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",mainnet:true,expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
+};
+const MIN_USTX=50_000_000_000n;
+const $=id=>document.getElementById(id);
+function net(){return NETWORKS[$("network").value];}
+function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;$("exppox").textContent=n.expectedPox;}
+function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
+function stx(u){return (Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";}
+function badge(cls,text){return `<span class="badge ${cls}">${text}</span>`;}
+const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
+paintNet();
+$("network").addEventListener("change",paintNet);
+$("manager").addEventListener("input",()=>{$("load").disabled=!$("manager").value.trim();});
+$("load").addEventListener("click",load);
+$("refresh").addEventListener("click",load);
+
+async function callReadOnly(api,contractId,fn,sender,args){
+  const [addr,name]=contractId.split(".");
+  const r=await fetch(`${api}/v2/contracts/call-read/${addr}/${name}/${fn}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender,arguments:args})});
+  const j=await r.json(); if(!j.okay) throw new Error(fn+": "+(j.cause||"read failed")); return hexToCV(j.result);
+}
+async function delegated(api,poxId,manager,cycle){
+  const del=await callReadOnly(api,poxId,"get-amount-delegated-for-signer",manager,[cvToHex(principalCV(manager)),cvToHex(uintCV(BigInt(cycle)))]);
+  return del.type===ClarityType.UInt?BigInt(del.value):0n;
+}
+
+async function load(){
+  const n=net(); const manager=$("manager").value.trim();
+  if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(manager)){say("Enter a valid contract principal like ST....signer-manager.","err");return;}
+  $("refresh").disabled=false;
+  try{
+    say("Loading.");
+    const pox=await fetch(n.api+"/v2/pox").then(r=>r.json());
+    const poxId=pox.contract_id; const cycleId=pox.reward_cycle_id;
+    $("poxc").innerHTML = poxId!==n.expectedPox ? `${poxId} ${badge("b-bad","wrong network")}` : poxId;
+    $("cycle").textContent=`#${cycleId} (next in ${pox.next_reward_cycle_in} blocks)`;
+    $("active").innerHTML=pox.current_cycle?.is_pox_active?badge("b-ok","yes"):badge("b-warn","no");
+    $("minustx").textContent=stx(pox.min_amount_ustx??MIN_USTX.toString());
+
+    let signerKeyHex=null;
+    try{
+      const info=await callReadOnly(n.api,poxId,"get-signer-info",manager,[cvToHex(principalCV(manager))]);
+      if(info.type===ClarityType.OptionalSome && info.value?.type===ClarityType.Buffer){ signerKeyHex=String(info.value.value).replace(/^0x/,""); }
+    }catch(e){ say("get-signer-info failed: "+e.message,"err"); }
+
+    if(signerKeyHex){
+      $("registered").innerHTML=badge("b-ok","yes");
+      $("signerkey").textContent="0x"+signerKeyHex;
+      try{
+        const grant=await callReadOnly(n.api,poxId,"verify-signer-key-grant",manager,[cvToHex(principalCV(manager)),cvToHex(bufferCV(hexToBytes(signerKeyHex)))]);
+        const ok = grant.type===ClarityType.ResponseOk && (grant.value?.type===ClarityType.BoolTrue);
+        $("grantvalid").innerHTML = ok?badge("b-ok","valid"):badge("b-bad","not valid");
+      }catch(e){ $("grantvalid").innerHTML=badge("b-warn","unknown"); }
+    }else{
+      $("registered").innerHTML=badge("b-bad","no");
+      $("grantvalid").innerHTML=badge("b-idle","n/a");
+      $("signerkey").textContent="…";
+    }
+
+    const min=BigInt(pox.min_amount_ustx??MIN_USTX.toString());
+    try{
+      const cur=await delegated(n.api,poxId,manager,cycleId);
+      const nxt=await delegated(n.api,poxId,manager,cycleId+1);
+      $("delegated").textContent=stx(cur); $("delegatednext").textContent=stx(nxt);
+      $("meetsmin").innerHTML = nxt>=min?badge("b-ok","yes"):badge("b-warn","below minimum");
+    }catch(e){ $("delegated").textContent="n/a"; $("delegatednext").textContent="n/a"; $("meetsmin").innerHTML=badge("b-idle","n/a"); }
+
+    try{
+      const bal=await fetch(`${n.api}/extended/v1/address/${manager}/balances`).then(r=>r.json());
+      $("bal").textContent=stx(bal?.stx?.balance??"0");
+    }catch{ $("bal").textContent="n/a"; }
+
+    try{
+      const txs=await fetch(`${n.api}/extended/v1/address/${manager}/transactions?limit=6`).then(r=>r.json());
+      const list=(txs?.results)||[];
+      $("txs").innerHTML = list.length? list.map(t=>{
+        const tx=t.tx||t; const fn=tx.contract_call?.function_name||tx.tx_type;
+        const glyph=tx.tx_status==="success"?"✓":tx.tx_status==="pending"?"·":"✕";
+        return `<div class="tx">${glyph} ${fn} · <a href="${n.api}/extended/v1/tx/${tx.tx_id}" target="_blank" rel="noopener">${(tx.tx_id||"").slice(0,14)}…</a></div>`;
+      }).join(""):"<small>No transactions found.</small>";
+    }catch(e){ $("txs").innerHTML="<small>Could not load transactions.</small>"; }
+
+    say("Loaded.","ok");
+  }catch(e){ say("Load failed: "+(e?.message||e),"err"); }
+}
+</script>
+</body>
+</html>

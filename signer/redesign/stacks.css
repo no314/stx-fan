@@ -25,6 +25,9 @@
   --surface-shell:var(--sand-1000);--surface-quiet:var(--sand-1000);--surface-standout:var(--sand-900);--surface-input:var(--sand-800);--surface-raised:var(--sand-950);
   --text-primary:var(--sand-100);--text-secondary:var(--sand-400);--text-tertiary:var(--sand-500);
   --border-primary:var(--sand-600);--border-secondary:var(--sand-700);--border-tertiary:var(--sand-950);
+  /* semantic aliases (used by per-app inline styles) */
+  --border:var(--border-secondary);--surface:var(--surface-raised);
+  --ok:var(--green-400);--bad:var(--red-400);--warn:var(--yellow-300);--info:var(--blue-400);
   /* fonts */
   --font-display:"Open Sauce Sans",ui-sans-serif,system-ui,sans-serif;
   --font-body:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;

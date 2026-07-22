@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Register-self · Signer Sidekick</title>
+<link rel="stylesheet" href="stacks.css?v=3">
+<style>
+.stakeline{font-size:var(--fs-xs);color:var(--text-secondary);margin-top:6px;min-height:17px;display:flex;align-items:center;gap:7px}
+.stakeline .amt{color:var(--text-primary);font-family:var(--font-mono)}
+</style>
+</head>
+<body class="net-testnet">
+<div class="wrap">
+  <div class="netbar" id="netbar">
+    <div class="nb-left">
+      <span id="netlabel">TESTNET</span>
+      <select id="network" aria-label="Network">
+        <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
+        <option value="mainnet">Mainnet</option>
+      </select>
+    </div>
+    <span class="tier" id="tier">TIER 1</span>
+    <div class="wallet" id="wallet">
+      <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
+      <div class="menu" id="menu" role="menu" hidden>
+        <button class="menuitem" id="disconnect" role="menuitem">Disconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <h1>Register-self</h1>
+  <p class="sub">Broadcasts <code>register-self</code> from the signer-manager admin wallet. It verifies the signer grant against live PoX-5 before you sign: pinned contract, message-hash recovery, signature validity, and grant not already used.<span class="info" tabindex="0" role="button" aria-label="What register-self does" data-tip="One call runs authorize-admin, then pox-5 grant-signer-key (which recovers the pubkey from the signature and asserts it equals the signer key), then pox-5 register-signer. It moves no assets.">i</span></p>
+  <div id="status" class="status"></div>
+
+  <div class="card">
+    <h2>Grant</h2>
+    <label>Signer-manager contract principal</label>
+    <input id="manager" placeholder="ST....signer-manager" spellcheck="false">
+    <div id="stakeline" class="stakeline"></div>
+    <label>auth-id</label>
+    <input id="authid" placeholder="1" spellcheck="false">
+    <label>Signer output JSON</label>
+    <textarea id="grant" placeholder='{"signerKey":"03...","signerSignature":"...","authId":"1","signerManager":"ST....signer-manager"}' spellcheck="false"></textarea>
+    <p style="font-size:var(--fs-xs);color:var(--text-secondary);margin:6px 0 0">Generate on the signer host, where the private key stays:<br><code style="display:inline-block;margin-top:3px;white-space:normal">stacks-signer generate-staking-signature --config /etc/stacks-signer/config.toml --signer-manager &lt;manager&gt; --auth-id &lt;id&gt; --json</code><br>Adjust the config path to yours. For testing, dApp 2 can also produce this JSON.</p>
+    <div class="row" style="margin-top:12px"><button id="verify" disabled>Verify against live PoX-5</button></div>
+    <div id="checks" style="margin-top:6px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Broadcast</h2>
+    <div class="kv"><span>Post-condition mode</span><span class="v">deny, no conditions (register-self moves no assets)</span></div>
+    <div class="row" style="margin-top:12px"><button id="broadcast" disabled>Broadcast register-self</button></div>
+    <div id="result" style="display:none;margin-top:10px">
+      <div class="kv"><span>Transaction ID</span><span class="v" id="txid"></span></div>
+      <div class="kv"><span>Track</span><span class="v"><a id="txlink" target="_blank" rel="noopener">Transaction status</a></span></div>
+      <p><small>A txid is submission, not success. Confirm registration and the grant in dApp 6.</small></p>
+    </div>
+  </div>
+
+  <p class="foot">The wallet shows the exact call and the contract enforces the grant. Keys stay in the wallet. PoX-5 is pinned per network. Signer Sidekick is interim tooling.</p>
+</div>
+
+<script type="module">
+import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
+import { principalCV, uintCV, bufferCV, tupleCV, cvToHex, hexToCV, ClarityType, verifySignature, publicKeyFromSignatureRsv } from "https://esm.sh/@stacks/transactions@7.5.0";
+
+const NETWORKS = {
+  "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
+  "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
+};
+const $=id=>document.getElementById(id);
+let account=null, verified=null, menuOpen=false;
+function net(){return NETWORKS[$("network").value];}
+function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
+function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
+function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
+function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
+function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
+paintNet(); paintWallet();
+$("network").addEventListener("change",()=>{paintNet();resetVerify();scheduleStake();});
+
+const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
+function gate(){ $("verify").disabled=!(account&&$("manager").value.trim()&&$("authid").value.trim()&&$("grant").value.trim()); }
+function resetVerify(){ verified=null; $("broadcast").disabled=true; $("checks").innerHTML=""; }
+["manager","authid","grant"].forEach(id=>$(id).addEventListener("input",()=>{gate();resetVerify();}));
+$("manager").addEventListener("input",scheduleStake);
+
+const MIN_USTX=50_000_000_000n;
+const fmtStx=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";
+let stakeTimer=null;
+function scheduleStake(){ clearTimeout(stakeTimer); const m=$("manager").value.trim(); if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(m)){ $("stakeline").innerHTML=""; return; } stakeTimer=setTimeout(()=>loadStaked(m),450); }
+async function loadStaked(manager){
+  const n=net();
+  $("stakeline").innerHTML='<span class="spin"></span><span>loading STX staked to this signer-manager</span>';
+  try{
+    const pox=await fetch(n.api+"/v2/pox").then(r=>r.json());
+    const poxId=pox.contract_id, next=pox.reward_cycle_id+1;
+    const hex=await callReadOnly(n.api,poxId,"get-amount-delegated-for-signer",manager,[cvToHex(principalCV(manager)),cvToHex(uintCV(BigInt(next)))]);
+    const cv=hexToCV(hex); const amt=cv.type===ClarityType.UInt?BigInt(cv.value):0n; const meets=amt>=MIN_USTX;
+    $("stakeline").innerHTML=`<span><span class="amt">${fmtStx(amt)}</span> staked to this signer for cycle #${next}, ${meets?"meets":"below"} the 50,000 STX minimum</span>`;
+  }catch(e){ $("stakeline").innerHTML='<span>could not load the staked amount (check network and principal)</span>'; }
+}
+async function callReadOnly(api,contractId,fn,sender,args){
+  const [addr,name]=contractId.split(".");
+  const r=await fetch(`${api}/v2/contracts/call-read/${addr}/${name}/${fn}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender,arguments:args})});
+  const j=await r.json(); if(!j.okay) throw new Error(fn+": "+(j.cause||"read failed")); return j.result;
+}
+async function mapEntry(api,contractId,mapName,keyHex){
+  const [addr,name]=contractId.split(".");
+  const r=await fetch(`${api}/v2/map_entry/${addr}/${name}/${mapName}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(keyHex)});
+  if(!r.ok) throw new Error("map_entry "+r.status); const j=await r.json(); return j.data;
+}
+
+$("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
+$("menu").addEventListener("click",e=>e.stopPropagation());
+document.addEventListener("click",()=>{ if(menuOpen) openMenu(false); });
+$("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; paintWallet(); resetVerify(); gate(); });
+
+async function doConnect(){
+  const n=net();
+  try{
+    say("Approve wallet connection.","info");
+    const res=await connect({network:$("network").value,forceWalletSelect:true});
+    const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
+    if(!e){say("The wallet returned no STX address.","err");return;}
+    account=e.address.toUpperCase(); paintWallet();
+    if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err"); else say("Connected.","ok");
+    gate();
+  }catch(e){say("Connection failed or was cancelled.","err");}
+}
+
+const GLYPH={ok:"✓",bad:"✕",warn:"!"};
+$("verify").addEventListener("click",async()=>{
+  const n=net(); resetVerify();
+  const rows=[]; const add=(m,t)=>rows.push(`<div class="check"><span class="mark ${m}">${GLYPH[m]||"·"}</span><span>${t}</span></div>`);
+  let allOk=true; const fail=t=>{allOk=false;add("bad",t);};
+  try{
+    const manager=$("manager").value.trim(); const authId=$("authid").value.trim();
+    let g; try{ g=JSON.parse($("grant").value); }catch{ say("The signer output is not valid JSON.","err"); return; }
+    const shapeOk = typeof g.signerKey==="string"&&/^(02|03)[0-9a-f]{64}$/.test(g.signerKey)
+      && typeof g.signerSignature==="string"&&/^[0-9a-f]{130}$/.test(g.signerSignature)
+      && typeof g.authId==="string"&&/^(0|[1-9][0-9]*)$/.test(g.authId)
+      && typeof g.signerManager==="string";
+    shapeOk?add("ok","Signer output JSON has the expected fields."):fail("Signer output JSON is malformed. It needs signerKey (02/03 + 64 hex), signerSignature (130 hex), authId, and signerManager.");
+    if(!shapeOk){$("checks").innerHTML=rows.join("");return;}
+    g.signerManager===manager?add("ok","Signer output manager matches the pinned principal."):fail(`Signer output manager ${g.signerManager} does not match the pinned ${manager}.`);
+    g.authId===authId?add("ok",`auth-id matches (${authId}).`):fail(`Signer output auth-id ${g.authId} does not match the entered ${authId}.`);
+    const recId=parseInt(g.signerSignature.slice(-2),16);
+    recId<=3?add("ok","Signature recovery id is valid."):fail("Signature recovery id is invalid.");
+    const pox=await fetch(n.api+"/v2/pox").then(r=>r.json()); const poxId=pox.contract_id;
+    poxId===n.expectedPox?add("ok",`PoX-5 pinned: ${poxId}.`):fail(`Live PoX-5 ${poxId} does not match the expected ${n.expectedPox}. Wrong network, blocked.`);
+    const hashCvHex=await callReadOnly(n.api,poxId,"get-signer-grant-message-hash",manager,[cvToHex(principalCV(manager)),cvToHex(uintCV(BigInt(authId)))]);
+    const hashCv=hexToCV(hashCvHex); const msgHash=typeof hashCv.value==="string"?hashCv.value.replace(/^0x/,""):"";
+    if(msgHash.length!==64){ fail("PoX-5 returned an unexpected message-hash length."); }
+    else{
+      add("ok","Fetched the live signer-grant message hash from PoX-5.");
+      const sigValid=verifySignature(g.signerSignature.slice(0,128),msgHash,g.signerKey);
+      let recovered=null; try{ recovered=publicKeyFromSignatureRsv(msgHash,g.signerSignature); }catch{}
+      (sigValid&&recovered===g.signerKey) ? add("ok","Signature is valid for the live grant hash and recovers the signer key.")
+        : fail("Signature does not verify against the live grant hash and signer key. Regenerate it on the signer host.");
+    }
+    try{
+      const keyHex=cvToHex(tupleCV({ "signer-key":bufferCV(hexToBytes(g.signerKey)), "signer-manager":principalCV(manager), "auth-id":uintCV(BigInt(authId)) }));
+      const data=await mapEntry(n.api,poxId,"used-signer-key-grants",keyHex); const cv=hexToCV(data);
+      const isUsed = cv?.type===ClarityType.OptionalSome;
+      isUsed?fail("This signer authorization has already been used. Generate a new one."):add("ok","Signer authorization has not been used yet.");
+    }catch(e){ add("warn","Could not confirm the grant-usage map (non-blocking): "+(e?.message||e)); }
+    $("checks").innerHTML=rows.join("");
+    if(allOk){
+      verified={ manager, poxId, args:[ cvToHex(principalCV(manager)), cvToHex(bufferCV(hexToBytes(g.signerKey))), cvToHex(uintCV(BigInt(authId))), cvToHex(bufferCV(hexToBytes(g.signerSignature))) ]};
+      $("broadcast").disabled=false; say("All checks passed. Review the call in your wallet before signing.","ok");
+    } else { say("One or more checks failed. Broadcast is blocked.","err"); }
+  }catch(e){ $("checks").innerHTML=rows.join(""); say("Verification error: "+(e?.message||e),"err"); }
+});
+
+$("broadcast").addEventListener("click",async()=>{
+  const n=net();
+  if(!verified){say("Run verification first.","err");return;}
+  if(!n.stxPrefix.test(account)){say(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
+  try{
+    say("Building the register-self request. Review it in your wallet before signing.");
+    const params={ contract:verified.manager, functionName:"register-self", functionArgs:verified.args, network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions:[] };
+    const res=await request("stx_callContract",params);
+    const txid=(res?.txid||"").replace(/^0x/i,"");
+    if(!/^[0-9a-f]{64}$/i.test(txid)){say("The wallet returned no usable txid. Check wallet activity.","err");return;}
+    $("txid").textContent="0x"+txid.toLowerCase(); $("txlink").href=`${n.api}/extended/v1/tx/0x${txid.toLowerCase()}`; $("result").style.display="block";
+    say("Submitted. Verify registration in dApp 6.","ok");
+  }catch(e){ const code=e&&typeof e==="object"&&"code"in e?Number(e.code):null; say(code===4001||code===-31001?"Signing cancelled in wallet.":"Broadcast failed: "+(e?.message||e),"err"); }
+});
+</script>
+</body>
+</html>

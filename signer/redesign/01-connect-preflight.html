@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Connect and preflight · Signer Sidekick</title>
-<link rel="stylesheet" href="stacks.css">
+<link rel="stylesheet" href="stacks.css?v=3">
 </head>
 <body class="net-testnet">
 <div class="wrap">
@@ -110,7 +110,7 @@ $("disconnect").addEventListener("click", async ()=>{ openMenu(false); try{ awai
 
 async function doConnect(){
   try{
-    say("Approve the connection request in your wallet.","info");
+    say("Approve wallet connection.","info");
     // Pass the network explicitly on connect, or Leather defaults to mainnet. The value is the
     // custom-network key configured in Leather ("pox5-testnet"); it must match exactly.
     const res = await connect({ network: $("network").value, forceWalletSelect: true });

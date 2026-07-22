@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stake to a signer · Signer Sidekick</title>
+<link rel="stylesheet" href="stacks.css?v=3">
+<style>
+.stakeline{font-size:var(--fs-xs);color:var(--text-secondary);margin-top:6px;min-height:17px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.stakeline .amt{color:var(--text-primary);font-family:var(--font-mono)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.reg-ok{color:var(--ok)}.reg-bad{color:var(--bad)}.reg-warn{color:var(--warn)}
+</style>
+</head>
+<body class="net-testnet">
+<div class="wrap">
+  <div class="netbar" id="netbar">
+    <div class="nb-left">
+      <span id="netlabel">TESTNET</span>
+      <select id="network" aria-label="Network">
+        <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
+        <option value="mainnet">Mainnet</option>
+      </select>
+    </div>
+    <span class="tier" id="tier">TIER 1</span>
+    <div class="wallet" id="wallet">
+      <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
+      <div class="menu" id="menu" role="menu" hidden>
+        <button class="menuitem" id="refresh" role="menuitem">Refresh reads</button>
+        <button class="menuitem" id="disconnect" role="menuitem">Disconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <h1>Stake to a signer</h1>
+  <p class="sub">Locks your own STX toward a signer by calling <code>pox-5 stake</code>. Any wallet can stake; it is not admin-gated. Naming the <code>signer-manager</code> attributes your stake to that signer, and the lock takes effect the next reward cycle.<span class="info" tabindex="0" role="button" aria-label="About the post-conditions" data-tip="Staking LOCKS STX, it is not sent, so it needs a staking-postcondition for the locked amount. A plain STX post-condition fails with SentEq 0. No pox-postcondition is used: stake performs no separate PoX action, so asserting one fails with performed=false. Ledger users need Stacks App 0.26.15+ to sign the staking post-condition.">i</span></p>
+  <div id="status" class="status"></div>
+
+  <div class="card">
+    <h2>Your wallet</h2>
+    <div class="kv"><span>Address</span><span class="v" id="addr">Not connected</span></div>
+    <div class="kv"><span>Available balance</span><span class="v" id="bal">Not connected</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Stake</h2>
+    <label>Signer-manager contract (which signer you stake to)</label>
+    <input id="manager" placeholder="ST....signer-manager" spellcheck="false">
+    <div id="stakeline" class="stakeline"></div>
+    <div id="regline" class="stakeline"></div>
+
+    <div class="two">
+      <div>
+        <label>Amount to lock (STX)</label>
+        <input id="amount" placeholder="50000" spellcheck="false">
+      </div>
+      <div>
+        <label>Lock duration (cycles, 1 to 96)</label>
+        <input id="cycles" placeholder="6" spellcheck="false">
+      </div>
+    </div>
+
+    <details>
+      <summary>Reward Bitcoin address (optional, sets where PoX rewards go)</summary>
+      <label>BTC reward address (leave blank to receive sBTC on Stacks)</label>
+      <input id="btc" placeholder="bc1... / 1... / 3... (tb1.../m.../n... on testnet)" spellcheck="false">
+      <label>max-fee (uSTX, used by the manager fee logic; 0 if unsure)</label>
+      <input id="maxfee" placeholder="0" spellcheck="false">
+    </details>
+
+    <div class="kv" style="margin-top:14px"><span>start-burn-ht (auto, current burn height)<span class="info" tabindex="0" role="button" aria-label="About start height" data-tip="The tool auto-fills the current burn height. The lock takes effect the next reward cycle; this is not a future date.">i</span></span><span class="v" id="startht">…</span></div>
+    <label>Post-condition mode</label>
+    <select id="pcmode">
+      <option value="deny" selected>Deny with staking post-condition (recommended)</option>
+      <option value="allow">Allow (fallback, use only if deny still aborts)</option>
+    </select>
+    <div class="kv"><span>Post-condition</span><span class="v" id="pcdesc">…</span></div>
+    <div class="row" style="margin-top:12px"><button id="stake" disabled>Stake</button></div>
+  </div>
+
+  <div class="card" id="result" style="display:none">
+    <h2>Broadcast</h2>
+    <div class="kv"><span>Transaction ID</span><span class="v" id="txid"></span></div>
+    <div class="kv"><span>Track</span><span class="v"><a id="txlink" target="_blank" rel="noopener">Transaction status</a></span></div>
+    <div class="kv"><span>Unlocks at cycle</span><span class="v" id="unlock">…</span></div>
+    <p><small>Your STX locks for the next cycle onward. Stakes below 50,000 STX still count toward the signer's aggregate. A txid is submission, not success. Confirm the lock in dApp 6.</small></p>
+  </div>
+
+  <p class="foot">Real value moves on mainnet, this locks STX. The contract enforces the gates: the signer must be registered with a valid grant, not in the prepare phase, and your balance must cover the amount. Signer Sidekick is interim tooling.</p>
+</div>
+
+<script type="module">
+import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
+import { principalCV, uintCV, bufferCV, tupleCV, someCV, noneCV, serializeCV, cvToHex, hexToCV, ClarityType, postConditionToHex } from "https://esm.sh/@stacks/transactions@7.5.0";
+import { poxAddressToTuple } from "https://esm.sh/@stacks/stacking@7.5.0";
+
+const NETWORKS = {
+  "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
+  "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
+};
+const MIN_USTX=50_000_000_000n;
+const $=id=>document.getElementById(id);
+let account=null, poxInfo=null, menuOpen=false;
+function net(){return NETWORKS[$("network").value];}
+function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
+function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
+function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
+function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
+function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
+const fmtStx=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";
+const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
+function stxToU(s){ s=String(s).trim(); if(!/^\d+(\.\d{1,6})?$/.test(s)) return null; const [a,b=""]=s.split("."); return BigInt(a)*1_000_000n + BigInt((b+"000000").slice(0,6)); }
+paintNet(); paintWallet();
+$("network").addEventListener("change",()=>{paintNet();resetReads();scheduleStake();});
+
+async function callReadOnly(api,contractId,fn,sender,args){
+  const [addr,name]=contractId.split(".");
+  const r=await fetch(`${api}/v2/contracts/call-read/${addr}/${name}/${fn}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender,arguments:args})});
+  const j=await r.json(); if(!j.okay) throw new Error(fn+": "+(j.cause||"read failed")); return hexToCV(j.result);
+}
+function resetReads(){ poxInfo=null; $("bal").textContent=account?"…":"Not connected"; $("startht").textContent="…"; }
+function gate(){ $("stake").disabled=!(account&&$("manager").value.trim()&&stxToU($("amount").value)!=null&&/^\d+$/.test($("cycles").value.trim())); updatePc(); }
+function updatePc(){
+  const u=stxToU($("amount").value);
+  if($("pcmode").value==="allow"){ $("pcdesc").textContent="allow, no post-conditions (use only if deny aborts)"; return; }
+  $("pcdesc").textContent = u!=null ? `deny, staking-postcondition (locks = ${fmtStx(u)})` : "deny, staking-postcondition (enter an amount)";
+}
+["manager","amount","cycles"].forEach(id=>$(id).addEventListener("input",gate));
+$("pcmode").addEventListener("change",updatePc); updatePc();
+$("manager").addEventListener("input",scheduleStake);
+
+$("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
+$("menu").addEventListener("click",e=>e.stopPropagation());
+document.addEventListener("click",()=>{ if(menuOpen) openMenu(false); });
+$("refresh").addEventListener("click",()=>{ openMenu(false); if(account) loadReads(); });
+$("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; $("addr").textContent="Not connected"; $("bal").textContent="Not connected"; paintWallet(); gate(); });
+
+async function doConnect(){
+  const n=net();
+  try{
+    say("Approve wallet connection.","info");
+    const res=await connect({network:$("network").value,forceWalletSelect:true});
+    const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
+    if(!e){say("The wallet returned no STX address.","err");return;}
+    account=e.address.toUpperCase(); $("addr").textContent=account; paintWallet();
+    if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err"); else say("Connected.","ok");
+    await loadReads(); gate();
+  }catch(e){say("Connection failed or was cancelled.","err");}
+}
+
+async function loadReads(){
+  const n=net();
+  try{
+    poxInfo=await fetch(n.api+"/v2/pox").then(r=>r.json());
+    $("startht").textContent=poxInfo.current_burnchain_block_height;
+    if(poxInfo.contract_id!==n.expectedPox) say(`Live PoX-5 ${poxInfo.contract_id} does not match the expected ${n.expectedPox}. Wrong network.`,"err");
+    if(account){
+      const bal=await fetch(`${n.api}/extended/v1/address/${account}/balances`).then(r=>r.json());
+      const unlocked=BigInt(bal?.stx?.balance??"0")-BigInt(bal?.stx?.locked??"0");
+      $("bal").textContent=`${fmtStx(bal?.stx?.balance??"0")} (unlocked ${fmtStx(unlocked<0n?0n:unlocked)})`;
+    }
+    if(poxInfo.next_cycle && poxInfo.next_cycle.blocks_until_prepare_phase<=0){
+      say("Heads up: the network appears to be in the prepare phase, so the contract rejects stake now. Wait for the next cycle.","info");
+    }
+  }catch(e){}
+}
+
+let stakeTimer=null;
+function scheduleStake(){ clearTimeout(stakeTimer); const m=$("manager").value.trim(); if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(m)){ $("stakeline").innerHTML=""; $("regline").innerHTML=""; return; } stakeTimer=setTimeout(()=>loadStaked(m),450); }
+async function loadStaked(manager){
+  const n=net();
+  $("stakeline").innerHTML='<span class="spin"></span><span>loading STX staked to this signer-manager</span>';
+  $("regline").innerHTML="";
+  try{
+    const pox = poxInfo || await fetch(n.api+"/v2/pox").then(r=>r.json());
+    const poxId=pox.contract_id, next=pox.reward_cycle_id+1;
+    const cv=await callReadOnly(n.api,poxId,"get-amount-delegated-for-signer",manager,[cvToHex(principalCV(manager)),cvToHex(uintCV(BigInt(next)))]);
+    const amt=cv.type===ClarityType.UInt?BigInt(cv.value):0n; const meets=amt>=MIN_USTX;
+    $("stakeline").innerHTML=`<span><span class="amt">${fmtStx(amt)}</span> staked to this signer for cycle #${next}, ${meets?"meets":"below"} the 50,000 STX minimum</span>`;
+    try{
+      const info=await callReadOnly(n.api,poxId,"get-signer-info",manager,[cvToHex(principalCV(manager))]);
+      const registered = info.type===ClarityType.OptionalSome && info.value?.type===ClarityType.Buffer;
+      $("regline").innerHTML = registered ? '<span class="reg-ok">Signer is registered.</span>' : '<span class="reg-bad">Signer is not registered yet. Stake will be rejected until register-self is done.</span>';
+    }catch{ $("regline").innerHTML='<span class="reg-warn">Could not check registration.</span>'; }
+  }catch(e){ $("stakeline").innerHTML='<span>could not load the staked amount (check network and principal)</span>'; }
+}
+
+$("stake").addEventListener("click",async()=>{
+  const n=net();
+  const manager=$("manager").value.trim(); const amountU=stxToU($("amount").value); const cycles=$("cycles").value.trim();
+  if(!n.stxPrefix.test(account)){say(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
+  if(amountU==null){say("Amount must be a number with up to 6 decimals.","err");return;}
+  const nc=Number(cycles);
+  if(!Number.isInteger(nc)||nc<1||nc>96){say("Cycles must be an integer from 1 to 96.","err");return;}
+  try{
+    say("Refreshing chain state.");
+    await loadReads();
+    if(!poxInfo){say("Could not read PoX state. Try Refresh reads.","err");return;}
+    if(poxInfo.contract_id!==n.expectedPox){say(`Live PoX-5 ${poxInfo.contract_id} does not match the expected ${n.expectedPox}. Blocked.`,"err");return;}
+    const poxId=poxInfo.contract_id; const startHt=poxInfo.current_burnchain_block_height;
+    let calldataArg=cvToHex(noneCV());
+    const btc=$("btc").value.trim();
+    if(btc){
+      let poxTuple; try{ poxTuple=poxAddressToTuple(btc); }catch{ say("Invalid BTC reward address.","err"); return; }
+      const maxfee=$("maxfee").value.trim()||"0";
+      if(!/^\d+$/.test(maxfee)){say("max-fee must be a whole number of uSTX.","err");return;}
+      const tuple=tupleCV({ "pox-addr":poxTuple, "max-fee":uintCV(BigInt(maxfee)) });
+      const ser=serializeCV(tuple); const bytes = typeof ser==="string" ? hexToBytes(ser) : ser;
+      calldataArg=cvToHex(someCV(bufferCV(bytes)));
+    }
+    const args=[ cvToHex(principalCV(manager)), cvToHex(uintCV(amountU)), cvToHex(uintCV(BigInt(nc))), cvToHex(uintCV(BigInt(startHt))), calldataArg ];
+    say("Building the stake request. Review it carefully in your wallet before signing.");
+    const pcMode=$("pcmode").value;
+    // Staking LOCKS STX (not "sent"), so a plain stx-postcondition fails "SentEq 0". stake moves only
+    // the staked bucket and performs no separate PoX action (a pox-postcondition will-perform fails
+    // performed=false). One staking-postcondition for the locked amount is correct and sufficient.
+    // @stacks/connect 8.2.6 only whitelists stx/ft/nft object post-conditions and would try to
+    // Cl.serialize this newer type. Pre-serialize to wire hex; connect passes string PCs through.
+    const postConditions = pcMode==="deny"
+      ? [ postConditionToHex({ type:"staking-postcondition", address:account, condition:"eq", amount:amountU.toString() }) ]
+      : [];
+    const params={ contract:poxId, functionName:"stake", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:pcMode, postConditions };
+    const res=await request("stx_callContract",params);
+    const txid=(res?.txid||"").replace(/^0x/i,"");
+    if(!/^[0-9a-f]{64}$/i.test(txid)){say("The wallet returned no usable txid. Check wallet activity.","err");return;}
+    $("txid").textContent="0x"+txid.toLowerCase(); $("txlink").href=`${n.api}/extended/v1/tx/0x${txid.toLowerCase()}`;
+    $("unlock").textContent=`#${poxInfo.reward_cycle_id+1+nc} (locked ${nc} cycles from the next cycle)`; $("result").style.display="block";
+    say("Submitted. Verify the lock in dApp 6.","ok");
+  }catch(e){ const code=e&&typeof e==="object"&&"code"in e?Number(e.code):null; say(code===4001||code===-31001?"Signing cancelled in wallet.":"Stake request failed: "+(e?.message||e),"err"); }
+});
+</script>
+</body>
+</html>

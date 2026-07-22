@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deploy signer-manager · Signer Sidekick</title>
+<link rel="stylesheet" href="stacks.css?v=3">
+</head>
+<body class="net-testnet">
+<div class="wrap">
+  <div class="netbar" id="netbar">
+    <div class="nb-left">
+      <span id="netlabel">TESTNET</span>
+      <select id="network" aria-label="Network">
+        <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
+        <option value="mainnet">Mainnet</option>
+      </select>
+    </div>
+    <span class="tier" id="tier">TIER 1</span>
+    <div class="wallet" id="wallet">
+      <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
+      <div class="menu" id="menu" role="menu" hidden>
+        <button class="menuitem" id="disconnect" role="menuitem">Disconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <h1>Deploy signer-manager</h1>
+  <p class="sub">Deploy the reviewed <code>signer-manager</code> contract. The deploying address becomes the manager admin, so deploy from a wallet you control, then move admin to a cold key below.<span class="info" tabindex="0" role="button" aria-label="About the source" data-tip="This tool deploys exactly the source you paste and shows its hash. Source and name come from your reviewed render, in line with your organisation's process.">i</span></p>
+  <div id="status" class="status"></div>
+
+  <div class="card">
+    <h2>Reference contract and hash</h2>
+    <div class="ref" id="ref"></div>
+    <p style="margin:8px 0 0"><small>The difference between networks is the embedded PoX-5 boot principal and the sBTC contracts. Compare the canonical hash: the raw hash shifts with whitespace and line endings.</small></p>
+  </div>
+
+  <div class="card">
+    <h2>Contract</h2>
+    <label>Contract name</label>
+    <input id="cname" placeholder="signer-manager" spellcheck="false">
+    <label>Clarity source</label>
+    <textarea id="src" placeholder=";; signer-manager source for this network" spellcheck="false"></textarea>
+    <div class="kv" style="margin-top:12px"><span>Raw source SHA-256</span><span class="v" id="hash">…</span></div>
+    <div class="kv"><span>Canonical SHA-256<span class="info" tabindex="0" role="button" aria-label="About the hash" data-tip="The canonical hash ignores comments and whitespace, so it is the reliable identity check. A raw mismatch with a canonical match just means reformatted whitespace.">i</span></span><span class="v" id="chash">…</span></div>
+    <div class="kv"><span>Reference match</span><span class="v" id="match"><span class="badge b-idle">…</span></span></div>
+    <div class="kv"><span>Embedded PoX-5 principal</span><span class="v" id="embpox">…</span></div>
+    <div class="kv"><span>Deploys as</span><span class="v" id="principal">…</span></div>
+    <div class="kv"><span>Payload<span class="info" tabindex="0" role="button" aria-label="About the payload" data-tip="By default the clarity version is omitted and the wallet supplies it, which the Ledger can sign. Forcing Clarity 6 sends a versioned payload (0x06) that current Ledger Stacks apps cannot sign yet; use it to test a future Ledger fix. Verify the published contract's clarity version on-chain either way.">i</span></span><span class="v" id="payload">…</span></div>
+    <div class="kv"><span>Post-condition mode</span><span class="v">deny, no conditions (deploy moves no assets)</span></div>
+    <label style="display:flex;gap:9px;align-items:flex-start;margin-top:14px"><input type="checkbox" id="force06"><span>Force Clarity 6 payload (0x06). Off by default. Older Ledger Stacks apps cannot sign this.</span></label>
+    <div class="row" style="margin-top:12px"><button id="deploy" disabled>Deploy contract</button><button class="ghost" id="rehash">Recompute hash</button></div>
+    <div id="dstatus" class="status"></div>
+  </div>
+
+  <div class="card" id="result" style="display:none">
+    <h2>Broadcast</h2>
+    <div class="kv"><span>Transaction ID</span><span class="v" id="txid"></span></div>
+    <div class="kv"><span>Track</span><span class="v"><a id="txlink" target="_blank" rel="noopener">Transaction status</a></span></div>
+    <p><small>A txid is submission, not success. Confirm the contract published and its clarity version is 6, then rotate admin below.</small></p>
+  </div>
+
+  <div class="card">
+    <h2>Admin rotation</h2>
+    <p class="sub" style="margin-bottom:8px">Move admin control to a cold key (Ledger or multisig). <code>update-admin</code> is a normal contract call the Ledger signs.<span class="info" tabindex="0" role="button" aria-label="Why rotate" data-tip="You deploy from a hot wallet, which becomes the sole admin. Rotating admin to a cold key before the signer earns keeps exposure near zero. Whether to use a hardware wallet, multisig, or another approved custody path is your organisation's decision.">i</span></p>
+    <ol class="steps">
+      <li>From the <b>hot</b> deploy key: add the cold key (admin = cold, action = add).</li>
+      <li>Reconnect as the <b>cold</b> key and remove the hot key (admin = hot deployer, action = remove). This proves the cold key works and removes the hot key in one call.</li>
+      <li>Treat the hot deploy key as retired.</li>
+    </ol>
+    <div class="note danger">Do not disable the last remaining admin before a replacement has called <code>update-admin</code> at least once. <code>update-admin</code> requires an existing admin, so bricking the only admin permanently freezes fee and registration control.</div>
+    <label>Manager contract principal</label>
+    <input id="rm-manager" placeholder="ST....signer-manager" spellcheck="false">
+    <label>Admin principal to add or remove</label>
+    <input id="rm-admin" placeholder="ST... cold key to add, or hot deployer to remove" spellcheck="false">
+    <label>Action</label>
+    <select id="rm-enabled" style="width:100%"><option value="true" selected>Add admin</option><option value="false">Remove admin</option></select>
+    <div class="row" style="margin-top:12px"><button id="rotate" disabled>Send update-admin</button></div>
+    <div id="rm-status" class="status"></div>
+    <div id="rm-result" style="display:none;margin-top:8px"><div class="kv"><span>update-admin txid</span><span class="v"><a id="rm-txlink" target="_blank" rel="noopener"></a></span></div></div>
+  </div>
+
+  <p class="foot">Keys stay in the wallet. Testnet uses the violet accent, mainnet the Stacks orange. Signer Sidekick is interim tooling: verify the source hash and every on-chain result yourself.</p>
+</div>
+
+<script type="module">
+import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
+import { principalCV, trueCV, falseCV, cvToHex } from "https://esm.sh/@stacks/transactions@7.5.0";
+
+const NETWORKS = {
+  "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,pox5:"ST000000000000000000002AMW42H.pox-5",
+    reference:{ label:"pox5-testnet signer-manager (no314/stx-fan, sBTC principals corrected for this network)", link:"https://github.com/no314/stx-fan/blob/main/signer/contract/signer-manager",
+      sourceSha256:"28fd9b3dcb89c165723f54b5e61bfaa9e960cd6adfb69f87f2830d4c809aceb4", canonicalSha256:"409e8cfa6a447e159062536aff677ca6df7e04e5c7ced92189b6dd90a4689c51",
+      note:"Use this source on pox5-testnet. The sidekick devnet artifact embeds sBTC contracts that do not exist here; this version points token, registry, and withdrawal at SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1." }},
+  "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,pox5:"SP000000000000000000002Q6VF78.pox-5",
+    reference:{ label:"mainnet reference manager (pinned in signer-sidekick)", link:"https://github.com/stx-labs/signer-sidekick/blob/main/contracts/reference-manager/generated/mainnet/signer-manager.clar",
+      sourceSha256:"c0a2cc8e83de2b1bc60e07c5e0f5da8991c6f79eb05d077bba8cb984eee226b3", canonicalSha256:"7fd58a7591ff0ae1643eb7e71ea2867385bcac237a3ea819f52301310c0d2e27",
+      note:"Fixed reference from packages/protocol known-managers.ts. Confirm the mainnet sBTC contracts exist before relying on the sBTC paths." }}
+};
+const $=id=>document.getElementById(id);
+let account=null, menuOpen=false;
+function net(){return NETWORKS[$("network").value];}
+function badge(cls,t){return `<span class="badge ${cls}">${t}</span>`;}
+function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
+function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
+function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
+function paintNet(){
+  const n=net();
+  document.body.classList.toggle("net-mainnet",n.mainnet); document.body.classList.toggle("net-testnet",!n.mainnet);
+  $("netlabel").textContent=n.label; $("tier").textContent=n.tier;
+  const r=n.reference;
+  $("ref").innerHTML =
+    `<div class="kv"><span>${r.label}</span><span class="v"><a href="${r.link}" target="_blank" rel="noopener">View source</a></span></div>`+
+    `<div class="kv"><span>Expected raw SHA-256</span><span class="v">${r.sourceSha256}</span></div>`+
+    `<div class="kv" style="border:none"><span>Expected canonical SHA-256</span><span class="v">${r.canonicalSha256}</span></div>`+
+    `<div style="color:var(--text-tertiary);margin-top:8px">${r.note}</div>`;
+  refreshHash();
+}
+function say(m,k="info"){const s=$("dstatus");s.textContent=m;s.className="status show "+k;}
+function conStat(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
+paintNet(); paintWallet(); updatePayload();
+$("network").addEventListener("change",paintNet);
+$("force06").addEventListener("change",updatePayload);
+
+async function sha256hex(str){ const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)); return Array.from(new Uint8Array(buf),b=>b.toString(16).padStart(2,"0")).join(""); }
+function canonicalizeClaritySource(source){
+  let result="",inString=false,escaped=false,pending=false;
+  for(let i=0;i<source.length;i++){ const c=source[i];
+    if(inString){ result+=c; if(escaped)escaped=false; else if(c==="\\")escaped=true; else if(c==='"')inString=false; continue; }
+    if(c==='"'){ if(pending&&result.length>0)result+=" "; pending=false; inString=true; result+=c; continue; }
+    if(c===";"&&source[i+1]===";"){ i+=2; while(i<source.length&&source[i]!=="\n")i++; pending=true; continue; }
+    if(/\s/.test(c)){ pending=true; continue; }
+    if(pending&&result.length>0)result+=" "; pending=false; result+=c; }
+  if(inString) throw new Error("unterminated string");
+  return result.trim();
+}
+function updatePayload(){ $("payload").textContent = $("force06").checked ? "Clarity 6 versioned (0x06), forced" : "omitted, wallet supplies the version"; }
+async function refreshHash(){
+  const n=net(); const src=$("src").value;
+  if(!src.length){ $("hash").textContent="…"; $("chash").textContent="…"; $("match").innerHTML=badge("b-idle","…"); $("embpox").textContent="…"; updatePrincipal(); gate(); return; }
+  const raw=await sha256hex(src);
+  let canon="…"; try{ canon=await sha256hex(canonicalizeClaritySource(src)); }catch{ canon="unterminated string"; }
+  $("hash").textContent=raw; $("chash").textContent=canon;
+  const m=src.match(/'(S[A-Z0-9]+\.pox-5)/); const emb=m?m[1]:null;
+  $("embpox").innerHTML = emb ? (emb===n.pox5?`${emb} ${badge("b-ok","matches "+n.label)}`:`${emb} ${badge("b-bad","not "+n.pox5)}`) : badge("b-warn","no pox-5 reference found");
+  const ref=n.reference; const ok = raw===ref.sourceSha256 || canon===ref.canonicalSha256;
+  $("match").innerHTML = ok ? badge("b-ok","matches "+n.label+" reference") : badge("b-warn","no match, verify against your source");
+  updatePrincipal(); gate();
+}
+function updatePrincipal(){ const name=$("cname").value.trim(); $("principal").textContent = (account && name) ? `${account}.${name}` : (name?`your-address.${name}`:"…"); }
+function gate(){ $("deploy").disabled = !(account && $("cname").value.trim() && $("src").value.trim()); }
+$("src").addEventListener("input",refreshHash);
+$("cname").addEventListener("input",()=>{updatePrincipal();gate();});
+$("rehash").addEventListener("click",refreshHash);
+
+$("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
+$("menu").addEventListener("click",e=>e.stopPropagation());
+document.addEventListener("click",()=>{ if(menuOpen) openMenu(false); });
+$("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; paintWallet(); updatePrincipal(); gate(); rotateGate(); });
+
+async function doConnect(){
+  const n=net();
+  try{
+    conStat("Approve wallet connection.","info");
+    const res=await connect({network:$("network").value,forceWalletSelect:true});
+    const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
+    if(!e){conStat("The wallet returned no STX address.","err");return;}
+    account=e.address.toUpperCase(); paintWallet();
+    if(!n.stxPrefix.test(account)) conStat(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err");
+    else conStat("Connected.","ok");
+    updatePrincipal(); gate(); rotateGate();
+  }catch(e){conStat("Connection failed or was cancelled.","err");}
+}
+
+$("deploy").addEventListener("click",async()=>{
+  const n=net(); const name=$("cname").value.trim(); const clarityCode=$("src").value;
+  if(!n.stxPrefix.test(account)){say(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
+  try{
+    say("Building the deploy request. Review it in your wallet before signing.");
+    const params={ name, clarityCode, network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions:[] };
+    if($("force06").checked) params.clarityVersion=6; // 0x06 versioned; otherwise omitted and the wallet supplies it
+    const res=await request("stx_deployContract",params);
+    const txid=(res?.txid||"").replace(/^0x/i,"");
+    if(!/^[0-9a-f]{64}$/i.test(txid)){say("The wallet returned no usable txid. Check wallet activity before retrying.","err");return;}
+    $("txid").textContent="0x"+txid.toLowerCase();
+    $("txlink").href=`${n.api}/extended/v1/tx/0x${txid.toLowerCase()}`;
+    $("result").style.display="block";
+    $("rm-manager").value=`${account}.${name}`; rotateGate();
+    say("Submitted. Confirm it publishes and its clarity version is 6, then rotate admin below.","ok");
+  }catch(e){ const c=e&&typeof e==="object"&&"code"in e?Number(e.code):null; say(c===4001||c===-31001?"Signing cancelled in wallet.":"Deploy request failed: "+(e?.message||e),"err"); }
+});
+
+// ---- Admin rotation ----
+function rmSay(m,k="info"){const s=$("rm-status");s.textContent=m;s.className="status show "+k;}
+function rotateGate(){ $("rotate").disabled = !(account && $("rm-manager").value.trim() && $("rm-admin").value.trim()); }
+["rm-manager","rm-admin"].forEach(id=>$(id).addEventListener("input",rotateGate));
+
+$("rotate").addEventListener("click",async()=>{
+  const n=net(); const manager=$("rm-manager").value.trim(); const admin=$("rm-admin").value.trim(); const enabled=$("rm-enabled").value==="true";
+  if(!account){rmSay("Connect the wallet that is a current admin first.","err");return;}
+  if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(manager)){rmSay("Enter a valid manager principal like ST....signer-manager","err");return;}
+  if(!/^S[A-Z0-9]{20,50}$/.test(admin)){rmSay("Enter a valid standard principal (ST... or SP...).","err");return;}
+  try{
+    rmSay("Building the update-admin request. The connected wallet must currently be an admin.");
+    const params={ contract:manager, functionName:"update-admin", functionArgs:[ cvToHex(principalCV(admin)), cvToHex(enabled?trueCV():falseCV()) ],
+      network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions:[] };
+    const res=await request("stx_callContract",params);
+    const txid=(res?.txid||"").replace(/^0x/i,"");
+    if(!/^[0-9a-f]{64}$/i.test(txid)){rmSay("The wallet returned no usable txid. Check wallet activity.","err");return;}
+    $("rm-txlink").href=`${n.api}/extended/v1/tx/0x${txid.toLowerCase()}`; $("rm-txlink").textContent="0x"+txid.toLowerCase();
+    $("rm-result").style.display="block";
+    rmSay(`Submitted: ${enabled?"add":"remove"} ${admin}. Confirm it succeeds before removing the last admin.`,"ok");
+  }catch(e){ const c=e&&typeof e==="object"&&"code"in e?Number(e.code):null; rmSay(c===4001||c===-31001?"Signing cancelled in wallet.":"update-admin failed: "+(e?.message||e),"err"); }
+});
+</script>
+</body>
+</html>
