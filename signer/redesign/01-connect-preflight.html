@@ -12,7 +12,7 @@
   <div class="netbar" id="netbar">
     <span id="netlabel">TESTNET</span>
     <select id="network" aria-label="Network">
-      <option value="pox5-testnet" selected>PoX-5 Testnet</option>
+      <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
       <option value="mainnet">Mainnet</option>
     </select>
     <span class="tier" id="tier">TIER 1</span>
@@ -95,8 +95,11 @@ function reset(){
 
 $("connect").addEventListener("click", async ()=>{
   try{
-    say("Approve the connection request in your wallet.","info");
-    const res = await connect({ network: $("network").value, forceWalletSelect: true });
+    say("Approve the connection request in your wallet. Set your wallet to this network first.","info");
+    // Do not pass the pox5-testnet key to connect(): @stacks/connect resolves network names via
+    // StacksNetwork.fromName(), which throws on custom keys and cannot represent chain 0x80000005.
+    // Connect on the wallet's active network, then the checks below confirm it matches this page.
+    const res = await connect({ forceWalletSelect: true });
     const entry = (res?.addresses||[]).find(a => typeof a.address==="string" && /^S/.test(a.address));
     if(!entry){ say("The wallet returned no STX address.","err"); return; }
     account = { address: entry.address.toUpperCase(), publicKey: entry.publicKey || "" };
