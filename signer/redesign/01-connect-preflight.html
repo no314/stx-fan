@@ -8,8 +8,15 @@
 </head>
 <body class="net-testnet">
 <div class="wrap">
-  <header class="topbar">
-    <span class="wordmark">Signer Sidekick</span>
+  <div class="netbar" id="netbar">
+    <div class="nb-left">
+      <span id="netlabel">TESTNET</span>
+      <select id="network" aria-label="Network">
+        <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
+        <option value="mainnet">Mainnet</option>
+      </select>
+    </div>
+    <span class="tier" id="tier">TIER 1</span>
     <div class="wallet" id="wallet">
       <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
       <div class="menu" id="menu" role="menu" hidden>
@@ -17,15 +24,6 @@
         <button class="menuitem" id="disconnect" role="menuitem">Disconnect</button>
       </div>
     </div>
-  </header>
-
-  <div class="netbar" id="netbar">
-    <span id="netlabel">TESTNET</span>
-    <select id="network" aria-label="Network">
-      <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
-      <option value="mainnet">Mainnet</option>
-    </select>
-    <span class="tier" id="tier">TIER 1</span>
   </div>
 
   <h1>Connect and preflight</h1>
@@ -63,8 +61,9 @@
 import { connect, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
 
 const NETWORKS = {
-  "pox5-testnet": { label:"TESTNET", tier:"TIER 1", chainId:0x80000005, api:"https://api.testnet-pox5.hiro.so", stxPrefix:/^S[TN]/, mainnet:false, expectedPox:"ST000000000000000000002AMW42H.pox-5" },
-  "mainnet":      { label:"MAINNET", tier:"TIER 2", chainId:0x00000001, api:"https://api.hiro.so",            stxPrefix:/^S[PM]/, mainnet:true,  expectedPox:"SP000000000000000000002Q6VF78.pox-5" }
+  // caip = CAIP-2 network id (stacks:<decimal chain id>). pox5-testnet chain 0x80000005 = 2147483653.
+  "pox5-testnet": { label:"TESTNET", tier:"TIER 1", chainId:0x80000005, caip:"stacks:2147483653", api:"https://api.testnet-pox5.hiro.so", stxPrefix:/^S[TN]/, mainnet:false, expectedPox:"ST000000000000000000002AMW42H.pox-5" },
+  "mainnet":      { label:"MAINNET", tier:"TIER 2", chainId:0x00000001, caip:"stacks:1",          api:"https://api.hiro.so",            stxPrefix:/^S[PM]/, mainnet:true,  expectedPox:"SP000000000000000000002Q6VF78.pox-5" }
 };
 const MIN_USTX = 50_000_000_000n; // POX5_SIGNER_SET_MIN_USTX
 const $ = id => document.getElementById(id);
@@ -112,8 +111,8 @@ $("disconnect").addEventListener("click", async ()=>{ openMenu(false); try{ awai
 async function doConnect(){
   try{
     say("Approve the connection request in your wallet.","info");
-    // Pass the network explicitly on connect: without it, Leather defaults to mainnet.
-    // The network key is forwarded to the wallet, which resolves the configured custom network.
+    // Pass the network explicitly on connect, or Leather defaults to mainnet. The value is the
+    // custom-network key configured in Leather ("pox5-testnet"); it must match exactly.
     const res = await connect({ network: $("network").value, forceWalletSelect: true });
     const entry = (res?.addresses||[]).find(a => typeof a.address==="string" && /^S/.test(a.address));
     if(!entry){ say("The wallet returned no STX address.","err"); return; }

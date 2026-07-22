@@ -50,8 +50,10 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--surface-raised
 
 /* wordmark / network bar */
 .wordmark{font-family:var(--font-display);font-weight:600;font-size:var(--fs-sm);letter-spacing:.02em;color:var(--text-secondary)}
-.netbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--accent);background:var(--accent-bg);border-radius:var(--radius-lg);font-family:var(--font-display);font-weight:600;margin-bottom:20px}
-.netbar .tier{margin-left:auto;font-size:var(--fs-xs);font-weight:600;letter-spacing:.04em;padding:3px 9px;border-radius:var(--radius-sm);border:1px solid var(--accent);color:var(--accent-hi)}
+.netbar{display:flex;align-items:center;gap:12px;padding:8px 10px 8px 14px;border:1px solid var(--accent);background:var(--accent-bg);border-radius:var(--radius-lg);font-family:var(--font-display);font-weight:600;margin-bottom:20px}
+.netbar .nb-left{display:flex;align-items:center;gap:10px;min-width:0}
+.netbar .tier{margin-left:auto;margin-right:auto;font-size:var(--fs-xs);font-weight:600;letter-spacing:.04em;padding:3px 9px;border-radius:var(--radius-sm);border:1px solid var(--accent);color:var(--accent-hi)}
+.netbar .wallet button{min-height:36px;padding:7px 13px}
 
 /* cards: one continuous shell surface separated by borders (quiet), or a standout form surface */
 .card{background:var(--surface-quiet);border:1px solid var(--border-secondary);border-radius:var(--radius-lg);padding:var(--space-5);margin-bottom:var(--space-4)}
@@ -129,3 +131,14 @@ select{width:auto}
 
 .foot{color:var(--text-tertiary);font-size:var(--fs-xs);margin-top:24px;border-top:1px solid var(--border-secondary);padding-top:14px}
 @media (prefers-reduced-motion:reduce){.spin{animation:none}}
+
+/* top bar + wallet control (single button, top-right, with a menu once connected) */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.wallet{position:relative}
+.wallet .caret{margin-left:8px;opacity:.7;font-size:10px}
+.wallet button.connected{background:var(--surface-input);color:var(--text-primary);border:1px solid var(--border-primary);font-family:var(--font-mono);font-weight:500}
+.wallet button.connected:hover{border-color:var(--accent)}
+.menu{position:absolute;right:0;top:calc(100% + 6px);min-width:170px;background:var(--surface-standout);border:1px solid var(--border-primary);border-radius:var(--radius-md);overflow:hidden;z-index:30;box-shadow:0 8px 16px rgba(0,0,0,.35)}
+.menu[hidden]{display:none}
+.menuitem{display:block;width:100%;text-align:left;min-height:42px;padding:9px 12px;background:transparent;border:none;border-radius:0;color:var(--text-primary);font-weight:400;font-family:var(--font-body)}
+.menuitem:hover{background:var(--surface-input)}
