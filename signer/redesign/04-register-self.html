@@ -50,6 +50,7 @@
   <div class="card">
     <h2>Broadcast</h2>
     <div class="kv"><span>Post-condition mode</span><span class="v">deny, no conditions (register-self moves no assets)</span></div>
+    <div id="override-wrap" class="note warn" hidden><label style="display:flex;gap:9px;align-items:flex-start;margin:0"><input type="checkbox" id="override"><span><b>Testnet override.</b> A check failed above. Enable this to broadcast <code>register-self</code> anyway and watch it fail on-chain. Testnet only, for debugging.</span></label></div>
     <div class="row" style="margin-top:12px"><button id="broadcast" disabled>Broadcast register-self</button></div>
     <div id="result" style="display:none;margin-top:10px">
       <div class="kv"><span>Transaction ID</span><span class="v" id="txid"></span></div>
@@ -71,19 +72,37 @@ const NETWORKS = {
 };
 const $=id=>document.getElementById(id);
 let account=null, verified=null, menuOpen=false;
+let lastBuilt=null, lastAllOk=null; // testnet override: keep the built args and pass/fail state
 function net(){return NETWORKS[$("network").value];}
 function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
 function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
 function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
 function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
 function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
-paintNet(); paintWallet();
+paintNet(); paintWallet(); syncButtons();
 $("network").addEventListener("change",()=>{paintNet();resetVerify();scheduleStake();});
 
 const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
-function gate(){ $("verify").disabled=!(account&&$("manager").value.trim()&&$("authid").value.trim()&&$("grant").value.trim()); }
-function resetVerify(){ verified=null; $("broadcast").disabled=true; $("checks").innerHTML=""; }
-["manager","authid","grant"].forEach(id=>$(id).addEventListener("input",()=>{gate();resetVerify();}));
+// When no wallet is connected, the action buttons double as connect prompts, so it is
+// obvious the wallet step is required. After connecting they show their real function.
+function syncButtons(){
+  const v=$("verify"), b=$("broadcast");
+  if(!account){
+    v.textContent="Connect wallet to verify"; v.disabled=false;
+    b.textContent="Connect wallet to broadcast"; b.disabled=false;
+  } else {
+    v.textContent="Verify against live PoX-5"; v.disabled=!($("manager").value.trim()&&$("authid").value.trim()&&$("grant").value.trim());
+    b.textContent="Broadcast register-self"; b.disabled=!(verified || (overrideAvailable() && $("override").checked));
+  }
+}
+function gate(){ syncButtons(); }
+// The override only exists on testnet, only after a verify that failed, and only if the args
+// were still buildable from the grant JSON (so there is something to broadcast).
+function overrideAvailable(){ return !net().mainnet && lastAllOk===false && lastBuilt!=null; }
+function updateOverrideUI(){ const show=overrideAvailable(); $("override-wrap").hidden=!show; if(!show) $("override").checked=false; }
+function resetVerify(){ verified=null; lastBuilt=null; lastAllOk=null; $("checks").innerHTML=""; updateOverrideUI(); syncButtons(); }
+["manager","authid","grant"].forEach(id=>$(id).addEventListener("input",()=>{resetVerify();}));
+$("override").addEventListener("change",syncButtons);
 $("manager").addEventListener("input",scheduleStake);
 
 const MIN_USTX=50_000_000_000n;
@@ -132,6 +151,7 @@ async function doConnect(){
 
 const GLYPH={ok:"✓",bad:"✕",warn:"!"};
 $("verify").addEventListener("click",async()=>{
+  if(!account){ doConnect(); return; }
   const n=net(); resetVerify();
   const rows=[]; const add=(m,t)=>rows.push(`<div class="check"><span class="mark ${m}">${GLYPH[m]||"·"}</span><span>${t}</span></div>`);
   let allOk=true; const fail=t=>{allOk=false;add("bad",t);};
@@ -144,6 +164,8 @@ $("verify").addEventListener("click",async()=>{
       && typeof g.signerManager==="string";
     shapeOk?add("ok","Signer output JSON has the expected fields."):fail("Signer output JSON is malformed. It needs signerKey (02/03 + 64 hex), signerSignature (130 hex), authId, and signerManager.");
     if(!shapeOk){$("checks").innerHTML=rows.join("");return;}
+    const argsAll=[ cvToHex(principalCV(manager)), cvToHex(bufferCV(hexToBytes(g.signerKey))), cvToHex(uintCV(BigInt(authId))), cvToHex(bufferCV(hexToBytes(g.signerSignature))) ];
+    lastBuilt={ manager, args:argsAll };
     g.signerManager===manager?add("ok","Signer output manager matches the pinned principal."):fail(`Signer output manager ${g.signerManager} does not match the pinned ${manager}.`);
     g.authId===authId?add("ok",`auth-id matches (${authId}).`):fail(`Signer output auth-id ${g.authId} does not match the entered ${authId}.`);
     const recId=parseInt(g.signerSignature.slice(-2),16);
@@ -167,20 +189,27 @@ $("verify").addEventListener("click",async()=>{
       isUsed?fail("This signer authorization has already been used. Generate a new one."):add("ok","Signer authorization has not been used yet.");
     }catch(e){ add("warn","Could not confirm the grant-usage map (non-blocking): "+(e?.message||e)); }
     $("checks").innerHTML=rows.join("");
+    lastAllOk=allOk;
     if(allOk){
-      verified={ manager, poxId, args:[ cvToHex(principalCV(manager)), cvToHex(bufferCV(hexToBytes(g.signerKey))), cvToHex(uintCV(BigInt(authId))), cvToHex(bufferCV(hexToBytes(g.signerSignature))) ]};
-      $("broadcast").disabled=false; say("All checks passed. Review the call in your wallet before signing.","ok");
-    } else { say("One or more checks failed. Broadcast is blocked.","err"); }
+      verified={ manager, poxId, args:argsAll };
+      updateOverrideUI(); syncButtons(); say("All checks passed. Review the call in your wallet before signing.","ok");
+    } else {
+      updateOverrideUI(); syncButtons();
+      say(net().mainnet?"One or more checks failed. Broadcast is blocked.":"One or more checks failed. Broadcast is blocked, or use the testnet override below to broadcast anyway.","err");
+    }
   }catch(e){ $("checks").innerHTML=rows.join(""); say("Verification error: "+(e?.message||e),"err"); }
 });
 
 $("broadcast").addEventListener("click",async()=>{
+  if(!account){ doConnect(); return; }
   const n=net();
-  if(!verified){say("Run verification first.","err");return;}
+  const useOverride = !verified && overrideAvailable() && $("override").checked;
+  if(!verified && !useOverride){say("Run verification first.","err");return;}
   if(!n.stxPrefix.test(account)){say(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
+  const src = verified || lastBuilt;
   try{
-    say("Building the register-self request. Review it in your wallet before signing.");
-    const params={ contract:verified.manager, functionName:"register-self", functionArgs:verified.args, network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions:[] };
+    say(useOverride?"Testnet override: broadcasting despite a failed check. Expect it to fail on-chain.":"Building the register-self request. Review it in your wallet before signing.");
+    const params={ contract:src.manager, functionName:"register-self", functionArgs:src.args, network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions:[] };
     const res=await request("stx_callContract",params);
     const txid=(res?.txid||"").replace(/^0x/i,"");
     if(!/^[0-9a-f]{64}$/i.test(txid)){say("The wallet returned no usable txid. Check wallet activity.","err");return;}
