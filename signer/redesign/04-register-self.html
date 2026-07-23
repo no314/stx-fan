@@ -71,16 +71,18 @@ const NETWORKS = {
   "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
 };
 const $=id=>document.getElementById(id);
-let account=null, verified=null, menuOpen=false;
+let account=null, verified=null, menuOpen=false, walletName=null;
 let lastBuilt=null, lastAllOk=null; // testnet override: keep the built args and pass/fail state
 function net(){return NETWORKS[$("network").value];}
 function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
-function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
+function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${walletName||shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
+// Show the wallet's BNS name on mainnet only (no BNS contract on the current testnets). Falls back to the short address.
+async function resolveWalletName(){ walletName=null; paintWallet(); const addr=account&&(typeof account==="string"?account:account.address); if(!addr||!net().mainnet) return; try{ const j=await fetch(`${net().api}/v1/addresses/stacks/${addr}`).then(r=>r.json()); if(Array.isArray(j?.names)&&j.names.length){ walletName=j.names[0]; paintWallet(); } }catch(e){} }
 function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
 function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
 function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
 paintNet(); paintWallet(); syncButtons();
-$("network").addEventListener("change",()=>{paintNet();resetVerify();scheduleStake();});
+$("network").addEventListener("change",()=>{paintNet();resetVerify();scheduleStake();resolveWalletName();});
 
 const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
 // When no wallet is connected, the action buttons double as connect prompts, so it is
@@ -134,7 +136,7 @@ async function mapEntry(api,contractId,mapName,keyHex){
 $("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
 $("menu").addEventListener("click",e=>e.stopPropagation());
 document.addEventListener("click",()=>{ if(menuOpen) openMenu(false); });
-$("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; paintWallet(); resetVerify(); gate(); });
+$("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; walletName=null; paintWallet(); resetVerify(); gate(); });
 
 async function doConnect(){
   const n=net();
@@ -142,7 +144,7 @@ async function doConnect(){
     const res=await connect({network:$("network").value,forceWalletSelect:true});
     const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
     if(!e){say("The wallet returned no STX address.","err");return;}
-    account=e.address.toUpperCase(); paintWallet();
+    account=e.address.toUpperCase(); paintWallet(); resolveWalletName();
     if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err");
     gate();
   }catch(e){say("Connection failed or was cancelled.","err");}
