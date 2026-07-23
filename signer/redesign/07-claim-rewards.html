@@ -101,12 +101,10 @@ input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
 
   <div class="card">
     <details id="poolsec">
-      <summary>Pool operator, check who was staking (advanced, slow)</summary>
-      <p class="sub" style="margin:10px 0">A full roster of a pool's stakers cannot be built in-browser from the public API (the contract-events endpoint times out). Enter the addresses you want to check, your own or a candidate list from your own node or indexer, and this verifies each against the manager and cycle using fast read-only calls. Loading a long list can take a while.</p>
-      <label>Addresses to check (one per line or comma-separated)</label>
-      <textarea id="candidates" placeholder="ST...&#10;ST...&#10;ST..."></textarea>
-      <div class="row" style="margin-top:10px"><button id="check" class="ghost">Check staking for the cycle above</button><span id="checkprog" style="font-size:var(--fs-xs);color:var(--text-secondary)"></span></div>
-      <div class="row" style="margin-top:10px"><input id="filter" placeholder="filter results" style="flex:1"><button id="copy" class="ghost" disabled>Copy staking addresses</button></div>
+      <summary>Pool operator, list stakers of this signer-manager (advanced)</summary>
+      <p class="sub" style="margin:10px 0">Builds the roster of addresses that have staked to the signer-manager entered above. Nothing runs until you open this section and press the button. Large pools scan in batches; use Keep scanning to continue.<span class="info" tabindex="0" role="button" aria-label="How the roster is built" data-tip="The public API cannot filter events by a signer-manager argument, so this reads PoX-5 events page by page (throttled) and keeps the stake events that name this manager. Newest first, each staker listed once with their most recent stake amount and unlock cycle. Fine on testnet; on a busy mainnet it can take several batches.">i</span></p>
+      <div class="row"><button id="roster" class="ghost">Build staker roster</button><button id="rostermore" class="ghost" disabled>Keep scanning</button><span id="rprog" style="font-size:var(--fs-xs);color:var(--text-secondary)"></span></div>
+      <div class="row" style="margin-top:10px"><input id="filter" placeholder="filter results" style="flex:1"><button id="copy" class="ghost" disabled>Copy staker addresses</button></div>
       <div class="slist" id="slist" style="display:none"></div>
     </details>
   </div>
@@ -227,45 +225,70 @@ $("claim").addEventListener("click",async()=>{
   }catch(e){ const c=e&&typeof e==="object"&&"code"in e?Number(e.code):null; sstat(c===4001||c===-31001?"Signing cancelled.":"claim-staker-rewards failed: "+(e?.message||e),"err"); }
 });
 
-// Pool operator: per-address staking check (reliable, no full enumeration).
-let staking=[];
-$("check").addEventListener("click",async()=>{
-  const n=net(); const manager=$("manager").value.trim();
-  if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(manager)){$("checkprog").textContent="enter the signer-manager principal above first";return;}
-  if(!/^\d+$/.test($("cycle").value.trim())){$("checkprog").textContent="set a cycle above first";return;}
-  const cycle=cycleVal();
-  const addrs=[...new Set($("candidates").value.split(/[\s,]+/).map(s=>s.trim()).filter(a=>/^S[A-Z0-9]{20,50}$/.test(a)))];
-  if(!addrs.length){$("checkprog").textContent="paste some addresses to check";return;}
-  staking=[]; $("slist").innerHTML=""; $("slist").style.display="block"; $("copy").disabled=true;
-  let done=0;
-  for(const a of addrs){
-    $("checkprog").innerHTML=`<span class="spin"></span> checking ${++done}/${addrs.length}`;
-    try{
-      const cv=await callReadOnly(n.api, poxId||n.expectedPox, "get-signer-cycle-membership", a, [cvToHex(principalCV(a)),cvToHex(uintCV(cycle))]);
-      if(cv.type===ClarityType.OptionalSome){
-        const t=cv.value;
-        const amt = t.value?.["amount-ustx"]?.value ?? t.value?.["amount-ustx"];
-        const signer = t.value?.["signer"]?.value ?? "";
-        if(String(signer)===manager) staking.push({addr:a, amount: amt?BigInt(amt):0n});
-      }
-    }catch(e){}
-    await sleep(120);
-  }
-  renderStaking();
-  $("checkprog").textContent=`${staking.length} of ${addrs.length} were staking with this manager in cycle #${cycle}`;
-  $("copy").disabled=staking.length===0;
-});
-function renderStaking(){
+// Pool operator: build the staker roster for THIS signer-manager by scanning PoX-5 stake events.
+// Runs only on demand, only while the section is open, and only with a manager entered.
+// The public API cannot filter events by the signer-manager argument, so we page PoX-5 events
+// (throttled) and keep the stake prints whose `signer` is this manager. Newest-first, so the
+// first time a staker is seen is their most recent stake.
+let roster=new Map();                 // staker -> { amount, unlock }
+let scanOffset=0, scanning=false, scanExhausted=false;
+const PAGE=50, PAGES_PER_BATCH=40, SCAN_THROTTLE_MS=200;   // ~5 pages/sec, conservative for the public API
+
+function renderRoster(){
   const f=$("filter").value.trim().toLowerCase();
-  const rows=staking.filter(s=>!f||s.addr.toLowerCase().includes(f));
-  $("slist").innerHTML = rows.length? rows.map(s=>`<div class="srow"><span>${s.addr}</span><span class="amt">${stx(s.amount)}</span></div>`).join("") : '<div class="srow"><span>no matches</span></div>';
+  const rows=[...roster.entries()].filter(([a])=>!f||a.toLowerCase().includes(f));
+  $("slist").style.display="block";
+  $("slist").innerHTML = rows.length
+    ? rows.map(([a,v])=>`<div class="srow"><span>${a}</span><span class="amt">${stx(v.amount)}${v.unlock?` · unlock #${v.unlock}`:""}</span></div>`).join("")
+    : '<div class="srow"><span>no stakers found yet</span></div>';
+  $("copy").disabled = roster.size===0;
 }
-$("filter").addEventListener("input",renderStaking);
+$("filter").addEventListener("input",()=>{ if($("slist").style.display==="block") renderRoster(); });
 $("copy").addEventListener("click",async()=>{
   const f=$("filter").value.trim().toLowerCase();
-  const list=staking.filter(s=>!f||s.addr.toLowerCase().includes(f)).map(s=>s.addr).join("\n");
-  try{ await navigator.clipboard.writeText(list); $("copy").textContent="Copied"; setTimeout(()=>$("copy").textContent="Copy staking addresses",1500); }catch{ $("copy").textContent="copy failed"; }
+  const list=[...roster.keys()].filter(a=>!f||a.toLowerCase().includes(f)).join("\n");
+  try{ await navigator.clipboard.writeText(list); $("copy").textContent="Copied"; setTimeout(()=>$("copy").textContent="Copy staker addresses",1500); }catch{ $("copy").textContent="copy failed"; }
 });
+
+async function scanRoster(reset){
+  const n=net(); const manager=$("manager").value.trim();
+  if(!$("poolsec").open){ return; }                    // only when the section is expanded
+  if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(manager)){ $("rprog").textContent="Enter the signer-manager above first."; return; }
+  if(scanning) return;
+  scanning=true; $("roster").disabled=true; $("rostermore").disabled=true;
+  if(reset){ roster=new Map(); scanOffset=0; scanExhausted=false; renderRoster(); }
+  const poxc = poxId || n.expectedPox;
+  let pages=0;
+  try{
+    while(pages<PAGES_PER_BATCH){
+      if(!$("poolsec").open) break;                    // stop if the section was closed mid-scan
+      $("rprog").innerHTML=`<span class="spin"></span> scanned ${scanOffset} events, ${roster.size} stakers`;
+      const r=await fetch(`${n.api}/extended/v1/contract/${poxc}/events?limit=${PAGE}&offset=${scanOffset}`);
+      if(r.status===429){ $("rprog").textContent=`Rate limited at ${scanOffset} events (${roster.size} stakers). Wait a moment, then Keep scanning.`; break; }
+      const j=await r.json(); const res=j.results||[];
+      for(const ev of res){
+        const repr=ev?.contract_log?.value?.repr||"";
+        if(repr.indexOf('(topic "stake")')<0) continue;
+        const sm=(repr.match(/\(signer '([^)\s]+)\)/)||[])[1];
+        if(sm!==manager) continue;
+        const staker=(repr.match(/\(staker '([^)\s]+)\)/)||[])[1];
+        if(!staker || roster.has(staker)) continue;     // newest-first: keep the most recent stake per staker
+        const amt=(repr.match(/\(amount-ustx u(\d+)\)/)||[])[1];
+        const uc=(repr.match(/\(unlock-cycle u(\d+)\)/)||[])[1];
+        roster.set(staker,{ amount: amt?BigInt(amt):0n, unlock: uc||"" });
+      }
+      scanOffset+=res.length; pages++;
+      renderRoster();
+      if(res.length<PAGE){ scanExhausted=true; break; } // reached the oldest event
+      await sleep(SCAN_THROTTLE_MS);
+    }
+    if(scanExhausted){ $("rprog").textContent=`Done. Scanned ${scanOffset} events, found ${roster.size} stakers for this manager.`; $("rostermore").disabled=true; }
+    else { $("rprog").textContent=`Paused at ${scanOffset} events, ${roster.size} stakers. Keep scanning for older stakes.`; $("rostermore").disabled=false; }
+  }catch(e){ $("rprog").textContent="Scan error: "+(e?.message||e)+". Keep scanning to retry."; $("rostermore").disabled=false; }
+  finally{ scanning=false; $("roster").disabled=false; }
+}
+$("roster").addEventListener("click",()=>scanRoster(true));
+$("rostermore").addEventListener("click",()=>scanRoster(false));
 </script>
 </body>
 </html>
