@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signer-manager admin · Signer Sidekick</title>
+<link rel="stylesheet" href="stacks.css?v=3">
+<style>
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.derline{font-size:var(--fs-xs);margin-top:6px;min-height:17px;font-family:var(--font-mono);word-break:break-all}
+.derline.ok{color:var(--ok)}.derline.bad{color:var(--bad)}.derline.idle{color:var(--text-secondary)}
+.who{font-size:var(--fs-xs);color:var(--text-secondary);margin:2px 0 0}
+.who b{color:var(--text-primary);font-weight:600}
+</style>
+</head>
+<body class="net-testnet">
+<div class="wrap">
+  <div class="netbar" id="netbar">
+    <div class="nb-left">
+      <span id="netlabel">TESTNET</span>
+      <select id="network" aria-label="Network">
+        <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
+        <option value="mainnet">Mainnet</option>
+      </select>
+    </div>
+    <span class="tier" id="tier">TIER 1</span>
+    <div class="wallet" id="wallet">
+      <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
+      <div class="menu" id="menu" role="menu" hidden>
+        <button class="menuitem" id="refresh" role="menuitem">Refresh reads</button>
+        <button class="menuitem" id="disconnect" role="menuitem">Disconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <h1>Signer-manager admin</h1>
+  <p class="sub">Advanced and maintenance calls that do not belong to the main flow. Deploy, admin rotation, and the pool fee are in the deploy tool; registration is in register-self; reward claims are in claim rewards. Each card states which wallet is allowed to call it. The fee and withdrawal cards use the manager-admin wallet. Revoke, at the bottom, is the exception and needs the signer key itself.</p>
+  <div id="status" class="status"></div>
+
+  <div class="card">
+    <h2>Signer-manager</h2>
+    <label>Signer-manager contract principal (used by the fee and withdrawal cards below)</label>
+    <input id="mgr" placeholder="ST....signer-manager" spellcheck="false">
+    <div class="row" style="margin-top:10px"><button id="loadstate" class="ghost" disabled>Load manager state</button></div>
+    <div id="state" style="display:none;margin-top:10px">
+      <div class="kv"><span>Accrued admin fees (withdrawable)</span><span class="v" id="s-fees">…</span></div>
+      <div class="kv"><span>Unclaimed staker rewards (reserved)</span><span class="v" id="s-unclaimed">…</span></div>
+      <div class="kv"><span>Withdrawal liability (reserved)</span><span class="v" id="s-liab">…</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Withdraw accrued fees</h2>
+    <p class="who">Called by: <b>a manager admin</b>. Moves accrued sBTC fees out of the manager.</p>
+    <label>Amount (sBTC base units, sats)<span class="info" tabindex="0" role="button" aria-label="About the amount" data-tip="Fees accrue in sBTC base units (1 sBTC = 100,000,000 sats). Load manager state above to see the withdrawable amount. The call fails if the amount exceeds accrued fees.">i</span></label>
+    <input id="wf-amount" placeholder="0" inputmode="numeric" spellcheck="false">
+    <label>Recipient</label>
+    <input id="wf-recipient" placeholder="ST... or SP... recipient" spellcheck="false">
+    <div class="row" style="margin-top:12px"><button id="withdrawfees" disabled>Withdraw fees</button></div>
+    <div id="wf-result" style="display:none;margin-top:8px"><div class="kv"><span>txid</span><span class="v"><a id="wf-tx" target="_blank" rel="noopener"></a></span></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Sweep fee-refund dust</h2>
+    <p class="who">Called by: <b>a manager admin</b>. Sweeps orphaned sBTC dust that cannot be attributed to a staker.</p>
+    <p class="sub" style="margin:0 0 8px">Only sweeps the balance above what is reserved for stakers (accrued fees, unclaimed rewards, and live withdrawal liability), so it can never take staker funds.<span class="info" tabindex="0" role="button" aria-label="About sweeping" data-tip="On an accepted L1 withdrawal the sBTC protocol mints the unused fee budget back to the manager as dust that cannot be tied to one staker. sweep-fee-refunds(recipient) sends the sweepable remainder. Retire accepted withdrawals with settle-accepted-withdrawal first, or their amount stays reserved and suppresses the sweepable total.">i</span></p>
+    <label>Recipient</label>
+    <input id="sw-recipient" placeholder="ST... or SP... recipient" spellcheck="false">
+    <div class="row" style="margin-top:12px"><button id="sweep" disabled>Sweep refunds</button></div>
+    <div id="sw-result" style="display:none;margin-top:8px"><div class="kv"><span>txid</span><span class="v"><a id="sw-tx" target="_blank" rel="noopener"></a></span></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Withdrawal maintenance</h2>
+    <p class="who">Called by: <b>anyone</b> (permissionless). Settles an L1 sBTC withdrawal request by its id.</p>
+    <p class="sub" style="margin:0 0 8px">Reclaim returns a <b>rejected</b> withdrawal's full amount to the staker who earned it. Settle retires an <b>accepted</b> withdrawal so its leftover fee dust becomes sweepable. Each applies to the opposite request state.<span class="info" tabindex="0" role="button" aria-label="About maintenance" data-tip="reclaim-failed-withdrawal(request-id) requires the request status to be rejected and pays amount + max-fee back to the staker. settle-accepted-withdrawal(request-id) requires the status to be accepted and only releases the liability so dust can be swept. Both are permissionless and delete the request entry to prevent replay.">i</span></p>
+    <label>Withdrawal request id</label>
+    <input id="wr-id" placeholder="0" inputmode="numeric" spellcheck="false">
+    <div class="row" style="margin-top:12px"><button id="reclaim" disabled>Reclaim rejected</button><button id="settle" class="ghost" disabled>Settle accepted</button></div>
+    <div id="wr-result" style="display:none;margin-top:8px"><div class="kv"><span>txid</span><span class="v"><a id="wr-tx" target="_blank" rel="noopener"></a></span></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Revoke a signer-key grant</h2>
+    <div class="note danger"><b>This one needs the signer key.</b> Unlike every other tool in this set, revoke can only be signed by the signer key itself: pox-5 requires the caller to be the wallet whose address is derived from the signer key. That means importing and connecting the signer private key, the key that normally stays on your node and never touches a website. For now use this only on testnet, or with a throwaway key. A later version is planned to sign this offline on the node and only broadcast the signed transaction here, so the key never enters the browser.</div>
+    <p class="sub" style="margin:8px 0">Cancel a signer key's permission to register under a given manager. Use it when the signer is a separate party from the pool operator and wants to stop that operator from registering (or re-registering) the key, or to retire a leftover authorization so it cannot be used again.<span class="info" tabindex="0" role="button" aria-label="Technical details" data-tip="Calls pox-5 revoke-signer-grant(signer-manager, signer-key). It deletes the standing authorization stored for that (manager, key) pair and returns {existed, ...}; a missing grant is not an error, it returns existed=false. It does not undo a registration already in effect for the current term, and it does not touch the used-signer-key-grants replay record, so a consumed auth-id can never be reused regardless. Authorization: pox-5 requires contract-caller to equal the standard principal derived from hash160(signer-key), so only the signer key holder can revoke, not the manager admin.">i</span></p>
+    <p class="who">Called by: <b>the signer key holder</b> (the wallet whose address is derived from the signer key). Not the manager admin.</p>
+    <label>Signer-manager principal to revoke from</label>
+    <input id="rv-manager" placeholder="ST....signer-manager" spellcheck="false">
+    <label>Signer public key (66 hex, starts 02 or 03)</label>
+    <input id="rv-key" placeholder="03..." spellcheck="false">
+    <div id="rv-derline" class="derline idle"></div>
+    <div class="row" style="margin-top:12px"><button id="revoke" disabled>Revoke signer grant</button></div>
+    <div id="rv-result" style="display:none;margin-top:8px"><div class="kv"><span>txid</span><span class="v"><a id="rv-tx" target="_blank" rel="noopener"></a></span></div></div>
+  </div>
+
+  <p class="foot">Keys stay in the wallet. Every call shows in your wallet before you sign, and the contract enforces who may call each function. A txid is submission, not success. Signer Sidekick is interim tooling.</p>
+</div>
+
+<script type="module">
+import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
+import * as tx from "https://esm.sh/@stacks/transactions@7.5.0";
+const { principalCV, uintCV, bufferCV, cvToHex, hexToCV, ClarityType } = tx;
+
+const NETWORKS = {
+  "pox5-testnet":{label:"TESTNET",tier:"TIER 1",netName:"testnet",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,pox5:"ST000000000000000000002AMW42H.pox-5"},
+  "mainnet":{label:"MAINNET",tier:"TIER 2",netName:"mainnet",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,pox5:"SP000000000000000000002Q6VF78.pox-5"}
+};
+const $=id=>document.getElementById(id);
+let account=null, menuOpen=false;
+function net(){return NETWORKS[$("network").value];}
+function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
+function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
+function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
+function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
+function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
+const fmtSbtc=u=>(Number(BigInt(u))/1e8).toLocaleString(undefined,{maximumFractionDigits:8})+" sBTC";
+const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
+const isContract=s=>/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(s);
+const isRecipient=s=>/^S[A-Z0-9]{20,50}(\.[a-zA-Z][a-zA-Z0-9\-_]*)?$/.test(s);
+const isKey=s=>/^(02|03)[0-9a-fA-F]{64}$/.test(s);
+const isUint=s=>/^\d+$/.test(s);
+paintNet(); paintWallet();
+$("network").addEventListener("change",()=>{paintNet();updateDer();gates();});
+
+// Derive the standard principal for a signer key, so the revoke caller is obvious.
+function deriveCaller(keyHex){
+  const nm=net().netName;
+  try{ if(typeof tx.getAddressFromPublicKey==="function") return tx.getAddressFromPublicKey(keyHex, nm); }catch(e){}
+  try{ if(typeof tx.publicKeyToAddress==="function") return tx.publicKeyToAddress(net().mainnet?22:26, keyHex); }catch(e){}
+  return null;
+}
+function updateDer(){
+  const k=$("rv-key").value.trim(); const el=$("rv-derline");
+  if(!isKey(k)){ el.textContent=""; el.className="derline idle"; return; }
+  const addr=deriveCaller(k);
+  if(!addr){ el.textContent="Signer key looks valid. Connect the wallet that holds this signer key to revoke."; el.className="derline idle"; return; }
+  if(account && account===addr){ el.textContent="Must be called by "+addr+" (this is your connected wallet)."; el.className="derline ok"; }
+  else if(account){ el.textContent="Must be called by "+addr+". Your connected wallet is different, so the call will fail with ERR_UNAUTHORIZED (u1)."; el.className="derline bad"; }
+  else { el.textContent="Must be called by "+addr+". Connect that wallet to revoke."; el.className="derline idle"; }
+}
+
+async function callReadOnly(api,contractId,fn,sender,args){
+  const [addr,name]=contractId.split(".");
+  const r=await fetch(`${api}/v2/contracts/call-read/${addr}/${name}/${fn}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender,arguments:args})});
+  const j=await r.json(); if(!j.okay) throw new Error(fn+": "+(j.cause||"read failed")); return hexToCV(j.result);
+}
+const uOf=cv=>cv&&cv.type===ClarityType.UInt?BigInt(cv.value):0n;
+
+function gates(){
+  $("loadstate").disabled=!isContract($("mgr").value.trim());
+  $("revoke").disabled=!(account && isContract($("rv-manager").value.trim()) && isKey($("rv-key").value.trim()));
+  const mgrOk=isContract($("mgr").value.trim());
+  $("withdrawfees").disabled=!(account && mgrOk && isUint($("wf-amount").value.trim()) && isRecipient($("wf-recipient").value.trim()));
+  $("sweep").disabled=!(account && mgrOk && isRecipient($("sw-recipient").value.trim()));
+  const idOk=account && mgrOk && isUint($("wr-id").value.trim());
+  $("reclaim").disabled=!idOk; $("settle").disabled=!idOk;
+}
+["mgr","rv-manager","rv-key","wf-amount","wf-recipient","sw-recipient","wr-id"].forEach(id=>$(id).addEventListener("input",()=>{ if(id==="rv-key")updateDer(); gates(); }));
+
+$("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
+$("menu").addEventListener("click",e=>e.stopPropagation());
+document.addEventListener("click",()=>{ if(menuOpen) openMenu(false); });
+$("refresh").addEventListener("click",()=>{ openMenu(false); if(isContract($("mgr").value.trim())) loadState(); });
+$("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; paintWallet(); updateDer(); gates(); });
+
+async function doConnect(){
+  const n=net();
+  try{
+    say("Approve wallet connection.","info");
+    const res=await connect({network:$("network").value,forceWalletSelect:true});
+    const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
+    if(!e){say("The wallet returned no STX address.","err");return;}
+    account=e.address.toUpperCase(); paintWallet();
+    if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err"); else say("Connected.","ok");
+    updateDer(); gates();
+  }catch(e){say("Connection failed or was cancelled.","err");}
+}
+
+async function loadState(){
+  const n=net(); const mgr=$("mgr").value.trim();
+  try{
+    say("Loading manager state.");
+    const sender=account||mgr.split(".")[0];
+    const [fees,unclaimed,liab]=await Promise.all([
+      callReadOnly(n.api,mgr,"get-earned-fees",sender,[]),
+      callReadOnly(n.api,mgr,"get-unclaimed-staker-rewards",sender,[]),
+      callReadOnly(n.api,mgr,"get-withdrawal-liability",sender,[])
+    ]);
+    $("s-fees").textContent=fmtSbtc(uOf(fees));
+    $("s-unclaimed").textContent=fmtSbtc(uOf(unclaimed));
+    $("s-liab").textContent=fmtSbtc(uOf(liab));
+    $("state").style.display="block";
+    say("Loaded.","ok");
+  }catch(e){ say("Could not load manager state: "+(e?.message||e),"err"); }
+}
+$("loadstate").addEventListener("click",loadState);
+
+async function send(contract,fn,argsHex,mode,linkId,resultId,label){
+  const n=net();
+  if(!account){ doConnect(); return; }
+  if(!n.stxPrefix.test(account)){ say(`Refusing: ${account} is not a ${n.label} address.`,"err"); return; }
+  try{
+    say(`Building ${label}. Review it in your wallet before signing.`);
+    const params={ contract, functionName:fn, functionArgs:argsHex, network:$("network").value, address:account, sponsored:false, postConditionMode:mode, postConditions:[] };
+    const res=await request("stx_callContract",params);
+    const t=(res?.txid||"").replace(/^0x/i,"");
+    if(!/^[0-9a-f]{64}$/i.test(t)){ say("The wallet returned no usable txid. Check wallet activity.","err"); return; }
+    $(linkId).textContent="0x"+t.toLowerCase(); $(linkId).href=`${n.api}/extended/v1/tx/0x${t.toLowerCase()}`; $(resultId).style.display="block";
+    say(`Submitted ${label}. Confirm it succeeds on-chain.`,"ok");
+  }catch(e){ const c=e&&typeof e==="object"&&"code"in e?Number(e.code):null; say(c===4001||c===-31001?"Signing cancelled in wallet.":`${label} failed: `+(e?.message||e),"err"); }
+}
+
+$("withdrawfees").addEventListener("click",()=>{
+  const mgr=$("mgr").value.trim();
+  send(mgr,"withdraw-fees",[ cvToHex(uintCV(BigInt($("wf-amount").value.trim()))), cvToHex(principalCV($("wf-recipient").value.trim())) ],"originator","wf-tx","wf-result","withdraw-fees");
+});
+$("sweep").addEventListener("click",()=>{
+  const mgr=$("mgr").value.trim();
+  send(mgr,"sweep-fee-refunds",[ cvToHex(principalCV($("sw-recipient").value.trim())) ],"originator","sw-tx","sw-result","sweep-fee-refunds");
+});
+$("reclaim").addEventListener("click",()=>{
+  const mgr=$("mgr").value.trim();
+  send(mgr,"reclaim-failed-withdrawal",[ cvToHex(uintCV(BigInt($("wr-id").value.trim()))) ],"originator","wr-tx","wr-result","reclaim-failed-withdrawal");
+});
+$("settle").addEventListener("click",()=>{
+  const mgr=$("mgr").value.trim();
+  send(mgr,"settle-accepted-withdrawal",[ cvToHex(uintCV(BigInt($("wr-id").value.trim()))) ],"deny","wr-tx","wr-result","settle-accepted-withdrawal");
+});
+$("revoke").addEventListener("click",()=>{
+  const mgr=$("rv-manager").value.trim(); const k=$("rv-key").value.trim();
+  send(net().pox5,"revoke-signer-grant",[ cvToHex(principalCV(mgr)), cvToHex(bufferCV(hexToBytes(k))) ],"deny","rv-tx","rv-result","revoke-signer-grant");
+});
+</script>
+</body>
+</html>
