@@ -76,8 +76,32 @@ let lastBuilt=null, lastAllOk=null; // testnet override: keep the built args and
 function net(){return NETWORKS[$("network").value];}
 function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
 function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${walletName||shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
-// Show the wallet's BNSv2 primary name on mainnet (strict read-only on the BNS-V2 contract). Falls back to the short address.
-async function resolveWalletName(){ walletName=null; paintWallet(); const addr=account&&(typeof account==="string"?account:account.address); if(!addr||!net().mainnet) return; try{ const r=await fetch(`${net().api}/v2/contracts/call-read/SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF/BNS-V2/get-primary`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender:addr,arguments:[cvToHex(principalCV(addr))]})}); const j=await r.json(); if(!j.okay) return; const cv=hexToCV(j.result); if(cv.type!==ClarityType.ResponseOk||cv.value.type!==ClarityType.OptionalSome) return; const t=cv.value.value.value; const dec=h=>{h=String(h).replace(/^0x/,"");let s="";for(let i=0;i<h.length;i+=2)s+=String.fromCharCode(parseInt(h.substr(i,2),16));return s;}; const nm=dec(t.name.value), ns=dec(t.namespace.value); if(nm&&ns){ walletName=`${nm}.${ns}`; paintWallet(); } }catch(e){} }
+// Wallet BNS name (mainnet only). Strict: the BNS-V2 primary name. Fallback: the first BNS-V2 name the
+// address owns, for cases where a name exists but no primary is set (see the BNSv2 airdrop primary-name bug).
+// Otherwise the button keeps the short address.
+const BNSV2_ID="SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2";
+async function resolveWalletName(){
+  walletName=null; paintWallet();
+  const addr=account&&(typeof account==="string"?account:account.address);
+  if(!addr||!net().mainnet) return;
+  const [BNS,C]=BNSV2_ID.split("."); const api=net().api;
+  const dec=h=>{ h=String(h).replace(/^0x/,""); let s=""; for(let i=0;i<h.length;i+=2)s+=String.fromCharCode(parseInt(h.substr(i,2),16)); return s; };
+  const nameFromTuple=tupleCv=>{ const t=tupleCv.value; const nm=dec(t.name.value), ns=dec(t.namespace.value); return (nm&&ns)?`${nm}.${ns}`:null; };
+  async function callRO(fn,args){ try{ const r=await fetch(`${api}/v2/contracts/call-read/${BNS}/${C}/${fn}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender:addr,arguments:args})}); const j=await r.json(); return j.okay?hexToCV(j.result):null; }catch(e){ return null; } }
+  try{
+    // 1) strict primary name
+    const p=await callRO("get-primary",[cvToHex(principalCV(addr))]);
+    if(p&&p.type===ClarityType.ResponseOk&&p.value.type===ClarityType.OptionalSome){ const nm=nameFromTuple(p.value.value); if(nm){ walletName=nm; paintWallet(); return; } }
+    // 2) fallback: first BNS-V2 name owned (primary may be unset, e.g. airdrop bug). limit=1, we only show one.
+    const asset=encodeURIComponent(`${BNSV2_ID}::${C}`);
+    const hr=await fetch(`${api}/extended/v1/tokens/nft/holdings?principal=${addr}&asset_identifiers=${asset}&limit=1`).then(r=>r.json());
+    const repr=hr&&hr.results&&hr.results[0]&&hr.results[0].value&&hr.results[0].value.repr;
+    const id=repr?String(repr).replace(/^u/,""):null;
+    if(!id||!/^\d+$/.test(id)) return;
+    const b=await callRO("get-bns-from-id",[cvToHex(uintCV(BigInt(id)))]);
+    if(b&&b.type===ClarityType.OptionalSome){ const nm=nameFromTuple(b.value); if(nm){ walletName=nm; paintWallet(); } }
+  }catch(e){}
+}
 function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
 function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
 function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
