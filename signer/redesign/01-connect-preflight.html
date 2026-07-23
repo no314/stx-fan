@@ -110,7 +110,6 @@ $("disconnect").addEventListener("click", async ()=>{ openMenu(false); try{ awai
 
 async function doConnect(){
   try{
-    say("Approve wallet connection.","info");
     // Pass the network explicitly on connect, or Leather defaults to mainnet. The value is the
     // custom-network key configured in Leather ("pox5-testnet"); it must match exactly.
     const res = await connect({ network: $("network").value, forceWalletSelect: true });
@@ -120,7 +119,6 @@ async function doConnect(){
     $("addr").textContent = account.address;
     $("pubkey").textContent = account.publicKey || "…";
     paintWallet();
-    say("Connected. Loading network reads.","ok");
     await loadReads();
   }catch(e){ say("Connection failed or was cancelled.","err"); }
 }

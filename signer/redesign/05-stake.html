@@ -138,12 +138,11 @@ $("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await d
 async function doConnect(){
   const n=net();
   try{
-    say("Approve wallet connection.","info");
     const res=await connect({network:$("network").value,forceWalletSelect:true});
     const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
     if(!e){say("The wallet returned no STX address.","err");return;}
     account=e.address.toUpperCase(); $("addr").textContent=account; paintWallet();
-    if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err"); else say("Connected.","ok");
+    if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err");
     await loadReads(); gate();
   }catch(e){say("Connection failed or was cancelled.","err");}
 }

@@ -31,7 +31,7 @@ pre{background:var(--surface-input);border:1px solid var(--border);border-radius
   <div class="netbar"><span>SIGNER KEY GENERATION, OFFLINE ONLY</span><span class="tier">SENSITIVE</span></div>
 
   <h1>Signer key helper</h1>
-  <p class="sub">Generates the key material for the signer: a BIP39 seed phrase, its account-0 Stacks address, the account-0 private key, and the compressed public key. This is a distinct identity from your funded, hardware-backed manager-admin wallet, and it lives on the signer node, so keep the two isolated.</p>
+  <p class="sub">Generates the key material for the signer: a BIP39 seed phrase, its account-index-0 Stacks address, the account-index-0 private key, and the compressed public key. This is a distinct identity from your funded, hardware-backed/multisig-backed manager-admin wallet, and it lives on the signer node, so keep the two isolated.</p>
 
   <div class="warnbox">
     <b>Read before using.</b> A browser is not the ideal place to make a production seed phrase. The preferred path is the node host, offline (for example <code>stacks-cli make_keychain</code>, or your standard BIP39 tooling), then place the key in the signer config per the <a href="https://docs.stacks.co/operate/run-a-signer" target="_blank" rel="noopener">signer guide</a>.
@@ -57,7 +57,7 @@ pre{background:var(--surface-input);border:1px solid var(--border);border-radius
   <div class="card" id="out" style="display:none">
     <h2>Master seed phrase (BIP39), write this down</h2>
     <div class="seed" id="seed"></div>
-    <h2 style="margin-top:22px">Account 0</h2>
+    <h2 style="margin-top:22px">Account index 0</h2>
     <div class="kv"><span>Stacks address, testnet (<code>ST…</code>)</span><span class="v" id="addrT"></span></div>
     <div class="kv"><span>Stacks address, mainnet (<code>SP…</code>)</span><span class="v" id="addrM"></span></div>
     <div class="kv"><span>Private key (66 hex, for signer config)</span><span class="v" id="priv"></span></div>

@@ -30,7 +30,7 @@
   </div>
 
   <h1>Register-self</h1>
-  <p class="sub">Broadcasts <code>register-self</code> from the signer-manager admin wallet. It verifies the signer grant against live PoX-5 before you sign: pinned contract, message-hash recovery, signature validity, and grant not already used.<span class="info" tabindex="0" role="button" aria-label="What register-self does" data-tip="One call runs authorize-admin, then pox-5 grant-signer-key (which recovers the pubkey from the signature and asserts it equals the signer key), then pox-5 register-signer. It moves no assets.">i</span></p>
+  <p class="sub">This is what lets stakers stake toward your signer-manager contract. Broadcasts <code>register-self</code> from the signer-manager admin wallet. It verifies the signer grant against live PoX-5 before you sign: pinned contract, message-hash recovery, signature validity, and grant not already used.<span class="info" tabindex="0" role="button" aria-label="What register-self does" data-tip="One call runs authorize-admin, then pox-5 grant-signer-key (which recovers the pubkey from the signature and asserts it equals the signer key), then pox-5 register-signer. It moves no assets.">i</span></p>
   <div id="status" class="status"></div>
 
   <div class="card">
@@ -139,12 +139,11 @@ $("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await d
 async function doConnect(){
   const n=net();
   try{
-    say("Approve wallet connection.","info");
     const res=await connect({network:$("network").value,forceWalletSelect:true});
     const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
     if(!e){say("The wallet returned no STX address.","err");return;}
     account=e.address.toUpperCase(); paintWallet();
-    if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err"); else say("Connected.","ok");
+    if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err");
     gate();
   }catch(e){say("Connection failed or was cancelled.","err");}
 }
