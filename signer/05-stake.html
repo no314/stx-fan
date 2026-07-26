@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Stake to a signer · Signer Sidekick</title>
-<link rel="stylesheet" href="stacks.css?v=3">
+<link rel="stylesheet" href="stacks.css?v=4">
 <style>
 .stakeline{font-size:var(--fs-xs);color:var(--text-secondary);margin-top:6px;min-height:17px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .stakeline .amt{color:var(--text-primary);font-family:var(--font-mono)}
@@ -22,7 +22,6 @@
         <option value="mainnet">Mainnet</option>
       </select>
     </div>
-    <span class="tier" id="tier">TIER 1</span>
     <div class="wallet" id="wallet">
       <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
       <div class="menu" id="menu" role="menu" hidden>
@@ -75,7 +74,7 @@
       <option value="allow">Allow (fallback, use only if deny still aborts)</option>
     </select>
     <div class="kv"><span>Post-condition</span><span class="v" id="pcdesc">…</span></div>
-    <div class="row" style="margin-top:12px"><button id="stake" disabled>Stake</button></div>
+    <div class="row" style="margin-top:12px"><button id="stake">Connect wallet</button></div>
   </div>
 
   <div class="card" id="result" style="display:none">
@@ -102,6 +101,7 @@ const MIN_USTX=50_000_000_000n;
 const $=id=>document.getElementById(id);
 let account=null, poxInfo=null, menuOpen=false, walletName=null;
 function net(){return NETWORKS[$("network").value];}
+function explorerTx(t){ t=String(t).replace(/^0x/i,"").toLowerCase(); const n=net(); return n.mainnet?`https://explorer.hiro.so/txid/0x${t}?chain=mainnet`:`https://explorer.hiro.so/txid/0x${t}?chain=testnet&api=${n.api}`; }
 function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
 function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${walletName||shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
 // Wallet BNS name (mainnet only). Primary path is Hiro on-chain reads against the BNS-V2 contract:
@@ -136,7 +136,7 @@ async function resolveWalletName(){
   }
 }
 function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
-function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
+function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;}
 function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
 const fmtStx=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";
 const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
@@ -150,14 +150,14 @@ async function callReadOnly(api,contractId,fn,sender,args){
   const j=await r.json(); if(!j.okay) throw new Error(fn+": "+(j.cause||"read failed")); return hexToCV(j.result);
 }
 function resetReads(){ poxInfo=null; $("bal").textContent=account?"…":"Not connected"; $("startht").textContent="…"; }
-function gate(){ $("stake").disabled=!(account&&$("manager").value.trim()&&stxToU($("amount").value)!=null&&/^\d+$/.test($("cycles").value.trim())); updatePc(); }
+function gate(){ $("stake").textContent=account?"Stake":"Connect wallet"; $("stake").disabled=false; updatePc(); }
 function updatePc(){
   const u=stxToU($("amount").value);
   if($("pcmode").value==="allow"){ $("pcdesc").textContent="allow, no post-conditions (use only if deny aborts)"; return; }
   $("pcdesc").textContent = u!=null ? `deny, staking-postcondition (locks = ${fmtStx(u)})` : "deny, staking-postcondition (enter an amount)";
 }
 ["manager","amount","cycles"].forEach(id=>$(id).addEventListener("input",gate));
-$("pcmode").addEventListener("change",updatePc); updatePc();
+$("pcmode").addEventListener("change",updatePc); updatePc(); gate();
 $("manager").addEventListener("input",scheduleStake);
 
 $("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
@@ -216,8 +216,10 @@ async function loadStaked(manager){
 }
 
 $("stake").addEventListener("click",async()=>{
+  if(!account){ doConnect(); return; }
   const n=net();
   const manager=$("manager").value.trim(); const amountU=stxToU($("amount").value); const cycles=$("cycles").value.trim();
+  if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(manager)){say("Enter the signer-manager contract first.","err");return;}
   if(!n.stxPrefix.test(account)){say(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
   if(amountU==null){say("Amount must be a number with up to 6 decimals.","err");return;}
   const nc=Number(cycles);
@@ -253,7 +255,7 @@ $("stake").addEventListener("click",async()=>{
     const res=await request("stx_callContract",params);
     const txid=(res?.txid||"").replace(/^0x/i,"");
     if(!/^[0-9a-f]{64}$/i.test(txid)){say("The wallet returned no usable txid. Check wallet activity.","err");return;}
-    $("txid").textContent="0x"+txid.toLowerCase(); $("txlink").href=`${n.api}/extended/v1/tx/0x${txid.toLowerCase()}`;
+    $("txid").textContent="0x"+txid.toLowerCase(); $("txlink").href=explorerTx(txid);
     $("unlock").textContent=`#${poxInfo.reward_cycle_id+1+nc} (locked ${nc} cycles from the next cycle)`; $("result").style.display="block";
     say("Submitted. Verify the lock in dApp 6.","ok");
   }catch(e){ const code=e&&typeof e==="object"&&"code"in e?Number(e.code):null; say(code===4001||code===-31001?"Signing cancelled in wallet.":"Stake request failed: "+(e?.message||e),"err"); }

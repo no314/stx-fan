@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Register-self · Signer Sidekick</title>
-<link rel="stylesheet" href="stacks.css?v=3">
+<link rel="stylesheet" href="stacks.css?v=4">
 <style>
 .stakeline{font-size:var(--fs-xs);color:var(--text-secondary);margin-top:6px;min-height:17px;display:flex;align-items:center;gap:7px}
 .stakeline .amt{color:var(--text-primary);font-family:var(--font-mono)}
@@ -20,7 +20,6 @@
         <option value="mainnet">Mainnet</option>
       </select>
     </div>
-    <span class="tier" id="tier">TIER 1</span>
     <div class="wallet" id="wallet">
       <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
       <div class="menu" id="menu" role="menu" hidden>
@@ -74,6 +73,7 @@ const $=id=>document.getElementById(id);
 let account=null, verified=null, menuOpen=false, walletName=null;
 let lastBuilt=null, lastAllOk=null; // testnet override: keep the built args and pass/fail state
 function net(){return NETWORKS[$("network").value];}
+function explorerTx(t){ t=String(t).replace(/^0x/i,"").toLowerCase(); const n=net(); return n.mainnet?`https://explorer.hiro.so/txid/0x${t}?chain=mainnet`:`https://explorer.hiro.so/txid/0x${t}?chain=testnet&api=${n.api}`; }
 function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
 function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${walletName||shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
 // Wallet BNS name (mainnet only). Primary path is Hiro on-chain reads against the BNS-V2 contract:
@@ -112,7 +112,7 @@ async function resolveWalletName(){
   }
 }
 function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
-function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
+function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;}
 function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
 paintNet(); paintWallet(); syncButtons();
 $("network").addEventListener("change",()=>{paintNet();resetVerify();scheduleStake();resolveWalletName();});
@@ -122,13 +122,9 @@ const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);f
 // obvious the wallet step is required. After connecting they show their real function.
 function syncButtons(){
   const v=$("verify"), b=$("broadcast");
-  if(!account){
-    v.textContent="Connect wallet to verify"; v.disabled=false;
-    b.textContent="Connect wallet to broadcast"; b.disabled=false;
-  } else {
-    v.textContent="Verify against live PoX-5"; v.disabled=!($("manager").value.trim()&&$("authid").value.trim()&&$("grant").value.trim());
-    b.textContent="Broadcast register-self"; b.disabled=!(verified || (overrideAvailable() && $("override").checked));
-  }
+  v.disabled=false; b.disabled=false;   // always clickable: connect when disconnected, validate on click when connected
+  v.textContent=account?"Verify against live PoX-5":"Connect wallet";
+  b.textContent=account?"Broadcast register-self":"Connect wallet";
 }
 function gate(){ syncButtons(); }
 // The override only exists on testnet, only after a verify that failed, and only if the args
@@ -186,6 +182,7 @@ async function doConnect(){
 const GLYPH={ok:"✓",bad:"✕",warn:"!"};
 $("verify").addEventListener("click",async()=>{
   if(!account){ doConnect(); return; }
+  if(!($("manager").value.trim()&&$("authid").value.trim()&&$("grant").value.trim())){ say("Provide grant details first.","err"); return; }
   const n=net(); resetVerify();
   const rows=[]; const add=(m,t)=>rows.push(`<div class="check"><span class="mark ${m}">${GLYPH[m]||"·"}</span><span>${t}</span></div>`);
   let allOk=true; const fail=t=>{allOk=false;add("bad",t);};
@@ -247,7 +244,7 @@ $("broadcast").addEventListener("click",async()=>{
     const res=await request("stx_callContract",params);
     const txid=(res?.txid||"").replace(/^0x/i,"");
     if(!/^[0-9a-f]{64}$/i.test(txid)){say("The wallet returned no usable txid. Check wallet activity.","err");return;}
-    $("txid").textContent="0x"+txid.toLowerCase(); $("txlink").href=`${n.api}/extended/v1/tx/0x${txid.toLowerCase()}`; $("result").style.display="block";
+    $("txid").textContent="0x"+txid.toLowerCase(); $("txlink").href=explorerTx(txid); $("result").style.display="block";
     say("Submitted. Verify registration in dApp 6.","ok");
   }catch(e){ const code=e&&typeof e==="object"&&"code"in e?Number(e.code):null; say(code===4001||code===-31001?"Signing cancelled in wallet.":"Broadcast failed: "+(e?.message||e),"err"); }
 });

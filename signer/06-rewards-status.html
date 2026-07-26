@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Rewards and signer status · Signer Sidekick</title>
-<link rel="stylesheet" href="stacks.css?v=3">
+<link rel="stylesheet" href="stacks.css?v=4">
 <style>
 .netbar .tier{margin-left:auto;margin-right:0}
 .badge{font-weight:700;padding:2px 8px;border-radius:6px;font-size:var(--fs-xs);font-family:var(--font-mono)}
@@ -25,7 +25,6 @@
         <option value="mainnet">Mainnet</option>
       </select>
     </div>
-    <span class="tier" id="tier">TIER 1</span>
   </div>
 
   <h1>Rewards and signer status</h1>
@@ -80,7 +79,8 @@ const NETWORKS={
 const MIN_USTX=50_000_000_000n;
 const $=id=>document.getElementById(id);
 function net(){return NETWORKS[$("network").value];}
-function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;$("exppox").textContent=n.expectedPox;}
+function explorerTx(t){ t=String(t).replace(/^0x/i,"").toLowerCase(); const n=net(); return n.mainnet?`https://explorer.hiro.so/txid/0x${t}?chain=mainnet`:`https://explorer.hiro.so/txid/0x${t}?chain=testnet&api=${n.api}`; }
+function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("exppox").textContent=n.expectedPox;}
 function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
 function stx(u){return (Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";}
 function badge(cls,text){return `<span class="badge ${cls}">${text}</span>`;}
@@ -153,7 +153,7 @@ async function load(){
       $("txs").innerHTML = list.length? list.map(t=>{
         const tx=t.tx||t; const fn=tx.contract_call?.function_name||tx.tx_type;
         const glyph=tx.tx_status==="success"?"✓":tx.tx_status==="pending"?"·":"✕";
-        return `<div class="tx">${glyph} ${fn} · <a href="${n.api}/extended/v1/tx/${tx.tx_id}" target="_blank" rel="noopener">${(tx.tx_id||"").slice(0,14)}…</a></div>`;
+        return `<div class="tx">${glyph} ${fn} · <a href="${explorerTx(tx.tx_id)}" target="_blank" rel="noopener">${(tx.tx_id||"").slice(0,14)}…</a></div>`;
       }).join(""):"<small>No transactions found.</small>";
     }catch(e){ $("txs").innerHTML="<small>Could not load transactions.</small>"; }
 

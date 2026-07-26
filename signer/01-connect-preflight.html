@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Connect and preflight · Signer Sidekick</title>
-<link rel="stylesheet" href="stacks.css?v=3">
+<link rel="stylesheet" href="stacks.css?v=4">
 </head>
 <body class="net-testnet">
 <div class="wrap">
@@ -16,7 +16,6 @@
         <option value="mainnet">Mainnet</option>
       </select>
     </div>
-    <span class="tier" id="tier">TIER 1</span>
     <div class="wallet" id="wallet">
       <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
       <div class="menu" id="menu" role="menu" hidden>
@@ -76,7 +75,6 @@ function paintNet(){
   document.body.classList.toggle("net-mainnet", n.mainnet);
   document.body.classList.toggle("net-testnet", !n.mainnet);
   $("netlabel").textContent = n.label;
-  $("tier").textContent = n.tier;
   $("exppox").textContent = n.expectedPox;
 }
 function say(msg, kind="info"){ const s=$("status"); s.textContent=msg; s.className="status show "+kind; }
