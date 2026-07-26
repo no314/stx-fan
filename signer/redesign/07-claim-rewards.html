@@ -18,9 +18,15 @@
 .bar .mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);font-family:var(--font-mono)}
 .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);margin-top:3px}
 .note{background:rgba(210,153,34,.1);border:1px solid var(--warn);border-radius:var(--radius-md);padding:11px 13px;font-size:var(--fs-xs);margin:10px 0}.note b{color:var(--warn)}
-.slist{max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-md);margin-top:8px}
-.srow{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:var(--fs-xs)}.srow:last-child{border:none}
-.srow .amt{color:var(--text-secondary)}
+.slist{max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-md);margin-top:8px}
+.rtable{width:100%;border-collapse:collapse;font-size:var(--fs-xs)}
+.rtable th,.rtable td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.rtable th{position:sticky;top:0;background:var(--surface-input);color:var(--text-secondary);font-weight:600;font-family:var(--font-body)}
+.rtable td{font-family:var(--font-mono);color:var(--text-primary)}
+.rtable td:first-child{word-break:break-all;white-space:normal}
+.rtable th.num,.rtable td.num{text-align:right}
+.rtable tr:last-child td{border-bottom:none}
+.rempty{padding:10px;color:var(--text-secondary);font-size:var(--fs-xs)}
 textarea{width:100%;font-family:var(--font-mono);font-size:var(--fs-xs);min-height:90px;background:var(--surface-input);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-md);padding:9px 11px;resize:vertical}
 input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
 </style>
@@ -102,7 +108,7 @@ input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
   <div class="card">
     <details id="poolsec">
       <summary>Pool operator, list stakers of this signer-manager (advanced)</summary>
-      <p class="sub" style="margin:10px 0">Builds the roster of addresses that have staked to the signer-manager entered above. Nothing runs until you open this section and press the button. Large pools scan in batches; use Keep scanning to continue.<span class="info" tabindex="0" role="button" aria-label="How the roster is built" data-tip="The public API cannot filter events by a signer-manager argument, so this reads PoX-5 events page by page (throttled) and keeps the stake events that name this manager. Newest first, each staker listed once with their most recent stake amount and unlock cycle. Fine on testnet; on a busy mainnet it can take several batches.">i</span></p>
+      <p class="sub" style="margin:10px 0">Builds the roster of addresses that have staked to the signer-manager entered above. Nothing runs until you open this section and press the button. Large pools scan in batches; use Keep scanning to continue.<span class="info" tabindex="0" role="button" aria-label="How the roster is built" data-tip="The public API cannot filter events by a signer-manager argument, so this reads PoX-5 events page by page (throttled) and keeps the stake events that name this manager. Newest first, each staker listed once from their most recent stake: lock cycle is when it started, unlock cycle is when it ends. A stake is expired once the unlock cycle is at or before the current cycle. Fine on testnet; on a busy mainnet it can take several batches.">i</span></p>
       <div class="row"><button id="roster" class="ghost">Build staker roster</button><button id="rostermore" class="ghost" disabled>Keep scanning</button><span id="rprog" style="font-size:var(--fs-xs);color:var(--text-secondary)"></span></div>
       <div class="row" style="margin-top:10px"><input id="filter" placeholder="filter results" style="flex:1"><button id="copy" class="ghost" disabled>Copy staker addresses</button></div>
       <div class="slist" id="slist" style="display:none"></div>
@@ -121,19 +127,51 @@ const NETWORKS={
   "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
 };
 const $=id=>document.getElementById(id);
-let account=null, pox=null, poxId=null, menuOpen=false;
+let account=null, pox=null, poxId=null, menuOpen=false, walletName=null;
 function net(){return NETWORKS[$("network").value];}
 function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
-function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
+function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${walletName||shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
+// Wallet BNS name (mainnet only). Primary path is Hiro on-chain reads against the BNS-V2 contract:
+// the strict primary name, then (if none is set, e.g. the BNSv2 airdrop primary-name bug) the first
+// BNS-V2 name the address owns. If Hiro throws (its unauthenticated rate limit returns a header-less
+// response that the browser reports as a CORS error), fall back to the bnsv2.com API. Otherwise short address.
+const BNSV2_ID="SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2";
+async function resolveWalletName(){
+  walletName=null; paintWallet();
+  const addr=account&&(typeof account==="string"?account:account.address);
+  if(!addr||!net().mainnet) return;
+  const [BNS,C]=BNSV2_ID.split("."); const api=net().api;
+  const dec=h=>{ h=String(h).replace(/^0x/,""); let s=""; for(let i=0;i<h.length;i+=2)s+=String.fromCharCode(parseInt(h.substr(i,2),16)); return s; };
+  const nameFromTuple=tupleCv=>{ const t=tupleCv.value; const nm=dec(t.name.value), ns=dec(t.namespace.value); return (nm&&ns)?`${nm}.${ns}`:null; };
+  async function callRO(fn,args){ const r=await fetch(`${api}/v2/contracts/call-read/${BNS}/${C}/${fn}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender:addr,arguments:args})}); if(!r.ok) throw new Error("hiro "+r.status); const j=await r.json(); if(!j.okay) throw new Error("read failed"); return hexToCV(j.result); }
+  function setName(nm){ if(nm){ walletName=nm; paintWallet(); } }
+  try{
+    const p=await callRO("get-primary",[cvToHex(principalCV(addr))]);
+    if(p.type===ClarityType.ResponseOk&&p.value.type===ClarityType.OptionalSome){ setName(nameFromTuple(p.value.value)); return; }
+    const asset=encodeURIComponent(`${BNSV2_ID}::${C}`);
+    const r=await fetch(`${api}/extended/v1/tokens/nft/holdings?principal=${addr}&asset_identifiers=${asset}&limit=1`); if(!r.ok) throw new Error("hiro "+r.status);
+    const hr=await r.json(); const repr=hr&&hr.results&&hr.results[0]&&hr.results[0].value&&hr.results[0].value.repr;
+    const id=repr?String(repr).replace(/^u/,""):null;
+    if(id&&/^\d+$/.test(id)){ const b=await callRO("get-bns-from-id",[cvToHex(uintCV(BigInt(id)))]); if(b.type===ClarityType.OptionalSome) setName(nameFromTuple(b.value)); }
+  }catch(e){
+    try{
+      const j=await fetch(`https://api.bnsv2.com/names/address/${addr}/valid`).then(r=>r.json());
+      const first=j&&j.names&&j.names[0];
+      const nm=first&&(first.full_name||(first.name_string&&first.namespace_string?`${first.name_string}.${first.namespace_string}`:null));
+      if(nm) setName(nm);
+    }catch(e2){}
+  }
+}
 function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
 function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
 function cstat(m,k="info"){const s=$("cstatus");s.textContent=m;s.className="status show "+k;}
 function sstat(m,k="info"){const s=$("sstatus");s.textContent=m;s.className="status show "+k;}
 function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
 const stx=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";
+const stxNum=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 paintNet(); paintWallet();
-$("network").addEventListener("change",()=>{paintNet();loadPox();});
+$("network").addEventListener("change",()=>{paintNet();loadPox();resolveWalletName();});
 
 async function callReadOnly(api,contractId,fn,sender,args){
   const [addr,name]=contractId.split(".");
@@ -173,7 +211,7 @@ $("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account)
 $("menu").addEventListener("click",e=>e.stopPropagation());
 document.addEventListener("click",()=>{ if(menuOpen) openMenu(false); });
 $("refresh").addEventListener("click",()=>{ openMenu(false); loadPox(); });
-$("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; paintWallet(); gate(); });
+$("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; walletName=null; paintWallet(); gate(); });
 
 async function doConnect(){
   const n=net();
@@ -181,7 +219,7 @@ async function doConnect(){
     const res=await connect({network:$("network").value,forceWalletSelect:true});
     const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
     if(!e){say("The wallet returned no STX address.","err");return;}
-    account=e.address.toUpperCase(); paintWallet();
+    account=e.address.toUpperCase(); paintWallet(); resolveWalletName();
     if(!$("staker").value) $("staker").value=account;
     if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err");
     gate();
@@ -230,7 +268,7 @@ $("claim").addEventListener("click",async()=>{
 // The public API cannot filter events by the signer-manager argument, so we page PoX-5 events
 // (throttled) and keep the stake prints whose `signer` is this manager. Newest-first, so the
 // first time a staker is seen is their most recent stake.
-let roster=new Map();                 // staker -> { amount, unlock }
+let roster=new Map();                 // staker -> { amount, lock, unlock }
 let scanOffset=0, scanning=false, scanExhausted=false;
 const PAGE=50, PAGES_PER_BATCH=40, SCAN_THROTTLE_MS=200;   // ~5 pages/sec, conservative for the public API
 
@@ -238,9 +276,9 @@ function renderRoster(){
   const f=$("filter").value.trim().toLowerCase();
   const rows=[...roster.entries()].filter(([a])=>!f||a.toLowerCase().includes(f));
   $("slist").style.display="block";
-  $("slist").innerHTML = rows.length
-    ? rows.map(([a,v])=>`<div class="srow"><span>${a}</span><span class="amt">${stx(v.amount)}${v.unlock?` · unlock #${v.unlock}`:""}</span></div>`).join("")
-    : '<div class="srow"><span>no stakers found yet</span></div>';
+  if(!rows.length){ $("slist").innerHTML='<div class="rempty">no stakers found yet</div>'; $("copy").disabled=roster.size===0; return; }
+  const body=rows.map(([a,v])=>`<tr><td>${a}</td><td class="num">${stxNum(v.amount)}</td><td class="num">${v.lock||""}</td><td class="num">${v.unlock||""}</td></tr>`).join("");
+  $("slist").innerHTML=`<table class="rtable"><thead><tr><th>Address</th><th class="num">Staked STX</th><th class="num">Lock cycle #</th><th class="num">Unlock cycle #</th></tr></thead><tbody>${body}</tbody></table>`;
   $("copy").disabled = roster.size===0;
 }
 $("filter").addEventListener("input",()=>{ if($("slist").style.display==="block") renderRoster(); });
@@ -274,8 +312,9 @@ async function scanRoster(reset){
         const staker=(repr.match(/\(staker '([^)\s]+)\)/)||[])[1];
         if(!staker || roster.has(staker)) continue;     // newest-first: keep the most recent stake per staker
         const amt=(repr.match(/\(amount-ustx u(\d+)\)/)||[])[1];
+        const lc=(repr.match(/\(first-reward-cycle u(\d+)\)/)||[])[1];
         const uc=(repr.match(/\(unlock-cycle u(\d+)\)/)||[])[1];
-        roster.set(staker,{ amount: amt?BigInt(amt):0n, unlock: uc||"" });
+        roster.set(staker,{ amount: amt?BigInt(amt):0n, lock: lc||"", unlock: uc||"" });
       }
       scanOffset+=res.length; pages++;
       renderRoster();

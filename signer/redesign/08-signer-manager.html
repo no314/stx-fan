@@ -131,10 +131,41 @@ const NETWORKS = {
   "mainnet":{label:"MAINNET",tier:"TIER 2",netName:"mainnet",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,pox5:"SP000000000000000000002Q6VF78.pox-5"}
 };
 const $=id=>document.getElementById(id);
-let account=null, accountPub=null, menuOpen=false;
+let account=null, accountPub=null, menuOpen=false, walletName=null;
 function net(){return NETWORKS[$("network").value];}
 function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
-function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
+function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${walletName||shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
+// Wallet BNS name (mainnet only). Primary path is Hiro on-chain reads against the BNS-V2 contract:
+// the strict primary name, then (if none is set, e.g. the BNSv2 airdrop primary-name bug) the first
+// BNS-V2 name the address owns. If Hiro throws (its unauthenticated rate limit returns a header-less
+// response that the browser reports as a CORS error), fall back to the bnsv2.com API. Otherwise short address.
+const BNSV2_ID="SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2";
+async function resolveWalletName(){
+  walletName=null; paintWallet();
+  const addr=account&&(typeof account==="string"?account:account.address);
+  if(!addr||!net().mainnet) return;
+  const [BNS,C]=BNSV2_ID.split("."); const api=net().api;
+  const dec=h=>{ h=String(h).replace(/^0x/,""); let s=""; for(let i=0;i<h.length;i+=2)s+=String.fromCharCode(parseInt(h.substr(i,2),16)); return s; };
+  const nameFromTuple=tupleCv=>{ const t=tupleCv.value; const nm=dec(t.name.value), ns=dec(t.namespace.value); return (nm&&ns)?`${nm}.${ns}`:null; };
+  async function callRO(fn,args){ const r=await fetch(`${api}/v2/contracts/call-read/${BNS}/${C}/${fn}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender:addr,arguments:args})}); if(!r.ok) throw new Error("hiro "+r.status); const j=await r.json(); if(!j.okay) throw new Error("read failed"); return hexToCV(j.result); }
+  function setName(nm){ if(nm){ walletName=nm; paintWallet(); } }
+  try{
+    const p=await callRO("get-primary",[cvToHex(principalCV(addr))]);
+    if(p.type===ClarityType.ResponseOk&&p.value.type===ClarityType.OptionalSome){ setName(nameFromTuple(p.value.value)); return; }
+    const asset=encodeURIComponent(`${BNSV2_ID}::${C}`);
+    const r=await fetch(`${api}/extended/v1/tokens/nft/holdings?principal=${addr}&asset_identifiers=${asset}&limit=1`); if(!r.ok) throw new Error("hiro "+r.status);
+    const hr=await r.json(); const repr=hr&&hr.results&&hr.results[0]&&hr.results[0].value&&hr.results[0].value.repr;
+    const id=repr?String(repr).replace(/^u/,""):null;
+    if(id&&/^\d+$/.test(id)){ const b=await callRO("get-bns-from-id",[cvToHex(uintCV(BigInt(id)))]); if(b.type===ClarityType.OptionalSome) setName(nameFromTuple(b.value)); }
+  }catch(e){
+    try{
+      const j=await fetch(`https://api.bnsv2.com/names/address/${addr}/valid`).then(r=>r.json());
+      const first=j&&j.names&&j.names[0];
+      const nm=first&&(first.full_name||(first.name_string&&first.namespace_string?`${first.name_string}.${first.namespace_string}`:null));
+      if(nm) setName(nm);
+    }catch(e2){}
+  }
+}
 function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
 function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
 function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
@@ -148,7 +179,7 @@ const isUint=s=>/^\d+$/.test(s);
 function parseFeePct(s){ s=String(s).trim(); if(!/^\d{1,2}(\.\d{1,2})?$/.test(s)) return null; const b=Math.round(parseFloat(s)*100); return (b>=0&&b<10000)?b:null; }
 function updateFeeReadout(){ const b=parseFeePct($("sm-fee").value); $("sm-feebips").textContent = b==null ? "enter 0 to 99.99" : `${b} bips (${b/100}%)`; }
 paintNet(); paintWallet(); updateFeeReadout();
-$("network").addEventListener("change",()=>{paintNet();updateDer();gates();});
+$("network").addEventListener("change",()=>{paintNet();updateDer();gates();resolveWalletName();});
 
 function deriveCaller(keyHex){
   const nm=net().netName;
@@ -190,7 +221,7 @@ $("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account)
 $("menu").addEventListener("click",e=>e.stopPropagation());
 document.addEventListener("click",()=>{ if(menuOpen) openMenu(false); });
 $("refresh").addEventListener("click",()=>{ openMenu(false); if(isContract($("mgr").value.trim())) loadState(); });
-$("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; accountPub=null; $("rv-key").value=""; paintWallet(); updateDer(); gates(); });
+$("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; accountPub=null; walletName=null; $("rv-key").value=""; paintWallet(); updateDer(); gates(); });
 
 async function doConnect(){
   const n=net();
@@ -198,7 +229,7 @@ async function doConnect(){
     const res=await connect({network:$("network").value,forceWalletSelect:true});
     const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
     if(!e){say("The wallet returned no STX address.","err");return;}
-    account=e.address.toUpperCase(); accountPub=(e.publicKey||"").toLowerCase(); paintWallet();
+    account=e.address.toUpperCase(); accountPub=(e.publicKey||"").toLowerCase(); paintWallet(); resolveWalletName();
     if(accountPub && /^(02|03)[0-9a-f]{64}$/.test(accountPub)) $("rv-key").value=accountPub;
     if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err");
     updateDer(); gates();
