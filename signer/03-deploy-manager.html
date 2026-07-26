@@ -117,6 +117,11 @@ let account=null, menuOpen=false, walletName=null;
 function net(){return NETWORKS[$("network").value];}
 // Link transactions to the Hiro explorer. On testnet include the pinned API so the explorer reads the right node.
 function explorerTx(t){ t=String(t).replace(/^0x/i,"").toLowerCase(); const n=net(); return n.mainnet?`https://explorer.hiro.so/txid/0x${t}?chain=mainnet`:`https://explorer.hiro.so/txid/0x${t}?chain=testnet&api=${n.api}`; }
+// Reflect the selected network (and optional custom read node) in the URL, so a refresh keeps state
+// and a signer can point reads at their own node. api affects reads only, never what the wallet signs.
+const CHAIN2KEY={testnet:"pox5-testnet",mainnet:"mainnet"}, KEY2CHAIN={"pox5-testnet":"testnet",mainnet:"mainnet"};
+function applyUrlNet(){ const p=new URLSearchParams(location.search); const key=CHAIN2KEY[p.get("chain")]; if(key&&NETWORKS[key]) $("network").value=key; const api=p.get("api"); if(api&&/^https:\/\//i.test(api)) NETWORKS[$("network").value].api=api.replace(/\/+$/,""); }
+function writeUrlNet(){ const key=$("network").value; const p=new URLSearchParams(location.search); p.set("chain",KEY2CHAIN[key]); p.set("api",NETWORKS[key].api); history.replaceState(null,"",location.pathname+"?"+p.toString()); }
 function badge(cls,t){return `<span class="badge ${cls}">${t}</span>`;}
 function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
 function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${walletName||shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
@@ -166,8 +171,8 @@ function paintNet(){
 }
 function say(m,k="info"){const s=$("dstatus");s.textContent=m;s.className="status show "+k;}
 function conStat(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
-paintNet(); paintWallet(); updatePayload(); gate(); rotateGate(); feeGate();
-$("network").addEventListener("change",()=>{paintNet();resolveWalletName();});
+applyUrlNet(); paintNet(); writeUrlNet(); paintWallet(); updatePayload(); gate(); rotateGate(); feeGate();
+$("network").addEventListener("change",()=>{paintNet();writeUrlNet();resolveWalletName();});
 $("force06").addEventListener("change",updatePayload);
 
 async function sha256hex(str){ const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)); return Array.from(new Uint8Array(buf),b=>b.toString(16).padStart(2,"0")).join(""); }

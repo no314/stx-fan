@@ -102,6 +102,11 @@ const $=id=>document.getElementById(id);
 let account=null, poxInfo=null, menuOpen=false, walletName=null;
 function net(){return NETWORKS[$("network").value];}
 function explorerTx(t){ t=String(t).replace(/^0x/i,"").toLowerCase(); const n=net(); return n.mainnet?`https://explorer.hiro.so/txid/0x${t}?chain=mainnet`:`https://explorer.hiro.so/txid/0x${t}?chain=testnet&api=${n.api}`; }
+// Reflect the selected network (and optional custom read node) in the URL, so a refresh keeps state
+// and a signer can point reads at their own node. api affects reads only, never what the wallet signs.
+const CHAIN2KEY={testnet:"pox5-testnet",mainnet:"mainnet"}, KEY2CHAIN={"pox5-testnet":"testnet",mainnet:"mainnet"};
+function applyUrlNet(){ const p=new URLSearchParams(location.search); const key=CHAIN2KEY[p.get("chain")]; if(key&&NETWORKS[key]) $("network").value=key; const api=p.get("api"); if(api&&/^https:\/\//i.test(api)) NETWORKS[$("network").value].api=api.replace(/\/+$/,""); }
+function writeUrlNet(){ const key=$("network").value; const p=new URLSearchParams(location.search); p.set("chain",KEY2CHAIN[key]); p.set("api",NETWORKS[key].api); history.replaceState(null,"",location.pathname+"?"+p.toString()); }
 function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
 function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${walletName||shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
 // Wallet BNS name (mainnet only). Primary path is Hiro on-chain reads against the BNS-V2 contract:
@@ -141,8 +146,8 @@ function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status
 const fmtStx=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";
 const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
 function stxToU(s){ s=String(s).trim(); if(!/^\d+(\.\d{1,6})?$/.test(s)) return null; const [a,b=""]=s.split("."); return BigInt(a)*1_000_000n + BigInt((b+"000000").slice(0,6)); }
-paintNet(); paintWallet();
-$("network").addEventListener("change",()=>{paintNet();resetReads();scheduleStake();resolveWalletName();});
+applyUrlNet(); paintNet(); writeUrlNet(); paintWallet();
+$("network").addEventListener("change",()=>{paintNet();writeUrlNet();resetReads();scheduleStake();resolveWalletName();});
 
 async function callReadOnly(api,contractId,fn,sender,args){
   const [addr,name]=contractId.split(".");
