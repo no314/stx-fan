@@ -8,7 +8,7 @@ They talk to your wallet over SIP-030 (`@stacks/connect` 8.2.6) and to the publi
 
 Every network-aware page (1, 3, 4, 5, 6) has a **Testnet / Mainnet** switch. Testnet is the default; selecting Mainnet is deliberate (red banner, Tier 2 badge) but fully allowed, including the read-only analysis page. The PoX-5 boot contract is pinned per network and checked against the live node before anything is signed:
 
-- Testnet: `ST000000000000000000002AMW42H.pox-5` (chain `0x80000005`)
+- Testnet: `ST000000000000000000002AMW42H.pox-5` (chain `0x80000005`; Leather custom-network key `pox5-testnet`)
 - Mainnet: `SP000000000000000000002Q6VF78.pox-5` (chain `0x00000001`) — same boot-code address as `pox-4`, only the trailing version differs.
 
 ## Two separate keys — keep them apart

@@ -3,242 +3,253 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>4 · Register-self — Signer Sidekick</title>
+<title>Register-self · Signer Sidekick</title>
+<link rel="stylesheet" href="stacks.css?v=3">
 <style>
-:root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2430;--border:#2a3441;--fg:#e6edf3;--muted:#9aa7b4;--accent:#f7931a;--accent2:#5b8def;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--testnet:#238636;--mainnet:#b62324;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-a{color:var(--accent2)}.wrap{max-width:820px;margin:0 auto;padding:20px}
-.netbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;font-weight:600;margin-bottom:18px}
-.netbar.testnet{background:rgba(35,134,54,.15);border:1px solid var(--testnet)}.netbar.mainnet{background:rgba(182,35,36,.15);border:1px solid var(--mainnet)}
-.netbar .tier{margin-left:auto;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;background:#0008}
-select,input,textarea,button{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 11px}
-textarea{width:100%;font-family:var(--mono);font-size:12.5px;min-height:120px;resize:vertical}
-input{width:100%;font-family:var(--mono);font-size:13px}
-label{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
-button{background:var(--accent);color:#111;border:none;font-weight:700;cursor:pointer}button:hover{filter:brightness(1.08)}button:disabled{opacity:.45;cursor:not-allowed}
-button.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--border)}
-h1{font-size:20px;margin:0 0 4px}h2{font-size:13px;margin:22px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
-.sub{color:var(--muted);margin:0 0 18px;font-size:14px}
-.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px}.kv:last-child{border-bottom:none}
-.kv .v{font-family:var(--mono);font-size:12px;text-align:right;word-break:break-all}
-.check{display:flex;align-items:flex-start;gap:9px;padding:7px 0;font-size:13.5px}
-.check .dot{width:15px;height:15px;border-radius:50%;flex:0 0 15px;margin-top:3px}
-.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}.dot.idle{background:#3a4553}
-.status{font-size:13px;padding:10px 12px;border-radius:8px;margin-top:12px;display:none}.status.show{display:block}
-.status.info{background:rgba(91,141,239,.12);border:1px solid var(--accent2)}.status.ok{background:rgba(63,185,80,.12);border:1px solid var(--ok)}.status.err{background:rgba(248,81,73,.12);border:1px solid var(--bad)}
-.stakeline{font-size:12.5px;color:var(--muted);margin-top:6px;min-height:17px;display:flex;align-items:center;gap:7px}
-.stakeline .amt{color:var(--fg);font-family:var(--mono)}
-.spin{width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;display:inline-block;flex:0 0 12px}
-@keyframes sp{to{transform:rotate(360deg)}}
-code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-family:var(--mono);font-size:12px}
-.foot{color:var(--muted);font-size:12px;margin-top:24px;border-top:1px solid var(--border);padding-top:14px}
-small{color:var(--muted)}
+.stakeline{font-size:var(--fs-xs);color:var(--text-secondary);margin-top:6px;min-height:17px;display:flex;align-items:center;gap:7px}
+.stakeline .amt{color:var(--text-primary);font-family:var(--font-mono)}
 </style>
 </head>
-<body>
+<body class="net-testnet">
 <div class="wrap">
-  <div class="netbar" id="netbar"><span id="netlabel">TESTNET</span>
-    <select id="network"><option value="pox5-testnet" selected>PoX-5 Testnet (0x80000005)</option><option value="mainnet">Mainnet (0x00000001)</option></select>
+  <div class="netbar" id="netbar">
+    <div class="nb-left">
+      <span id="netlabel">TESTNET</span>
+      <select id="network" aria-label="Network">
+        <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
+        <option value="mainnet">Mainnet</option>
+      </select>
+    </div>
     <span class="tier" id="tier">TIER 1</span>
+    <div class="wallet" id="wallet">
+      <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
+      <div class="menu" id="menu" role="menu" hidden>
+        <button class="menuitem" id="disconnect" role="menuitem">Disconnect</button>
+      </div>
+    </div>
   </div>
+
   <h1>Register-self</h1>
-  <p class="sub">Broadcasts <code>register-self(signer-manager, signer-key, auth-id, signer-sig)</code> from your admin wallet. Runs the same live checks Sidekick does before signing: pinned PoX-5 contract, message-hash recovery, signature validity, and grant-not-yet-used. Get the signer output by running <code>stacks-signer generate-staking-signature --signer-manager &lt;manager&gt; --auth-id &lt;id&gt; --json</code> on the signer host.</p>
+  <p class="sub">This is what lets stakers stake toward your signer-manager contract. Broadcasts <code>register-self</code> from the signer-manager admin wallet. It verifies the signer grant against live PoX-5 before you sign: pinned contract, message-hash recovery, signature validity, and grant not already used.<span class="info" tabindex="0" role="button" aria-label="What register-self does" data-tip="One call runs authorize-admin, then pox-5 grant-signer-key (which recovers the pubkey from the signature and asserts it equals the signer key), then pox-5 register-signer. It moves no assets.">i</span></p>
+  <div id="status" class="status"></div>
 
   <div class="card">
-    <div class="row"><button id="connect">Connect admin wallet</button><span class="v" id="addr" style="font-family:var(--mono);font-size:12px"></span></div>
-  </div>
-
-  <div class="card">
-    <label>Manager contract principal (pin — must match your deployed manager)</label>
+    <h2>Grant</h2>
+    <label>Signer-manager contract principal</label>
     <input id="manager" placeholder="ST....signer-manager" spellcheck="false">
     <div id="stakeline" class="stakeline"></div>
-    <label>auth-id (the same unsigned integer used for the whole ceremony)</label>
-    <input id="authid" placeholder="e.g. 1" spellcheck="false">
-    <label>Signer output JSON (paste the full object from <code>generate-staking-signature --json</code>)</label>
+    <label>auth-id</label>
+    <input id="authid" placeholder="1" spellcheck="false">
+    <label>Signer output JSON</label>
     <textarea id="grant" placeholder='{"signerKey":"03...","signerSignature":"...","authId":"1","signerManager":"ST....signer-manager"}' spellcheck="false"></textarea>
-    <p style="font-size:12px;color:var(--muted);margin:6px 0 0">Generate on the <b>signer host</b> (private key stays on the node):<br><code style="display:inline-block;margin-top:3px;white-space:normal">stacks-signer generate-staking-signature --config /etc/stacks-signer/config.toml --signer-manager &lt;manager&gt; --auth-id &lt;id&gt; --json</code><br>Adjust the config path to yours. Confirm flags with <code>--help</code> for your build. For testing, dApp 2 (offline key helper) can also produce this JSON.</p>
-    <div class="row"><button id="verify" disabled>Verify against live PoX-5</button></div>
-    <div id="checks"></div>
-    <div id="status" class="status"></div>
+    <p style="font-size:var(--fs-xs);color:var(--text-secondary);margin:6px 0 0">Generate on the signer host, where the private key stays:<br><code style="display:inline-block;margin-top:3px;white-space:normal">stacks-signer generate-staking-signature --config /etc/stacks-signer/config.toml --signer-manager &lt;manager&gt; --auth-id &lt;id&gt; --json</code><br>Adjust the config path to yours. For testing, dApp 2 can also produce this JSON.</p>
+    <div class="row" style="margin-top:12px"><button id="verify" disabled>Verify against live PoX-5</button></div>
+    <div id="checks" style="margin-top:6px"></div>
   </div>
 
   <div class="card">
     <h2>Broadcast</h2>
-    <div class="kv"><span>Post-condition mode</span><span class="v">deny (0 conditions — register-self moves no assets)</span></div>
-    <div class="row"><button id="broadcast" disabled>Broadcast register-self</button></div>
+    <div class="kv"><span>Post-condition mode</span><span class="v">deny, no conditions (register-self moves no assets)</span></div>
+    <div id="override-wrap" class="note warn" hidden><label style="display:flex;gap:9px;align-items:flex-start;margin:0"><input type="checkbox" id="override"><span><b>Testnet override.</b> A check failed above. Enable this to broadcast <code>register-self</code> anyway and watch it fail on-chain. Testnet only, for debugging.</span></label></div>
+    <div class="row" style="margin-top:12px"><button id="broadcast" disabled>Broadcast register-self</button></div>
     <div id="result" style="display:none;margin-top:10px">
       <div class="kv"><span>Transaction ID</span><span class="v" id="txid"></span></div>
-      <div class="kv"><span>Track</span><span class="v"><a id="txlink" target="_blank" rel="noopener">API tx status →</a></span></div>
-      <p><small>Then run dApp 6 to confirm the manager is registered and the signer-key grant is valid for the coming cycle. Submission alone is not success.</small></p>
+      <div class="kv"><span>Track</span><span class="v"><a id="txlink" target="_blank" rel="noopener">Transaction status</a></span></div>
+      <p><small>A txid is submission, not success. Confirm registration and the grant in dApp 6.</small></p>
     </div>
   </div>
 
-  <p class="foot">Verification is advisory-then-enforced: the wallet still shows you the exact call, and the contract enforces the grant. Keys stay in the wallet. Testnet = Tier 1, mainnet = Tier 2 (same call, PoX-5 pinned on both).</p>
+  <p class="foot">The wallet shows the exact call and the contract enforces the grant. Keys stay in the wallet. PoX-5 is pinned per network. Signer Sidekick is interim tooling.</p>
 </div>
 
 <script type="module">
-import { connect, request } from "https://esm.sh/@stacks/connect@8.2.6";
+import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
 import { principalCV, uintCV, bufferCV, tupleCV, cvToHex, hexToCV, ClarityType, verifySignature, publicKeyFromSignatureRsv } from "https://esm.sh/@stacks/transactions@7.5.0";
 
 const NETWORKS = {
-  "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,cls:"testnet",expectedPox:"ST000000000000000000002AMW42H.pox-5"},
-  "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,cls:"mainnet",expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
+  "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
+  "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
 };
 const $=id=>document.getElementById(id);
-let account=null, verified=null;
+let account=null, verified=null, menuOpen=false, walletName=null;
+let lastBuilt=null, lastAllOk=null; // testnet override: keep the built args and pass/fail state
 function net(){return NETWORKS[$("network").value];}
-function paintNet(){const n=net();$("netbar").className="netbar "+n.cls;$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
+function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
+function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${walletName||shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
+// Wallet BNS name (mainnet only). Primary path is Hiro on-chain reads against the BNS-V2 contract:
+// the strict primary name, then (if none is set, e.g. the BNSv2 airdrop primary-name bug) the first
+// BNS-V2 name the address owns. If Hiro throws (its unauthenticated rate limit returns a header-less
+// response that the browser reports as a CORS error), fall back to the bnsv2.com API. Otherwise short address.
+const BNSV2_ID="SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2";
+async function resolveWalletName(){
+  walletName=null; paintWallet();
+  const addr=account&&(typeof account==="string"?account:account.address);
+  if(!addr||!net().mainnet) return;
+  const [BNS,C]=BNSV2_ID.split("."); const api=net().api;
+  const dec=h=>{ h=String(h).replace(/^0x/,""); let s=""; for(let i=0;i<h.length;i+=2)s+=String.fromCharCode(parseInt(h.substr(i,2),16)); return s; };
+  const nameFromTuple=tupleCv=>{ const t=tupleCv.value; const nm=dec(t.name.value), ns=dec(t.namespace.value); return (nm&&ns)?`${nm}.${ns}`:null; };
+  // Hiro read-only; throws on network/CORS/rate-limit so the caller can fall back.
+  async function callRO(fn,args){ const r=await fetch(`${api}/v2/contracts/call-read/${BNS}/${C}/${fn}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender:addr,arguments:args})}); if(!r.ok) throw new Error("hiro "+r.status); const j=await r.json(); if(!j.okay) throw new Error("read failed"); return hexToCV(j.result); }
+  function setName(nm){ if(nm){ walletName=nm; paintWallet(); } }
+  try{
+    const p=await callRO("get-primary",[cvToHex(principalCV(addr))]);
+    if(p.type===ClarityType.ResponseOk&&p.value.type===ClarityType.OptionalSome){ setName(nameFromTuple(p.value.value)); return; }
+    // no primary set: show the first BNS-V2 name owned (limit 1, we only display one)
+    const asset=encodeURIComponent(`${BNSV2_ID}::${C}`);
+    const r=await fetch(`${api}/extended/v1/tokens/nft/holdings?principal=${addr}&asset_identifiers=${asset}&limit=1`); if(!r.ok) throw new Error("hiro "+r.status);
+    const hr=await r.json(); const repr=hr&&hr.results&&hr.results[0]&&hr.results[0].value&&hr.results[0].value.repr;
+    const id=repr?String(repr).replace(/^u/,""):null;
+    if(id&&/^\d+$/.test(id)){ const b=await callRO("get-bns-from-id",[cvToHex(uintCV(BigInt(id)))]); if(b.type===ClarityType.OptionalSome) setName(nameFromTuple(b.value)); }
+  }catch(e){
+    // Hiro failed (its rate limit returns a header-less response the browser reports as CORS). Fall back
+    // to the bnsv2.com API: valid names owned by the address. No primary flag there, so show the first.
+    try{
+      const j=await fetch(`https://api.bnsv2.com/names/address/${addr}/valid`).then(r=>r.json());
+      const first=j&&j.names&&j.names[0];
+      const nm=first&&(first.full_name||(first.name_string&&first.namespace_string?`${first.name_string}.${first.namespace_string}`:null));
+      if(nm) setName(nm);
+    }catch(e2){}
+  }
+}
+function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
+function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
 function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
-paintNet();
-$("network").addEventListener("change",()=>{paintNet();resetVerify();scheduleStake();});
+paintNet(); paintWallet(); syncButtons();
+$("network").addEventListener("change",()=>{paintNet();resetVerify();scheduleStake();resolveWalletName();});
 
 const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
-function gate(){ $("verify").disabled=!(account&&$("manager").value.trim()&&$("authid").value.trim()&&$("grant").value.trim()); }
-function resetVerify(){ verified=null; $("broadcast").disabled=true; $("checks").innerHTML=""; }
-["manager","authid","grant"].forEach(id=>$(id).addEventListener("input",()=>{gate();resetVerify();}));
+// When no wallet is connected, the action buttons double as connect prompts, so it is
+// obvious the wallet step is required. After connecting they show their real function.
+function syncButtons(){
+  const v=$("verify"), b=$("broadcast");
+  if(!account){
+    v.textContent="Connect wallet to verify"; v.disabled=false;
+    b.textContent="Connect wallet to broadcast"; b.disabled=false;
+  } else {
+    v.textContent="Verify against live PoX-5"; v.disabled=!($("manager").value.trim()&&$("authid").value.trim()&&$("grant").value.trim());
+    b.textContent="Broadcast register-self"; b.disabled=!(verified || (overrideAvailable() && $("override").checked));
+  }
+}
+function gate(){ syncButtons(); }
+// The override only exists on testnet, only after a verify that failed, and only if the args
+// were still buildable from the grant JSON (so there is something to broadcast).
+function overrideAvailable(){ return !net().mainnet && lastAllOk===false && lastBuilt!=null; }
+function updateOverrideUI(){ const show=overrideAvailable(); $("override-wrap").hidden=!show; if(!show) $("override").checked=false; }
+function resetVerify(){ verified=null; lastBuilt=null; lastAllOk=null; $("checks").innerHTML=""; updateOverrideUI(); syncButtons(); }
+["manager","authid","grant"].forEach(id=>$(id).addEventListener("input",()=>{resetVerify();}));
+$("override").addEventListener("change",syncButtons);
 $("manager").addEventListener("input",scheduleStake);
 
-// Non-blocking: show currently-staked STX for the entered signer-manager.
 const MIN_USTX=50_000_000_000n;
 const fmtStx=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";
 let stakeTimer=null;
-function scheduleStake(){
-  clearTimeout(stakeTimer);
-  const m=$("manager").value.trim();
-  if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(m)){ $("stakeline").innerHTML=""; return; }
-  stakeTimer=setTimeout(()=>loadStaked(m),450);
-}
+function scheduleStake(){ clearTimeout(stakeTimer); const m=$("manager").value.trim(); if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(m)){ $("stakeline").innerHTML=""; return; } stakeTimer=setTimeout(()=>loadStaked(m),450); }
 async function loadStaked(manager){
   const n=net();
-  $("stakeline").innerHTML='<span class="spin"></span><span>loading currently staked STX to this signer-manager…</span>';
+  $("stakeline").innerHTML='<span class="spin"></span><span>loading STX staked to this signer-manager</span>';
   try{
     const pox=await fetch(n.api+"/v2/pox").then(r=>r.json());
     const poxId=pox.contract_id, next=pox.reward_cycle_id+1;
     const hex=await callReadOnly(n.api,poxId,"get-amount-delegated-for-signer",manager,[cvToHex(principalCV(manager)),cvToHex(uintCV(BigInt(next)))]);
-    const cv=hexToCV(hex);
-    const amt=cv.type===ClarityType.UInt?BigInt(cv.value):0n;
-    const meets=amt>=MIN_USTX;
-    $("stakeline").innerHTML=`<span><span class="amt">${fmtStx(amt)}</span> staked to this signer for cycle #${next} · ${meets?"meets":"below"} 50,000 STX min</span>`;
-  }catch(e){ $("stakeline").innerHTML='<span>couldn’t load staked amount (check network / principal)</span>'; }
+    const cv=hexToCV(hex); const amt=cv.type===ClarityType.UInt?BigInt(cv.value):0n; const meets=amt>=MIN_USTX;
+    $("stakeline").innerHTML=`<span><span class="amt">${fmtStx(amt)}</span> staked to this signer for cycle #${next}, ${meets?"meets":"below"} the 50,000 STX minimum</span>`;
+  }catch(e){ $("stakeline").innerHTML='<span>could not load the staked amount (check network and principal)</span>'; }
 }
-
 async function callReadOnly(api,contractId,fn,sender,args){
   const [addr,name]=contractId.split(".");
   const r=await fetch(`${api}/v2/contracts/call-read/${addr}/${name}/${fn}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sender,arguments:args})});
-  const j=await r.json();
-  if(!j.okay) throw new Error("read-only "+fn+" failed: "+(j.cause||"unknown"));
-  return j.result;
+  const j=await r.json(); if(!j.okay) throw new Error(fn+": "+(j.cause||"read failed")); return j.result;
 }
 async function mapEntry(api,contractId,mapName,keyHex){
   const [addr,name]=contractId.split(".");
   const r=await fetch(`${api}/v2/map_entry/${addr}/${name}/${mapName}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(keyHex)});
-  if(!r.ok) throw new Error("map_entry "+r.status);
-  const j=await r.json();
-  return j.data; // hex of optional
+  if(!r.ok) throw new Error("map_entry "+r.status); const j=await r.json(); return j.data;
 }
 
-$("connect").addEventListener("click",async()=>{
+$("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
+$("menu").addEventListener("click",e=>e.stopPropagation());
+document.addEventListener("click",()=>{ if(menuOpen) openMenu(false); });
+$("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; walletName=null; paintWallet(); resetVerify(); gate(); });
+
+async function doConnect(){
   const n=net();
   try{
-    say("Approve the wallet connection…");
     const res=await connect({network:$("network").value,forceWalletSelect:true});
     const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
-    if(!e){say("No STX address returned.","err");return;}
-    account=e.address.toUpperCase(); $("addr").textContent=account;
-    if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch network and reconnect.`,"err"); else say("Connected.","ok");
+    if(!e){say("The wallet returned no STX address.","err");return;}
+    account=e.address.toUpperCase(); paintWallet(); resolveWalletName();
+    if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err");
     gate();
-  }catch(e){say("Connect failed: "+(e?.message||e),"err");}
-});
+  }catch(e){say("Connection failed or was cancelled.","err");}
+}
 
+const GLYPH={ok:"✓",bad:"✕",warn:"!"};
 $("verify").addEventListener("click",async()=>{
+  if(!account){ doConnect(); return; }
   const n=net(); resetVerify();
-  const rows=[]; const add=(s,t)=>rows.push(`<div class="check"><span class="dot ${s}"></span><span>${t}</span></div>`);
+  const rows=[]; const add=(m,t)=>rows.push(`<div class="check"><span class="mark ${m}">${GLYPH[m]||"·"}</span><span>${t}</span></div>`);
   let allOk=true; const fail=t=>{allOk=false;add("bad",t);};
   try{
-    const manager=$("manager").value.trim();
-    const authId=$("authid").value.trim();
-    let g; try{ g=JSON.parse($("grant").value); }catch{ say("Signer output is not valid JSON.","err"); return; }
-
+    const manager=$("manager").value.trim(); const authId=$("authid").value.trim();
+    let g; try{ g=JSON.parse($("grant").value); }catch{ say("The signer output is not valid JSON.","err"); return; }
     const shapeOk = typeof g.signerKey==="string"&&/^(02|03)[0-9a-f]{64}$/.test(g.signerKey)
       && typeof g.signerSignature==="string"&&/^[0-9a-f]{130}$/.test(g.signerSignature)
       && typeof g.authId==="string"&&/^(0|[1-9][0-9]*)$/.test(g.authId)
       && typeof g.signerManager==="string";
-    shapeOk?add("ok","Signer output JSON has the expected fields."):fail("Signer output JSON is malformed (need signerKey 02/03+64hex, signerSignature 130hex, authId, signerManager).");
+    shapeOk?add("ok","Signer output JSON has the expected fields."):fail("Signer output JSON is malformed. It needs signerKey (02/03 + 64 hex), signerSignature (130 hex), authId, and signerManager.");
     if(!shapeOk){$("checks").innerHTML=rows.join("");return;}
-
-    g.signerManager===manager?add("ok","Signer output manager matches the pinned manager principal."):fail(`Signer output manager ${g.signerManager} ≠ pinned ${manager}.`);
-    g.authId===authId?add("ok",`auth-id matches (${authId}).`):fail(`Signer output auth-id ${g.authId} ≠ entered ${authId}.`);
-
+    const argsAll=[ cvToHex(principalCV(manager)), cvToHex(bufferCV(hexToBytes(g.signerKey))), cvToHex(uintCV(BigInt(authId))), cvToHex(bufferCV(hexToBytes(g.signerSignature))) ];
+    lastBuilt={ manager, args:argsAll };
+    g.signerManager===manager?add("ok","Signer output manager matches the pinned principal."):fail(`Signer output manager ${g.signerManager} does not match the pinned ${manager}.`);
+    g.authId===authId?add("ok",`auth-id matches (${authId}).`):fail(`Signer output auth-id ${g.authId} does not match the entered ${authId}.`);
     const recId=parseInt(g.signerSignature.slice(-2),16);
     recId<=3?add("ok","Signature recovery id is valid."):fail("Signature recovery id is invalid.");
-
-    const pox=await fetch(n.api+"/v2/pox").then(r=>r.json());
-    const poxId=pox.contract_id;
-    poxId===n.expectedPox?add("ok",`PoX-5 pinned: ${poxId}.`):fail(`Live PoX-5 ${poxId} ≠ expected ${n.expectedPox}. Wrong network — blocked.`);
-
+    const pox=await fetch(n.api+"/v2/pox").then(r=>r.json()); const poxId=pox.contract_id;
+    poxId===n.expectedPox?add("ok",`PoX-5 pinned: ${poxId}.`):fail(`Live PoX-5 ${poxId} does not match the expected ${n.expectedPox}. Wrong network, blocked.`);
     const hashCvHex=await callReadOnly(n.api,poxId,"get-signer-grant-message-hash",manager,[cvToHex(principalCV(manager)),cvToHex(uintCV(BigInt(authId)))]);
-    const hashCv=hexToCV(hashCvHex);
-    const msgHash=typeof hashCv.value==="string"?hashCv.value.replace(/^0x/,""):"";
+    const hashCv=hexToCV(hashCvHex); const msgHash=typeof hashCv.value==="string"?hashCv.value.replace(/^0x/,""):"";
     if(msgHash.length!==64){ fail("PoX-5 returned an unexpected message-hash length."); }
     else{
-      add("ok","Fetched live signer-grant message hash from PoX-5.");
+      add("ok","Fetched the live signer-grant message hash from PoX-5.");
       const sigValid=verifySignature(g.signerSignature.slice(0,128),msgHash,g.signerKey);
       let recovered=null; try{ recovered=publicKeyFromSignatureRsv(msgHash,g.signerSignature); }catch{}
-      (sigValid&&recovered===g.signerKey)
-        ? add("ok","Signature is valid for the live grant hash and recovers the signer key.")
-        : fail("Signature does NOT verify against the live grant hash / signer key. Regenerate on the signer host.");
+      (sigValid&&recovered===g.signerKey) ? add("ok","Signature is valid for the live grant hash and recovers the signer key.")
+        : fail("Signature does not verify against the live grant hash and signer key. Regenerate it on the signer host.");
     }
-
     try{
-      const keyHex=cvToHex(tupleCV({
-        "signer-key":bufferCV(hexToBytes(g.signerKey)),
-        "signer-manager":principalCV(manager),
-        "auth-id":uintCV(BigInt(authId))
-      }));
-      const data=await mapEntry(n.api,poxId,"used-signer-key-grants",keyHex);
-      const cv=hexToCV(data);
-      const isUsed = cv?.type===ClarityType.OptionalSome; // grant present in used map
+      const keyHex=cvToHex(tupleCV({ "signer-key":bufferCV(hexToBytes(g.signerKey)), "signer-manager":principalCV(manager), "auth-id":uintCV(BigInt(authId)) }));
+      const data=await mapEntry(n.api,poxId,"used-signer-key-grants",keyHex); const cv=hexToCV(data);
+      const isUsed = cv?.type===ClarityType.OptionalSome;
       isUsed?fail("This signer authorization has already been used. Generate a new one."):add("ok","Signer authorization has not been used yet.");
-    }catch(e){ add("warn","Could not confirm grant-usage map (non-blocking): "+(e?.message||e)); }
-
+    }catch(e){ add("warn","Could not confirm the grant-usage map (non-blocking): "+(e?.message||e)); }
     $("checks").innerHTML=rows.join("");
+    lastAllOk=allOk;
     if(allOk){
-      verified={ manager, poxId, args:[
-        cvToHex(principalCV(manager)),
-        cvToHex(bufferCV(hexToBytes(g.signerKey))),
-        cvToHex(uintCV(BigInt(authId))),
-        cvToHex(bufferCV(hexToBytes(g.signerSignature)))
-      ]};
-      $("broadcast").disabled=false;
-      say("All checks passed. Review the call in your wallet before signing.","ok");
-    } else { say("One or more checks failed. Broadcast is blocked.","err"); }
+      verified={ manager, poxId, args:argsAll };
+      updateOverrideUI(); syncButtons(); say("All checks passed. Review the call in your wallet before signing.","ok");
+    } else {
+      updateOverrideUI(); syncButtons();
+      say(net().mainnet?"One or more checks failed. Broadcast is blocked.":"One or more checks failed. Broadcast is blocked, or use the testnet override below to broadcast anyway.","err");
+    }
   }catch(e){ $("checks").innerHTML=rows.join(""); say("Verification error: "+(e?.message||e),"err"); }
 });
 
 $("broadcast").addEventListener("click",async()=>{
+  if(!account){ doConnect(); return; }
   const n=net();
-  if(!verified){say("Run verification first.","err");return;}
+  const useOverride = !verified && overrideAvailable() && $("override").checked;
+  if(!verified && !useOverride){say("Run verification first.","err");return;}
   if(!n.stxPrefix.test(account)){say(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
+  const src = verified || lastBuilt;
   try{
-    say("Building register-self request… review in wallet before signing.");
-    const params={
-      contract:verified.manager, functionName:"register-self", functionArgs:verified.args,
-      network:$("network").value, address:account,
-      sponsored:false, postConditionMode:"deny", postConditions:[]
-    };
+    say(useOverride?"Testnet override: broadcasting despite a failed check. Expect it to fail on-chain.":"Building the register-self request. Review it in your wallet before signing.");
+    const params={ contract:src.manager, functionName:"register-self", functionArgs:src.args, network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions:[] };
     const res=await request("stx_callContract",params);
     const txid=(res?.txid||"").replace(/^0x/i,"");
-    if(!/^[0-9a-f]{64}$/i.test(txid)){say("Wallet returned no usable txid. Check wallet activity.","err");return;}
-    $("txid").textContent="0x"+txid.toLowerCase();
-    $("txlink").href=`${n.api}/extended/v1/tx/0x${txid.toLowerCase()}`;
-    $("result").style.display="block";
-    say("Broadcast submitted. Verify registration in dApp 6.","ok");
-  }catch(e){
-    const code=e&&typeof e==="object"&&"code"in e?Number(e.code):null;
-    say(code===4001||code===-31001?"Signing cancelled in wallet.":"Broadcast failed: "+(e?.message||e),"err");
-  }
+    if(!/^[0-9a-f]{64}$/i.test(txid)){say("The wallet returned no usable txid. Check wallet activity.","err");return;}
+    $("txid").textContent="0x"+txid.toLowerCase(); $("txlink").href=`${n.api}/extended/v1/tx/0x${txid.toLowerCase()}`; $("result").style.display="block";
+    say("Submitted. Verify registration in dApp 6.","ok");
+  }catch(e){ const code=e&&typeof e==="object"&&"code"in e?Number(e.code):null; say(code===4001||code===-31001?"Signing cancelled in wallet.":"Broadcast failed: "+(e?.message||e),"err"); }
 });
 </script>
 </body>
