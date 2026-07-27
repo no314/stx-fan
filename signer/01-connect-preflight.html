@@ -39,11 +39,11 @@
   <div class="card">
     <h2>Network and PoX-5</h2>
     <div class="kv"><span>Expected PoX-5 contract</span><span class="v" id="exppox">…</span></div>
-    <div class="kv"><span>Live PoX-5 contract</span><span class="v" id="poxc">…</span></div>
+    <div class="kv"><span>Live PoX contract</span><span class="v" id="poxc">…</span></div>
     <div class="kv"><span>Reward cycle</span><span class="v" id="cycle">…</span></div>
     <div class="kv"><span>PoX active</span><span class="v" id="active">…</span></div>
     <div class="kv"><span>Signer-set minimum<span class="info" tabindex="0" role="button" aria-label="About the minimum" data-tip="A signer needs at least 50,000 STX delegated to it in aggregate for the upcoming cycle. A single staker can contribute less; it counts toward the total.">i</span></span><span class="v" id="minustx">…</span></div>
-    <div class="kv"><span>Burn height</span><span class="v" id="burn">…</span></div>
+    <div class="kv"><span>Bitcoin block height (Burn height)</span><span class="v" id="burn">…</span></div>
   </div>
 
   <div class="card">
@@ -188,11 +188,21 @@ function runChecks(pox, balance){
     ? `Wallet is a ${n.label} address.`
     : `Wallet is not a ${n.label} address. Switch the wallet network and reconnect.<span class="info" tabindex="0" role="button" aria-label="Network help" data-tip="On testnet, add a Leather custom network with key pox5-testnet and API https://api.testnet-pox5.hiro.so, then select the correct account.">i</span>`);
 
-  const poxOk = pox.contract_id===n.expectedPox;
-  add(poxOk?"ok":"bad", poxOk ? `PoX-5 contract matches the pinned ${n.expectedPox}.` : `Live PoX-5 ${pox.contract_id} does not match ${n.expectedPox}. Wrong network.`);
+  // Distinguish a genuine wrong-network (different boot principal, e.g. SP vs ST) from PoX-5 simply not
+  // being activated yet (same boot principal, node still reports pox-4 because Epoch 4.x is not live).
+  const expAddr=n.expectedPox.split(".")[0], liveAddr=String(pox.contract_id).split(".")[0];
+  const liveName=(String(pox.contract_id).split(".")[1]||"pox").replace(/^pox-/,"PoX-");
+  if(pox.contract_id===n.expectedPox){
+    add("ok",`PoX-5 contract matches the pinned ${n.expectedPox}.`);
+  } else if(liveAddr===expAddr){
+    add("warn",`PoX-5 is not activated yet: the node still reports ${pox.contract_id}. It activates when Epoch 4.x goes live.`);
+  } else {
+    add("bad",`Live PoX contract ${pox.contract_id} is on the wrong network. Switch the wallet network and reconnect.`);
+  }
 
   const active = !!pox.current_cycle?.is_pox_active;
-  add(active?"ok":"warn", active ? "PoX-5 is active this cycle." : "PoX-5 is not active this cycle. Do not continue setup until it is.");
+  const still = pox.contract_id===n.expectedPox ? "" : "still ";
+  add(active?"ok":"warn", active ? `${liveName} is ${still}active this cycle.` : "PoX is not active this cycle. Do not continue setup until it is.");
 
   const min = BigInt(pox.min_amount_ustx ?? MIN_USTX.toString());
   const enough = balance >= min;

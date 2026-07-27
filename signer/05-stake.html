@@ -10,6 +10,12 @@
 .stakeline .amt{color:var(--text-primary);font-family:var(--font-mono)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .reg-ok{color:var(--ok)}.reg-bad{color:var(--bad)}.reg-warn{color:var(--warn)}
+label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;cursor:pointer}
+.netbar .wallet{margin-left:auto}
+.bar{position:relative;height:26px;background:var(--surface-input);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;margin-top:6px}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent-bg)}
+.bar .mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);font-family:var(--font-mono)}
+.ends{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);margin-top:3px}
 </style>
 </head>
 <body class="net-testnet">
@@ -63,7 +69,7 @@
       <summary>Reward Bitcoin address (optional, sets where PoX rewards go)</summary>
       <label>BTC reward address (leave blank to receive sBTC on Stacks)</label>
       <input id="btc" placeholder="bc1... / 1... / 3... (tb1.../m.../n... on testnet)" spellcheck="false">
-      <label>max-fee (uSTX, used by the manager fee logic; 0 if unsure)</label>
+      <label>max-fee (sats, ~300 to 80000; 0 if unsure)</label>
       <input id="maxfee" placeholder="0" spellcheck="false">
     </details>
 
@@ -83,6 +89,67 @@
     <div class="kv"><span>Track</span><span class="v"><a id="txlink" target="_blank" rel="noopener">Transaction status</a></span></div>
     <div class="kv"><span>Unlocks at cycle</span><span class="v" id="unlock">…</span></div>
     <p><small>Your STX locks for the next cycle onward. Stakes below 50,000 STX still count toward the signer's aggregate. A txid is submission, not success. Confirm the lock in dApp 6.</small></p>
+  </div>
+
+  <div class="card">
+    <h2>Update an existing stake <span class="info" tabindex="0" role="button" aria-label="About stake-update" data-tip="stake-update changes a stake you already have, in one call and with no cooldown cycle: add STX (increase), add cycles (extend), switch to a different signer/pool contract, and set your payout. It CANNOT decrease the amount or shorten the term — to stake less you must unstake fully and stake again, which costs a cooldown cycle. Increase and switch take effect from the next reward cycle; the extra STX is locked in place, so it needs a staking-postcondition only for the added amount.">i</span></h2>
+    <p class="sub">Modifies the stake you already hold with a signer. No cooldown for increasing, extending, or switching pool. Decreasing is not possible here — see the note below.</p>
+    <label>Signer-manager you are currently staked to</label>
+    <input id="su-manager" placeholder="ST....signer-manager" spellcheck="false">
+
+    <label class="chk"><input type="checkbox" id="su-switch"> Switch to a different signer/pool contract</label>
+    <div id="su-newwrap" hidden>
+      <label>New signer-manager to move your stake to</label>
+      <input id="su-newmanager" placeholder="ST....signer-manager" spellcheck="false">
+    </div>
+
+    <div class="two">
+      <div>
+        <label>Add STX (increase; 0 = no change)</label>
+        <input id="su-increase" placeholder="0" spellcheck="false">
+      </div>
+      <div>
+        <label>Extend by cycles (0 = no change)</label>
+        <input id="su-extend" placeholder="0" spellcheck="false">
+      </div>
+    </div>
+
+    <label>Payout <span class="info" tabindex="0" role="button" aria-label="About payout" data-tip="signer-calldata sets where PoX rewards go. BTC (L1) sends rewards to a Bitcoin address and carries a max-fee (in sats, realistically 300 to 80000). sBTC (L2) receives on Stacks and needs no address or fee. stake-update (re)sets this preference on every call, so choose it each time.">i</span></label>
+    <select id="su-payout">
+      <option value="btc" selected>BTC on Bitcoin (L1) — set address + max-fee</option>
+      <option value="sbtc">sBTC on Stacks (L2) — no address needed</option>
+    </select>
+    <div id="su-btcwrap">
+      <label>BTC reward address</label>
+      <input id="su-btc" placeholder="bc1... / 1... / 3... (tb1.../m.../n... on testnet)" spellcheck="false">
+      <label>max-fee (sats, ~300 to 80000)</label>
+      <input id="su-maxfee" placeholder="3000" spellcheck="false">
+    </div>
+
+    <div class="kv" style="margin-top:12px"><span>Post-condition</span><span class="v" id="su-pcdesc">…</span></div>
+    <p><small>Increasing, extending, and switching pool take effect without a cooldown cycle. <strong>Decreasing or shortening is not possible with stake-update</strong> — the contract has no field for it. To stake less, unstake fully (below), wait for your STX to unlock, then stake the smaller amount.</small></p>
+    <div class="row" style="margin-top:12px"><button id="su-go">Connect wallet</button></div>
+    <div id="su-result" class="stakeline"></div>
+  </div>
+
+  <div class="card">
+    <h2>Unstake — full exit <span class="info" tabindex="0" role="button" aria-label="About unstake" data-tip="unstake exits your ENTIRE stake from one signer-manager in a single call — there is no partial unstake. Your STX does not return immediately: the contract schedules it to unlock at the start of the next reward cycle (current cycle + 1). This is the STX-only exit. sBTC bond positions have their own exit path and are out of scope here.">i</span></h2>
+    <p class="sub">Ends your stake with a signer early, before your chosen term finishes. Full exit only — you cannot unstake part of a position.</p>
+    <label>Signer-manager to unstake from</label>
+    <input id="un-manager" placeholder="ST....signer-manager" spellcheck="false">
+    <div id="un-staked" class="stakeline"></div>
+    <p><small>Your STX unlocks at the <strong>start of the next reward cycle</strong>, not immediately. To re-stake or stake a smaller amount, use the Stake card above once your STX has unlocked.</small></p>
+    <div class="kv"><span>Post-condition</span><span class="v">deny, no post-condition (no STX leaves your account; the lock is released in place)</span></div>
+    <div class="row" style="margin-top:12px"><button id="un-go">Connect wallet</button></div>
+    <div id="un-result" class="stakeline"></div>
+  </div>
+
+  <div class="card">
+    <h2>Cycle</h2>
+    <div class="kv"><span>Current cycle</span><span class="v" id="curcycle">…</span></div>
+    <div class="bar"><div class="fill" id="barfill" style="width:0%"></div><div class="mid" id="barmid">…</div></div>
+    <div class="ends"><span id="barstart">start</span><span id="barend">end</span></div>
+    <p><small>Progress of the current reward cycle. A new stake, and any increase, extension, or pool switch, take effect at the start of the next cycle; unstaked STX unlocks then too.</small></p>
   </div>
 
   <p class="foot">Real value moves on mainnet, this locks STX. The contract enforces the gates: the signer must be registered with a valid grant, not in the prepare phase, and your balance must cover the amount. Signer Sidekick is interim tooling.</p>
@@ -146,8 +213,21 @@ function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status
 const fmtStx=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";
 const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
 function stxToU(s){ s=String(s).trim(); if(!/^\d+(\.\d{1,6})?$/.test(s)) return null; const [a,b=""]=s.split("."); return BigInt(a)*1_000_000n + BigInt((b+"000000").slice(0,6)); }
+const reMgr=m=>/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(m);
+// signer-calldata is an opaque (buff 500) the manager interprets. "btc" = pay rewards to a Bitcoin
+// address (consensus-serialized {pox-addr, max-fee}); anything else = none = receive sBTC on Stacks.
+// max-fee is a sats figure the manager uses; pox-5 does not bound it (300 to 80000 is a practical range).
+function buildCalldata(payout,btc,fee){
+  if(payout!=="btc") return {hex:cvToHex(noneCV())};
+  if(!btc) return {err:"Enter a BTC reward address, or choose sBTC payout."};
+  let poxTuple; try{ poxTuple=poxAddressToTuple(btc); }catch{ return {err:"Invalid BTC reward address."}; }
+  const f=(fee||"0").trim(); if(!/^\d+$/.test(f)) return {err:"max-fee must be a whole number of sats."};
+  const tuple=tupleCV({ "pox-addr":poxTuple, "max-fee":uintCV(BigInt(f)) });
+  const ser=serializeCV(tuple); const bytes= typeof ser==="string" ? hexToBytes(ser) : ser;
+  return {hex:cvToHex(someCV(bufferCV(bytes)))};
+}
 applyUrlNet(); paintNet(); writeUrlNet(); paintWallet();
-$("network").addEventListener("change",()=>{paintNet();writeUrlNet();resetReads();scheduleStake();resolveWalletName();});
+$("network").addEventListener("change",()=>{paintNet();writeUrlNet();resetReads();scheduleStake();resolveWalletName();paintCycle();});
 
 async function callReadOnly(api,contractId,fn,sender,args){
   const [addr,name]=contractId.split(".");
@@ -155,14 +235,24 @@ async function callReadOnly(api,contractId,fn,sender,args){
   const j=await r.json(); if(!j.okay) throw new Error(fn+": "+(j.cause||"read failed")); return hexToCV(j.result);
 }
 function resetReads(){ poxInfo=null; $("bal").textContent=account?"…":"Not connected"; $("startht").textContent="…"; }
-function gate(){ $("stake").textContent=account?"Stake":"Connect wallet"; $("stake").disabled=false; updatePc(); }
+function gate(){ $("stake").textContent=account?"Stake":"Connect wallet"; $("stake").disabled=false; updatePc(); gateSu(); gateUn(); }
 function updatePc(){
   const u=stxToU($("amount").value);
   if($("pcmode").value==="allow"){ $("pcdesc").textContent="allow, no post-conditions (use only if deny aborts)"; return; }
   $("pcdesc").textContent = u!=null ? `deny, staking-postcondition (locks = ${fmtStx(u)})` : "deny, staking-postcondition (enter an amount)";
 }
+function gateSu(){ const b=$("su-go"); if(!b)return; if(!account){ b.textContent="Connect wallet"; return; } b.textContent = reMgr($("su-manager").value.trim()) ? "Update stake" : "Input a signer-manager contract first"; }
+function gateUn(){ const b=$("un-go"); if(!b)return; if(!account){ b.textContent="Connect wallet"; return; } b.textContent = reMgr($("un-manager").value.trim()) ? "Unstake (full exit)" : "Input a signer-manager contract first"; }
+function updateSuPc(){ const s=$("su-increase").value.trim()||"0"; const u=s==="0"?0n:stxToU(s); $("su-pcdesc").textContent = (u&&u>0n) ? `deny, staking-postcondition (locks the added ${fmtStx(u)})` : "deny, no post-condition (no additional STX locked)"; }
 ["manager","amount","cycles"].forEach(id=>$(id).addEventListener("input",gate));
-$("pcmode").addEventListener("change",updatePc); updatePc(); gate();
+$("pcmode").addEventListener("change",updatePc); updatePc();
+["su-manager","su-newmanager","su-increase","su-extend"].forEach(id=>$(id).addEventListener("input",()=>{ gateSu(); updateSuPc(); }));
+$("un-manager").addEventListener("input",gateUn);
+$("su-switch").addEventListener("change",()=>{ $("su-newwrap").hidden=!$("su-switch").checked; gateSu(); });
+$("su-payout").addEventListener("change",()=>{ $("su-btcwrap").hidden = $("su-payout").value!=="btc"; });
+// Default the update/unstake managers to the one just typed in the Stake card, within this session.
+$("manager").addEventListener("input",()=>{ const m=$("manager").value.trim(); if(m&&!$("su-manager").value.trim()){ $("su-manager").value=m; } if(m&&!$("un-manager").value.trim()){ $("un-manager").value=m; } gateSu(); gateUn(); updateSuPc(); });
+updateSuPc(); gate(); paintCycle();
 $("manager").addEventListener("input",scheduleStake);
 
 $("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
@@ -188,15 +278,31 @@ async function loadReads(){
   try{
     poxInfo=await fetch(n.api+"/v2/pox").then(r=>r.json());
     $("startht").textContent=poxInfo.current_burnchain_block_height;
+    paintCycle();
     if(poxInfo.contract_id!==n.expectedPox) say(`Live PoX-5 ${poxInfo.contract_id} does not match the expected ${n.expectedPox}. Wrong network.`,"err");
     if(account){
       const bal=await fetch(`${n.api}/extended/v1/address/${account}/balances`).then(r=>r.json());
-      const unlocked=BigInt(bal?.stx?.balance??"0")-BigInt(bal?.stx?.locked??"0");
+      const locked=BigInt(bal?.stx?.locked??"0");
+      const unlocked=BigInt(bal?.stx?.balance??"0")-locked;
       $("bal").textContent=`${fmtStx(bal?.stx?.balance??"0")} (unlocked ${fmtStx(unlocked<0n?0n:unlocked)})`;
+      $("un-staked").innerHTML = locked>0n ? `<span>This wallet has <span class="amt">${fmtStx(locked)}</span> locked. Unstaking exits your full stake with the named signer-manager.</span>` : `<span>No locked STX detected in this wallet.</span>`;
     }
     if(poxInfo.next_cycle && poxInfo.next_cycle.blocks_until_prepare_phase<=0){
       say("Heads up: the network appears to be in the prepare phase, so the contract rejects stake now. Wait for the next cycle.","info");
     }
+  }catch(e){}
+}
+
+async function paintCycle(){
+  const n=net();
+  try{
+    const pox = poxInfo || await fetch(n.api+"/v2/pox").then(r=>r.json());
+    const cyc=pox.reward_cycle_id, len=pox.reward_cycle_length, until=pox.next_reward_cycle_in;
+    const end=pox.current_burnchain_block_height+until, start=end-len;
+    const pct=Math.max(0,Math.min(100,Math.round((len-until)/len*100)));
+    $("curcycle").textContent=`#${cyc}`;
+    $("barfill").style.width=pct+"%"; $("barmid").textContent=`cycle #${cyc}, ${pct}% done`;
+    $("barstart").textContent="start burn "+start; $("barend").textContent="end burn "+end;
   }catch(e){}
 }
 
@@ -235,16 +341,10 @@ $("stake").addEventListener("click",async()=>{
     if(!poxInfo){say("Could not read PoX state. Try Refresh reads.","err");return;}
     if(poxInfo.contract_id!==n.expectedPox){say(`Live PoX-5 ${poxInfo.contract_id} does not match the expected ${n.expectedPox}. Blocked.`,"err");return;}
     const poxId=poxInfo.contract_id; const startHt=poxInfo.current_burnchain_block_height;
-    let calldataArg=cvToHex(noneCV());
     const btc=$("btc").value.trim();
-    if(btc){
-      let poxTuple; try{ poxTuple=poxAddressToTuple(btc); }catch{ say("Invalid BTC reward address.","err"); return; }
-      const maxfee=$("maxfee").value.trim()||"0";
-      if(!/^\d+$/.test(maxfee)){say("max-fee must be a whole number of uSTX.","err");return;}
-      const tuple=tupleCV({ "pox-addr":poxTuple, "max-fee":uintCV(BigInt(maxfee)) });
-      const ser=serializeCV(tuple); const bytes = typeof ser==="string" ? hexToBytes(ser) : ser;
-      calldataArg=cvToHex(someCV(bufferCV(bytes)));
-    }
+    const cd0=buildCalldata(btc?"btc":"sbtc",btc,$("maxfee").value.trim());
+    if(cd0.err){ say(cd0.err,"err"); return; }
+    const calldataArg=cd0.hex;
     const args=[ cvToHex(principalCV(manager)), cvToHex(uintCV(amountU)), cvToHex(uintCV(BigInt(nc))), cvToHex(uintCV(BigInt(startHt))), calldataArg ];
     say("Building the stake request. Review it carefully in your wallet before signing.");
     const pcMode=$("pcmode").value;
@@ -264,6 +364,70 @@ $("stake").addEventListener("click",async()=>{
     $("unlock").textContent=`#${poxInfo.reward_cycle_id+1+nc} (locked ${nc} cycles from the next cycle)`; $("result").style.display="block";
     say("Submitted. Verify the lock in dApp 6.","ok");
   }catch(e){ const code=e&&typeof e==="object"&&"code"in e?Number(e.code):null; say(code===4001||code===-31001?"Signing cancelled in wallet.":"Stake request failed: "+(e?.message||e),"err"); }
+});
+
+$("su-go").addEventListener("click",async()=>{
+  if(!account){ doConnect(); return; }
+  const n=net();
+  const oldMgr=$("su-manager").value.trim();
+  if(!reMgr(oldMgr)){ say("Input a signer-manager contract first.","err"); return; }
+  if(!n.stxPrefix.test(account)){ say(`Refusing: ${account} is not a ${n.label} address.`,"err"); return; }
+  const switching=$("su-switch").checked;
+  const newMgr = switching ? $("su-newmanager").value.trim() : oldMgr;
+  if(switching && !reMgr(newMgr)){ say("Enter the new signer-manager to switch to.","err"); return; }
+  const incStr=$("su-increase").value.trim()||"0";
+  const incU = incStr==="0" ? 0n : stxToU(incStr);
+  if(incU==null){ say("Increase must be a number with up to 6 decimals.","err"); return; }
+  const extStr=$("su-extend").value.trim()||"0";
+  if(!/^\d+$/.test(extStr)){ say("Extend must be a whole number of cycles.","err"); return; }
+  const ext=Number(extStr);
+  if(ext>96){ say("Extend cannot exceed 96 cycles.","err"); return; }
+  const cd=buildCalldata($("su-payout").value,$("su-btc").value.trim(),$("su-maxfee").value.trim());
+  if(cd.err){ say(cd.err,"err"); return; }
+  try{
+    say("Refreshing chain state.");
+    await loadReads();
+    if(!poxInfo){ say("Could not read PoX state. Try Refresh reads.","err"); return; }
+    if(poxInfo.contract_id!==n.expectedPox){ say(`Live PoX-5 ${poxInfo.contract_id} does not match the expected ${n.expectedPox}. Blocked.`,"err"); return; }
+    const poxId=poxInfo.contract_id;
+    const args=[ cvToHex(principalCV(newMgr)), cvToHex(principalCV(oldMgr)), cvToHex(uintCV(BigInt(ext))), cvToHex(uintCV(incU)), cd.hex ];
+    say("Building the stake-update request. Review it carefully in your wallet before signing.");
+    // Only the added STX (amount-increase) is newly locked; the existing lock and the switch move no
+    // assets to another principal (solo-style, locked in place). One staking-postcondition for the
+    // added amount is correct; when there is no increase, no post-condition is needed under deny.
+    const postConditions = incU>0n ? [ postConditionToHex({ type:"staking-postcondition", address:account, condition:"eq", amount:incU.toString() }) ] : [];
+    const params={ contract:poxId, functionName:"stake-update", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions };
+    const res=await request("stx_callContract",params);
+    const txid=(res?.txid||"").replace(/^0x/i,"");
+    if(!/^[0-9a-f]{64}$/i.test(txid)){ say("The wallet returned no usable txid. Check wallet activity.","err"); return; }
+    $("su-result").innerHTML=`<span>Submitted: <a href="${explorerTx(txid)}" target="_blank" rel="noopener">0x${txid.slice(0,14)}…</a> — changes take effect from the next reward cycle. Verify in dApp 6.</span>`;
+    say("Stake-update submitted. Verify the change in dApp 6.","ok");
+  }catch(e){ const code=e&&typeof e==="object"&&"code"in e?Number(e.code):null; say(code===4001||code===-31001?"Signing cancelled in wallet.":"Stake-update failed: "+(e?.message||e),"err"); }
+});
+
+$("un-go").addEventListener("click",async()=>{
+  if(!account){ doConnect(); return; }
+  const n=net();
+  const mgr=$("un-manager").value.trim();
+  if(!reMgr(mgr)){ say("Input a signer-manager contract first.","err"); return; }
+  if(!n.stxPrefix.test(account)){ say(`Refusing: ${account} is not a ${n.label} address.`,"err"); return; }
+  try{
+    say("Refreshing chain state.");
+    await loadReads();
+    if(!poxInfo){ say("Could not read PoX state. Try Refresh reads.","err"); return; }
+    if(poxInfo.contract_id!==n.expectedPox){ say(`Live PoX-5 ${poxInfo.contract_id} does not match the expected ${n.expectedPox}. Blocked.`,"err"); return; }
+    const poxId=poxInfo.contract_id;
+    const args=[ cvToHex(principalCV(mgr)) ];
+    say("Building the unstake request. Review it carefully in your wallet before signing.");
+    // Unstake releases your own lock in place and returns nothing to another principal, so deny mode
+    // with zero post-conditions is correct. STX unlocks at the start of the next reward cycle.
+    const params={ contract:poxId, functionName:"unstake", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions:[] };
+    const res=await request("stx_callContract",params);
+    const txid=(res?.txid||"").replace(/^0x/i,"");
+    if(!/^[0-9a-f]{64}$/i.test(txid)){ say("The wallet returned no usable txid. Check wallet activity.","err"); return; }
+    $("un-result").innerHTML=`<span>Submitted: <a href="${explorerTx(txid)}" target="_blank" rel="noopener">0x${txid.slice(0,14)}…</a> — your STX unlocks at the start of cycle #${poxInfo.reward_cycle_id+1}. Verify in dApp 6.</span>`;
+    say("Unstake submitted. Your STX unlocks next cycle. Verify in dApp 6.","ok");
+  }catch(e){ const code=e&&typeof e==="object"&&"code"in e?Number(e.code):null; say(code===4001||code===-31001?"Signing cancelled in wallet.":"Unstake failed: "+(e?.message||e),"err"); }
 });
 </script>
 </body>
