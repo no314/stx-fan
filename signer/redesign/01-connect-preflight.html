@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Connect and preflight · Signer Sidekick</title>
-<link rel="stylesheet" href="stacks.css?v=3">
+<link rel="stylesheet" href="stacks.css?v=4">
 </head>
 <body class="net-testnet">
 <div class="wrap">
@@ -16,7 +16,6 @@
         <option value="mainnet">Mainnet</option>
       </select>
     </div>
-    <span class="tier" id="tier">TIER 1</span>
     <div class="wallet" id="wallet">
       <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
       <div class="menu" id="menu" role="menu" hidden>
@@ -40,11 +39,11 @@
   <div class="card">
     <h2>Network and PoX-5</h2>
     <div class="kv"><span>Expected PoX-5 contract</span><span class="v" id="exppox">…</span></div>
-    <div class="kv"><span>Live PoX-5 contract</span><span class="v" id="poxc">…</span></div>
+    <div class="kv"><span>Live PoX contract</span><span class="v" id="poxc">…</span></div>
     <div class="kv"><span>Reward cycle</span><span class="v" id="cycle">…</span></div>
     <div class="kv"><span>PoX active</span><span class="v" id="active">…</span></div>
     <div class="kv"><span>Signer-set minimum<span class="info" tabindex="0" role="button" aria-label="About the minimum" data-tip="A signer needs at least 50,000 STX delegated to it in aggregate for the upcoming cycle. A single staker can contribute less; it counts toward the total.">i</span></span><span class="v" id="minustx">…</span></div>
-    <div class="kv"><span>Burn height</span><span class="v" id="burn">…</span></div>
+    <div class="kv"><span>Bitcoin block height (Burn height)</span><span class="v" id="burn">…</span></div>
   </div>
 
   <div class="card">
@@ -71,12 +70,16 @@ const $ = id => document.getElementById(id);
 let account = null, menuOpen = false, walletName = null;
 
 function net(){ return NETWORKS[$("network").value]; }
+// Reflect the selected network (and optional custom read node) in the URL, so a refresh keeps state
+// and a signer can point reads at their own node. api affects reads only, never what the wallet signs.
+const CHAIN2KEY={testnet:"pox5-testnet",mainnet:"mainnet"}, KEY2CHAIN={"pox5-testnet":"testnet",mainnet:"mainnet"};
+function applyUrlNet(){ const p=new URLSearchParams(location.search); const key=CHAIN2KEY[p.get("chain")]; if(key&&NETWORKS[key]) $("network").value=key; const api=p.get("api"); if(api&&/^https:\/\//i.test(api)) NETWORKS[$("network").value].api=api.replace(/\/+$/,""); }
+function writeUrlNet(){ const key=$("network").value; const p=new URLSearchParams(location.search); p.set("chain",KEY2CHAIN[key]); p.set("api",NETWORKS[key].api); history.replaceState(null,"",location.pathname+"?"+p.toString()); }
 function paintNet(){
   const n = net();
   document.body.classList.toggle("net-mainnet", n.mainnet);
   document.body.classList.toggle("net-testnet", !n.mainnet);
   $("netlabel").textContent = n.label;
-  $("tier").textContent = n.tier;
   $("exppox").textContent = n.expectedPox;
 }
 function say(msg, kind="info"){ const s=$("status"); s.textContent=msg; s.className="status show "+kind; }
@@ -122,8 +125,8 @@ async function resolveWalletName(){
 }
 function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded", o?"true":"false"); }
 
-$("network").addEventListener("change", ()=>{ paintNet(); reset(); });
-paintNet(); paintWallet();
+$("network").addEventListener("change", ()=>{ paintNet(); writeUrlNet(); reset(); });
+applyUrlNet(); paintNet(); writeUrlNet(); paintWallet();
 
 function reset(){
   account=null; walletName=null; openMenu(false);
@@ -185,11 +188,21 @@ function runChecks(pox, balance){
     ? `Wallet is a ${n.label} address.`
     : `Wallet is not a ${n.label} address. Switch the wallet network and reconnect.<span class="info" tabindex="0" role="button" aria-label="Network help" data-tip="On testnet, add a Leather custom network with key pox5-testnet and API https://api.testnet-pox5.hiro.so, then select the correct account.">i</span>`);
 
-  const poxOk = pox.contract_id===n.expectedPox;
-  add(poxOk?"ok":"bad", poxOk ? `PoX-5 contract matches the pinned ${n.expectedPox}.` : `Live PoX-5 ${pox.contract_id} does not match ${n.expectedPox}. Wrong network.`);
+  // Distinguish a genuine wrong-network (different boot principal, e.g. SP vs ST) from PoX-5 simply not
+  // being activated yet (same boot principal, node still reports pox-4 because Epoch 4.x is not live).
+  const expAddr=n.expectedPox.split(".")[0], liveAddr=String(pox.contract_id).split(".")[0];
+  const liveName=(String(pox.contract_id).split(".")[1]||"pox").replace(/^pox-/,"PoX-");
+  if(pox.contract_id===n.expectedPox){
+    add("ok",`PoX-5 contract matches the pinned ${n.expectedPox}.`);
+  } else if(liveAddr===expAddr){
+    add("warn",`PoX-5 is not activated yet: the node still reports ${pox.contract_id}. It activates when Epoch 4.x goes live.`);
+  } else {
+    add("bad",`Live PoX contract ${pox.contract_id} is on the wrong network. Switch the wallet network and reconnect.`);
+  }
 
   const active = !!pox.current_cycle?.is_pox_active;
-  add(active?"ok":"warn", active ? "PoX-5 is active this cycle." : "PoX-5 is not active this cycle. Do not continue setup until it is.");
+  const still = pox.contract_id===n.expectedPox ? "" : "still ";
+  add(active?"ok":"warn", active ? `${liveName} is ${still}active this cycle.` : "PoX is not active this cycle. Do not continue setup until it is.");
 
   const min = BigInt(pox.min_amount_ustx ?? MIN_USTX.toString());
   const enough = balance >= min;

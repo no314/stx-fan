@@ -11,6 +11,11 @@
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .reg-ok{color:var(--ok)}.reg-bad{color:var(--bad)}.reg-warn{color:var(--warn)}
 label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;cursor:pointer}
+.netbar .wallet{margin-left:auto}
+.bar{position:relative;height:26px;background:var(--surface-input);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;margin-top:6px}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent-bg)}
+.bar .mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);font-family:var(--font-mono)}
+.ends{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);margin-top:3px}
 </style>
 </head>
 <body class="net-testnet">
@@ -139,6 +144,14 @@ label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;
     <div id="un-result" class="stakeline"></div>
   </div>
 
+  <div class="card">
+    <h2>Cycle</h2>
+    <div class="kv"><span>Current cycle</span><span class="v" id="curcycle">…</span></div>
+    <div class="bar"><div class="fill" id="barfill" style="width:0%"></div><div class="mid" id="barmid">…</div></div>
+    <div class="ends"><span id="barstart">start</span><span id="barend">end</span></div>
+    <p><small>Progress of the current reward cycle. A new stake, and any increase, extension, or pool switch, take effect at the start of the next cycle; unstaked STX unlocks then too.</small></p>
+  </div>
+
   <p class="foot">Real value moves on mainnet, this locks STX. The contract enforces the gates: the signer must be registered with a valid grant, not in the prepare phase, and your balance must cover the amount. Signer Sidekick is interim tooling.</p>
 </div>
 
@@ -214,7 +227,7 @@ function buildCalldata(payout,btc,fee){
   return {hex:cvToHex(someCV(bufferCV(bytes)))};
 }
 applyUrlNet(); paintNet(); writeUrlNet(); paintWallet();
-$("network").addEventListener("change",()=>{paintNet();writeUrlNet();resetReads();scheduleStake();resolveWalletName();});
+$("network").addEventListener("change",()=>{paintNet();writeUrlNet();resetReads();scheduleStake();resolveWalletName();paintCycle();});
 
 async function callReadOnly(api,contractId,fn,sender,args){
   const [addr,name]=contractId.split(".");
@@ -239,7 +252,7 @@ $("su-switch").addEventListener("change",()=>{ $("su-newwrap").hidden=!$("su-swi
 $("su-payout").addEventListener("change",()=>{ $("su-btcwrap").hidden = $("su-payout").value!=="btc"; });
 // Default the update/unstake managers to the one just typed in the Stake card, within this session.
 $("manager").addEventListener("input",()=>{ const m=$("manager").value.trim(); if(m&&!$("su-manager").value.trim()){ $("su-manager").value=m; } if(m&&!$("un-manager").value.trim()){ $("un-manager").value=m; } gateSu(); gateUn(); updateSuPc(); });
-updateSuPc(); gate();
+updateSuPc(); gate(); paintCycle();
 $("manager").addEventListener("input",scheduleStake);
 
 $("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
@@ -265,6 +278,7 @@ async function loadReads(){
   try{
     poxInfo=await fetch(n.api+"/v2/pox").then(r=>r.json());
     $("startht").textContent=poxInfo.current_burnchain_block_height;
+    paintCycle();
     if(poxInfo.contract_id!==n.expectedPox) say(`Live PoX-5 ${poxInfo.contract_id} does not match the expected ${n.expectedPox}. Wrong network.`,"err");
     if(account){
       const bal=await fetch(`${n.api}/extended/v1/address/${account}/balances`).then(r=>r.json());
@@ -276,6 +290,19 @@ async function loadReads(){
     if(poxInfo.next_cycle && poxInfo.next_cycle.blocks_until_prepare_phase<=0){
       say("Heads up: the network appears to be in the prepare phase, so the contract rejects stake now. Wait for the next cycle.","info");
     }
+  }catch(e){}
+}
+
+async function paintCycle(){
+  const n=net();
+  try{
+    const pox = poxInfo || await fetch(n.api+"/v2/pox").then(r=>r.json());
+    const cyc=pox.reward_cycle_id, len=pox.reward_cycle_length, until=pox.next_reward_cycle_in;
+    const end=pox.current_burnchain_block_height+until, start=end-len;
+    const pct=Math.max(0,Math.min(100,Math.round((len-until)/len*100)));
+    $("curcycle").textContent=`#${cyc}`;
+    $("barfill").style.width=pct+"%"; $("barmid").textContent=`cycle #${cyc}, ${pct}% done`;
+    $("barstart").textContent="start burn "+start; $("barend").textContent="end burn "+end;
   }catch(e){}
 }
 
