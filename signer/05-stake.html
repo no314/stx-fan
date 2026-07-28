@@ -126,7 +126,12 @@ label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;
       <input id="su-maxfee" placeholder="3000" spellcheck="false">
     </div>
 
-    <div class="kv" style="margin-top:12px"><span>Post-condition</span><span class="v" id="su-pcdesc">…</span></div>
+    <label style="margin-top:12px">Post-condition mode <span class="info" tabindex="0" role="button" aria-label="About the stake-update post-condition" data-tip="stake-update performs a PoX action and locks any STX you add, so Deny mode uses a pox-postcondition (will-perform) plus a staking-postcondition for the added amount. Without the pox-postcondition the call aborts with 'performed a PoX action but it was not checked'. Allow mode sends no post-conditions — testing only.">i</span></label>
+    <select id="su-pcmode">
+      <option value="deny" selected>Deny with pox + staking post-conditions (recommended)</option>
+      <option value="allow">Allow, no post-conditions (testing only)</option>
+    </select>
+    <div class="kv"><span>Post-condition</span><span class="v" id="su-pcdesc">…</span></div>
     <p><small>Increasing, extending, and switching pool take effect without a cooldown cycle. <strong>Decreasing or shortening is not possible with stake-update</strong> — the contract has no field for it. To stake less, unstake fully (below), wait for your STX to unlock, then stake the smaller amount.</small></p>
     <div class="row" style="margin-top:12px"><button id="su-go">Connect wallet</button></div>
     <div id="su-result" class="stakeline"></div>
@@ -139,7 +144,12 @@ label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;
     <input id="un-manager" placeholder="ST....signer-manager" spellcheck="false">
     <div id="un-staked" class="stakeline"></div>
     <p><small>Your STX unlocks at the <strong>start of the next reward cycle</strong>, not immediately. To re-stake or stake a smaller amount, use the Stake card above once your STX has unlocked.</small></p>
-    <div class="kv"><span>Post-condition</span><span class="v">deny, no post-condition (no STX leaves your account; the lock is released in place)</span></div>
+    <label>Post-condition mode <span class="info" tabindex="0" role="button" aria-label="About the unstake post-condition" data-tip="Unstake performs a PoX action (it releases your lock), so Deny mode needs a pox-postcondition (will-perform) for your account, otherwise the wallet/node aborts with 'performed a PoX action but it was not checked'. Allow mode sends no post-conditions — use it only for testing on testnet to observe a call.">i</span></label>
+    <select id="un-pcmode">
+      <option value="deny" selected>Deny with pox post-condition (recommended)</option>
+      <option value="allow">Allow, no post-conditions (testing only)</option>
+    </select>
+    <div class="kv"><span>Post-condition</span><span class="v" id="un-pcdesc">…</span></div>
     <div class="row" style="margin-top:12px"><button id="un-go">Connect wallet</button></div>
     <div id="un-result" class="stakeline"></div>
   </div>
@@ -243,16 +253,23 @@ function updatePc(){
 }
 function gateSu(){ const b=$("su-go"); if(!b)return; if(!account){ b.textContent="Connect wallet"; return; } b.textContent = reMgr($("su-manager").value.trim()) ? "Update stake" : "Input a signer-manager contract first"; }
 function gateUn(){ const b=$("un-go"); if(!b)return; if(!account){ b.textContent="Connect wallet"; return; } b.textContent = reMgr($("un-manager").value.trim()) ? "Unstake (full exit)" : "Input a signer-manager contract first"; }
-function updateSuPc(){ const s=$("su-increase").value.trim()||"0"; const u=s==="0"?0n:stxToU(s); $("su-pcdesc").textContent = (u&&u>0n) ? `deny, staking-postcondition (locks the added ${fmtStx(u)})` : "deny, no post-condition (no additional STX locked)"; }
+function updateSuPc(){
+  if($("su-pcmode") && $("su-pcmode").value==="allow"){ $("su-pcdesc").textContent="allow, no post-conditions (testing only)"; return; }
+  const s=$("su-increase").value.trim()||"0"; const u=s==="0"?0n:stxToU(s);
+  $("su-pcdesc").textContent = (u&&u>0n) ? `deny, pox-postcondition (will-perform) + staking-postcondition (locks the added ${fmtStx(u)})` : "deny, pox-postcondition (will-perform)";
+}
+function updateUnPc(){ if(!$("un-pcmode"))return; $("un-pcdesc").textContent = $("un-pcmode").value==="allow" ? "allow, no post-conditions (testing only)" : "deny, pox-postcondition (will-perform; your account performs a PoX action)"; }
 ["manager","amount","cycles"].forEach(id=>$(id).addEventListener("input",gate));
 $("pcmode").addEventListener("change",updatePc); updatePc();
 ["su-manager","su-newmanager","su-increase","su-extend"].forEach(id=>$(id).addEventListener("input",()=>{ gateSu(); updateSuPc(); }));
 $("un-manager").addEventListener("input",gateUn);
 $("su-switch").addEventListener("change",()=>{ $("su-newwrap").hidden=!$("su-switch").checked; gateSu(); });
 $("su-payout").addEventListener("change",()=>{ $("su-btcwrap").hidden = $("su-payout").value!=="btc"; });
+$("su-pcmode").addEventListener("change",updateSuPc);
+$("un-pcmode").addEventListener("change",updateUnPc);
 // Default the update/unstake managers to the one just typed in the Stake card, within this session.
 $("manager").addEventListener("input",()=>{ const m=$("manager").value.trim(); if(m&&!$("su-manager").value.trim()){ $("su-manager").value=m; } if(m&&!$("un-manager").value.trim()){ $("un-manager").value=m; } gateSu(); gateUn(); updateSuPc(); });
-updateSuPc(); gate(); paintCycle();
+updateSuPc(); updateUnPc(); gate(); paintCycle();
 $("manager").addEventListener("input",scheduleStake);
 
 $("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
@@ -392,11 +409,17 @@ $("su-go").addEventListener("click",async()=>{
     const poxId=poxInfo.contract_id;
     const args=[ cvToHex(principalCV(newMgr)), cvToHex(principalCV(oldMgr)), cvToHex(uintCV(BigInt(ext))), cvToHex(uintCV(incU)), cd.hex ];
     say("Building the stake-update request. Review it carefully in your wallet before signing.");
-    // Only the added STX (amount-increase) is newly locked; the existing lock and the switch move no
-    // assets to another principal (solo-style, locked in place). One staking-postcondition for the
-    // added amount is correct; when there is no increase, no post-condition is needed under deny.
-    const postConditions = incU>0n ? [ postConditionToHex({ type:"staking-postcondition", address:account, condition:"eq", amount:incU.toString() }) ] : [];
-    const params={ contract:poxId, functionName:"stake-update", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions };
+    // stake-update PERFORMS a PoX action (it modifies the stack), so deny mode needs a pox-postcondition
+    // (will-perform) or it aborts with "performed a PoX action but it was not checked". Any STX you ADD
+    // is newly locked, so include a staking-postcondition for amount-increase when it is non-zero.
+    // connect 8.2.6 whitelists only stx/ft/nft objects, so pre-serialize both to wire hex.
+    const suMode=$("su-pcmode").value;
+    let postConditions=[];
+    if(suMode==="deny"){
+      postConditions.push(postConditionToHex({ type:"pox-postcondition", address:account, condition:"will-perform" }));
+      if(incU>0n) postConditions.push(postConditionToHex({ type:"staking-postcondition", address:account, condition:"eq", amount:incU.toString() }));
+    }
+    const params={ contract:poxId, functionName:"stake-update", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:suMode, postConditions };
     const res=await request("stx_callContract",params);
     const txid=(res?.txid||"").replace(/^0x/i,"");
     if(!/^[0-9a-f]{64}$/i.test(txid)){ say("The wallet returned no usable txid. Check wallet activity.","err"); return; }
@@ -419,9 +442,14 @@ $("un-go").addEventListener("click",async()=>{
     const poxId=poxInfo.contract_id;
     const args=[ cvToHex(principalCV(mgr)) ];
     say("Building the unstake request. Review it carefully in your wallet before signing.");
-    // Unstake releases your own lock in place and returns nothing to another principal, so deny mode
-    // with zero post-conditions is correct. STX unlocks at the start of the next reward cycle.
-    const params={ contract:poxId, functionName:"unstake", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions:[] };
+    // Unstake PERFORMS a PoX action (it releases the lock). Under deny mode the wallet/node aborts with
+    // "performed a PoX action but it was not checked" unless a pox-postcondition (will-perform) covers
+    // the account. connect 8.2.6 only whitelists stx/ft/nft objects, so pre-serialize to wire hex.
+    const unMode=$("un-pcmode").value;
+    const postConditions = unMode==="deny"
+      ? [ postConditionToHex({ type:"pox-postcondition", address:account, condition:"will-perform" }) ]
+      : [];
+    const params={ contract:poxId, functionName:"unstake", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:unMode, postConditions };
     const res=await request("stx_callContract",params);
     const txid=(res?.txid||"").replace(/^0x/i,"");
     if(!/^[0-9a-f]{64}$/i.test(txid)){ say("The wallet returned no usable txid. Check wallet activity.","err"); return; }
