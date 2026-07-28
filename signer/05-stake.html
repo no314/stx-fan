@@ -16,6 +16,17 @@ label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;
 .bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent-bg)}
 .bar .mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);font-family:var(--font-mono)}
 .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);margin-top:3px}
+.barwrap{position:relative;margin-top:24px}
+.nowmark{position:absolute;top:-20px;transform:translateX(-50%);font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);white-space:nowrap;pointer-events:none}
+.nowmark::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:4px solid transparent;border-top-color:currentColor}
+.cyclecard.prepare{border-color:var(--warn)}
+.cyclecard.prepare .bar{border-color:var(--warn)}
+.cyclecard.prepare .nowmark{color:var(--warn);font-weight:700}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal-overlay[hidden]{display:none}
+.modal-box{background:var(--surface);border:1px solid var(--warn);border-radius:var(--radius-lg);padding:22px 24px;max-width:440px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.modal-box h3{margin:0 0 10px;color:var(--warn)}
+.modal-box p{margin:0 0 16px}
 </style>
 </head>
 <body class="net-testnet">
@@ -154,15 +165,26 @@ label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;
     <div id="un-result" class="stakeline"></div>
   </div>
 
-  <div class="card">
+  <div class="card cyclecard" id="cyclecard">
     <h2>Cycle</h2>
     <div class="kv"><span>Current cycle</span><span class="v" id="curcycle">…</span></div>
-    <div class="bar"><div class="fill" id="barfill" style="width:0%"></div><div class="mid" id="barmid">…</div></div>
+    <div class="barwrap">
+      <div class="nowmark" id="nowmark" style="left:0%"><span id="nowblk">burn …</span></div>
+      <div class="bar"><div class="fill" id="barfill" style="width:0%"></div><div class="mid" id="barmid">…</div></div>
+    </div>
     <div class="ends"><span id="barstart">start</span><span id="barend">end</span></div>
-    <p><small>Progress of the current reward cycle. A new stake, and any increase, extension, or pool switch, take effect at the start of the next cycle; unstaked STX unlocks then too.</small></p>
+    <p><small>Progress of the current reward cycle. The marker above the bar is the current Bitcoin block. A new stake, and any increase, extension, or pool switch, take effect at the start of the next cycle; unstaked STX unlocks then too. In the prepare phase (the last blocks of a cycle) these calls are rejected — the card turns amber and an attempt will explain why.</small></p>
   </div>
 
   <p class="foot">Real value moves on mainnet, this locks STX. The contract enforces the gates: the signer must be registered with a valid grant, not in the prepare phase, and your balance must cover the amount. Signer Sidekick is interim tooling.</p>
+</div>
+
+<div class="modal-overlay" id="prepmodal" hidden role="dialog" aria-modal="true" aria-labelledby="prepmodaltitle">
+  <div class="modal-box">
+    <h3 id="prepmodaltitle">Prepare phase active</h3>
+    <p id="prepmodaltext"></p>
+    <div class="row"><button id="prepmodalclose">Got it</button></div>
+  </div>
 </div>
 
 <script type="module">
@@ -304,24 +326,39 @@ async function loadReads(){
       $("bal").textContent=`${fmtStx(bal?.stx?.balance??"0")} (unlocked ${fmtStx(unlocked<0n?0n:unlocked)})`;
       $("un-staked").innerHTML = locked>0n ? `<span>This wallet has <span class="amt">${fmtStx(locked)}</span> locked. Unstaking exits your full stake with the named signer-manager.</span>` : `<span>No locked STX detected in this wallet.</span>`;
     }
-    if(poxInfo.next_cycle && poxInfo.next_cycle.blocks_until_prepare_phase<=0){
-      say("Heads up: the network appears to be in the prepare phase, so the contract rejects stake now. Wait for the next cycle.","info");
-    }
   }catch(e){}
 }
 
+function isPrepare(pox){ return !!(pox && pox.next_cycle && pox.next_cycle.blocks_until_prepare_phase<=0); }
+function prepLen(){ return (poxInfo&&poxInfo.prepare_phase_block_length)||100; }
 async function paintCycle(){
   const n=net();
   try{
     const pox = poxInfo || await fetch(n.api+"/v2/pox").then(r=>r.json());
     const cyc=pox.reward_cycle_id, len=pox.reward_cycle_length, until=pox.next_reward_cycle_in;
-    const end=pox.current_burnchain_block_height+until, start=end-len;
+    const cur=pox.current_burnchain_block_height, end=cur+until, start=end-len;
     const pct=Math.max(0,Math.min(100,Math.round((len-until)/len*100)));
     $("curcycle").textContent=`#${cyc}`;
     $("barfill").style.width=pct+"%"; $("barmid").textContent=`cycle #${cyc}, ${pct}% done`;
     $("barstart").textContent="start burn "+start; $("barend").textContent="end burn "+end;
+    $("nowmark").style.left=Math.max(6,Math.min(94,pct))+"%"; $("nowblk").textContent="burn "+cur;
+    $("cyclecard").classList.toggle("prepare", isPrepare(pox));
   }catch(e){}
 }
+// Prepare-phase explainer. Stake / unstake / stake-update all revert during the prepare phase (the
+// last blocks of a cycle), so intercept the click and explain instead of opening the wallet to a
+// certain failure. Detected via the API's blocks_until_prepare_phase, robust across network configs.
+function showPrepModal(){
+  $("prepmodaltext").textContent=`The network is currently in the prepare phase for the next cycle. In the last ${prepLen()} blocks of the cycle, transactions to stake, unstake and update stakes will fail. Please wait for the next cycle to start, then you can create your transaction.`;
+  $("prepmodal").hidden=false;
+}
+function hidePrepModal(){ $("prepmodal").hidden=true; }
+async function blockedByPrepare(){ await loadReads(); if(isPrepare(poxInfo)){ showPrepModal(); return true; } return false; }
+$("prepmodalclose").addEventListener("click",hidePrepModal);
+$("prepmodal").addEventListener("click",e=>{ if(e.target===$("prepmodal")) hidePrepModal(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!$("prepmodal").hidden) hidePrepModal(); });
+// Burn blocks land ~every 10 min; refresh the cycle view every 5 min so the marker and prepare state stay live.
+setInterval(async()=>{ try{ poxInfo=await fetch(net().api+"/v2/pox").then(r=>r.json()); paintCycle(); }catch{} }, 300000);
 
 let stakeTimer=null;
 function scheduleStake(){ clearTimeout(stakeTimer); const m=$("manager").value.trim(); if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(m)){ $("stakeline").innerHTML=""; $("regline").innerHTML=""; return; } stakeTimer=setTimeout(()=>loadStaked(m),450); }
@@ -346,6 +383,7 @@ async function loadStaked(manager){
 $("stake").addEventListener("click",async()=>{
   if(!account){ doConnect(); return; }
   const n=net();
+  if(await blockedByPrepare()) return;
   const manager=$("manager").value.trim(); const amountU=stxToU($("amount").value); const cycles=$("cycles").value.trim();
   if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(manager)){say("Enter the signer-manager contract first.","err");return;}
   if(!n.stxPrefix.test(account)){say(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
@@ -386,6 +424,7 @@ $("stake").addEventListener("click",async()=>{
 $("su-go").addEventListener("click",async()=>{
   if(!account){ doConnect(); return; }
   const n=net();
+  if(await blockedByPrepare()) return;
   const oldMgr=$("su-manager").value.trim();
   if(!reMgr(oldMgr)){ say("Input a signer-manager contract first.","err"); return; }
   if(!n.stxPrefix.test(account)){ say(`Refusing: ${account} is not a ${n.label} address.`,"err"); return; }
@@ -431,6 +470,7 @@ $("su-go").addEventListener("click",async()=>{
 $("un-go").addEventListener("click",async()=>{
   if(!account){ doConnect(); return; }
   const n=net();
+  if(await blockedByPrepare()) return;
   const mgr=$("un-manager").value.trim();
   if(!reMgr(mgr)){ say("Input a signer-manager contract first.","err"); return; }
   if(!n.stxPrefix.test(account)){ say(`Refusing: ${account} is not a ${n.label} address.`,"err"); return; }

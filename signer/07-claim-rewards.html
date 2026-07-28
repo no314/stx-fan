@@ -17,6 +17,12 @@
 .bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent-bg)}
 .bar .mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);font-family:var(--font-mono)}
 .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);margin-top:3px}
+.barwrap{position:relative;margin-top:24px}
+.nowmark{position:absolute;top:-20px;transform:translateX(-50%);font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);white-space:nowrap;pointer-events:none}
+.nowmark::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:4px solid transparent;border-top-color:currentColor}
+.cyclecard.prepare{border-color:var(--warn)}
+.cyclecard.prepare .bar{border-color:var(--warn)}
+.cyclecard.prepare .nowmark{color:var(--warn);font-weight:700}
 .note{background:rgba(210,153,34,.1);border:1px solid var(--warn);border-radius:var(--radius-md);padding:11px 13px;font-size:var(--fs-xs);margin:10px 0}.note b{color:var(--warn)}
 .slist{max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-md);margin-top:8px}
 .rtable{width:100%;border-collapse:collapse;font-size:var(--fs-xs)}
@@ -67,10 +73,13 @@ input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
     <div class="note" style="margin-top:10px">This tool manages <b>STX</b> staking rewards. The sBTC <b>bond</b> parameters (bond periods, bond index) are for the Bitcoin-staking side and are left empty here. They apply only to sBTC bond positions, which this tool does not cover.</div>
   </div>
 
-  <div class="card">
+  <div class="card cyclecard" id="cyclecard">
     <h2>Cycle</h2>
     <div class="kv"><span>Current cycle</span><span class="v" id="curcycle">…</span></div>
-    <div class="bar"><div class="fill" id="barfill" style="width:0%"></div><div class="mid" id="barmid">…</div></div>
+    <div class="barwrap">
+      <div class="nowmark" id="nowmark" style="left:0%"><span id="nowblk">burn …</span></div>
+      <div class="bar"><div class="fill" id="barfill" style="width:0%"></div><div class="mid" id="barmid">…</div></div>
+    </div>
     <div class="ends"><span id="barstart">start</span><span id="barend">end</span></div>
     <div class="note" style="margin-top:12px"><b>Which cycle?</b> Claim <b>completed</b> cycles. Claiming a cycle with nothing accrued just reverts (<code>ERR_NO_CLAIMABLE_REWARDS</code>) and costs the transaction fee. It is not harmful. On mainnet the first PoX-5 cycle is <b>141</b>.</div>
     <label>Reward cycle</label>
@@ -184,16 +193,24 @@ async function callReadOnly(api,contractId,fn,sender,args){
   const j=await r.json(); if(!j.okay) throw new Error(fn+": "+(j.cause||"read failed")); return hexToCV(j.result);
 }
 
+function isPrepare(p){ return !!(p && p.next_cycle && p.next_cycle.blocks_until_prepare_phase<=0); }
+// Repaints only the cycle bar + current-block marker; does not touch the cycle selector, so it is safe
+// to run on a timer without clobbering the user's chosen cycle.
+function paintCycleBar(p){
+  const cyc=p.reward_cycle_id, len=p.reward_cycle_length, until=p.next_reward_cycle_in;
+  const cur=p.current_burnchain_block_height, end=cur+until, start=end-len;
+  const pct=Math.max(0,Math.min(100,Math.round((len-until)/len*100)));
+  $("curcycle").textContent=`#${cyc}`;
+  $("barfill").style.width=pct+"%"; $("barmid").textContent=`cycle #${cyc}, ${pct}% done`;
+  $("barstart").textContent="start burn "+start; $("barend").textContent="end burn "+end;
+  $("nowmark").style.left=Math.max(6,Math.min(94,pct))+"%"; $("nowblk").textContent="burn "+cur;
+  $("cyclecard").classList.toggle("prepare", isPrepare(p));
+}
 async function loadPox(){
   const n=net();
   try{
     pox=await fetch(n.api+"/v2/pox").then(r=>r.json()); poxId=pox.contract_id;
-    const cyc=pox.reward_cycle_id, len=pox.reward_cycle_length, until=pox.next_reward_cycle_in;
-    const end=pox.current_burnchain_block_height+until, start=end-len;
-    const pct=Math.max(0,Math.min(100,Math.round((len-until)/len*100)));
-    $("curcycle").textContent=`#${cyc}`;
-    $("barfill").style.width=pct+"%"; $("barmid").textContent=`cycle #${cyc}, ${pct}% done`;
-    $("barstart").textContent="start burn "+start; $("barend").textContent="end burn "+end;
+    paintCycleBar(pox);
     const pv=(pox.contract_versions||[]).find(v=>String(v.contract_id).endsWith(".pox-5"));
     const first=pv?pv.first_reward_cycle_id:cyc;
     const sel=$("cyclesel"); sel.innerHTML="";
@@ -208,6 +225,8 @@ async function loadPox(){
 }
 $("cyclesel").addEventListener("change",()=>{ $("cycle").value=$("cyclesel").value; gate(); });
 loadPox();
+// Burn blocks land ~every 10 min; refresh the cycle bar + marker every 5 min (selector left untouched).
+setInterval(async()=>{ try{ const p=await fetch(net().api+"/v2/pox").then(r=>r.json()); pox=p; poxId=p.contract_id; paintCycleBar(p); }catch{} }, 300000);
 
 function gate(){ $("collect").textContent=account?"Collect pool rewards":"Connect wallet"; $("claim").textContent=account?"Claim staker rewards":"Connect wallet"; $("collect").disabled=false; $("claim").disabled=false; }
 ["manager","cycle"].forEach(id=>$(id).addEventListener("input",gate));
