@@ -338,12 +338,13 @@ async function paintCycle(){
     const cyc=pox.reward_cycle_id, len=pox.reward_cycle_length, until=pox.next_reward_cycle_in;
     const cur=pox.current_burnchain_block_height, end=cur+until, start=end-len;
     const pct=Math.max(0,Math.min(100,Math.round((len-until)/len*100)));
+    const prep=isPrepare(pox);
     $("curcycle").textContent=`#${cyc}`;
-    $("barfill").style.width=pct+"%"; $("barmid").textContent=`cycle #${cyc}, ${pct}% done`;
-    $("barstart").textContent="start burn "+start; $("barend").textContent="end burn "+end;
-    $("nowmark").style.left=Math.max(6,Math.min(94,pct))+"%"; $("nowblk").textContent="burn "+cur;
-    $("cyclecard").classList.toggle("prepare", isPrepare(pox));
-  }catch(e){}
+    $("barfill").style.width=pct+"%"; $("barmid").textContent=prep?"prepare phase":`cycle #${cyc}, ${pct}% done`;
+    $("barstart").textContent="Start bitcoin block "+start; $("barend").textContent="end "+end;
+    $("nowmark").style.left=Math.max(6,Math.min(94,pct))+"%"; $("nowblk").textContent=""+cur;
+    $("cyclecard").classList.toggle("prepare", prep);
+  }catch(e){ console.error("paintCycle failed:",e); }
 }
 // Prepare-phase explainer. Stake / unstake / stake-update all revert during the prepare phase (the
 // last blocks of a cycle), so intercept the click and explain instead of opening the wallet to a
