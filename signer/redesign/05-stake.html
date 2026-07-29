@@ -16,6 +16,17 @@ label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;
 .bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent-bg)}
 .bar .mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);font-family:var(--font-mono)}
 .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);margin-top:3px}
+.barwrap{position:relative;margin-top:24px}
+.nowmark{position:absolute;top:-20px;transform:translateX(-50%);font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);white-space:nowrap;pointer-events:none}
+.nowmark::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:4px solid transparent;border-top-color:currentColor}
+.cyclecard.prepare{border-color:var(--warn)}
+.cyclecard.prepare .bar{border-color:var(--warn)}
+.cyclecard.prepare .nowmark{color:var(--warn);font-weight:700}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal-overlay[hidden]{display:none}
+.modal-box{background:var(--surface);border:1px solid var(--warn);border-radius:var(--radius-lg);padding:22px 24px;max-width:440px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.modal-box h3{margin:0 0 10px;color:var(--warn)}
+.modal-box p{margin:0 0 16px}
 </style>
 </head>
 <body class="net-testnet">
@@ -126,7 +137,12 @@ label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;
       <input id="su-maxfee" placeholder="3000" spellcheck="false">
     </div>
 
-    <div class="kv" style="margin-top:12px"><span>Post-condition</span><span class="v" id="su-pcdesc">…</span></div>
+    <label style="margin-top:12px">Post-condition mode <span class="info" tabindex="0" role="button" aria-label="About the stake-update post-condition" data-tip="stake-update performs a PoX action and locks any STX you add, so Deny mode uses a pox-postcondition (will-perform) plus a staking-postcondition for the added amount. Without the pox-postcondition the call aborts with 'performed a PoX action but it was not checked'. Allow mode sends no post-conditions — testing only.">i</span></label>
+    <select id="su-pcmode">
+      <option value="deny" selected>Deny with pox + staking post-conditions (recommended)</option>
+      <option value="allow">Allow, no post-conditions (testing only)</option>
+    </select>
+    <div class="kv"><span>Post-condition</span><span class="v" id="su-pcdesc">…</span></div>
     <p><small>Increasing, extending, and switching pool take effect without a cooldown cycle. <strong>Decreasing or shortening is not possible with stake-update</strong> — the contract has no field for it. To stake less, unstake fully (below), wait for your STX to unlock, then stake the smaller amount.</small></p>
     <div class="row" style="margin-top:12px"><button id="su-go">Connect wallet</button></div>
     <div id="su-result" class="stakeline"></div>
@@ -139,26 +155,47 @@ label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;
     <input id="un-manager" placeholder="ST....signer-manager" spellcheck="false">
     <div id="un-staked" class="stakeline"></div>
     <p><small>Your STX unlocks at the <strong>start of the next reward cycle</strong>, not immediately. To re-stake or stake a smaller amount, use the Stake card above once your STX has unlocked.</small></p>
-    <div class="kv"><span>Post-condition</span><span class="v">deny, no post-condition (no STX leaves your account; the lock is released in place)</span></div>
+    <label>Post-condition mode <span class="info" tabindex="0" role="button" aria-label="About the unstake post-condition" data-tip="Unstake performs a PoX action (it releases your lock), so Deny mode needs a pox-postcondition (will-perform) for your account, otherwise the wallet/node aborts with 'performed a PoX action but it was not checked'. Allow mode sends no post-conditions — use it only for testing on testnet to observe a call.">i</span></label>
+    <select id="un-pcmode">
+      <option value="deny" selected>Deny with pox post-condition (recommended)</option>
+      <option value="allow">Allow, no post-conditions (testing only)</option>
+    </select>
+    <div class="kv"><span>Post-condition</span><span class="v" id="un-pcdesc">…</span></div>
     <div class="row" style="margin-top:12px"><button id="un-go">Connect wallet</button></div>
     <div id="un-result" class="stakeline"></div>
   </div>
 
-  <div class="card">
+  <div class="card cyclecard" id="cyclecard">
     <h2>Cycle</h2>
     <div class="kv"><span>Current cycle</span><span class="v" id="curcycle">…</span></div>
-    <div class="bar"><div class="fill" id="barfill" style="width:0%"></div><div class="mid" id="barmid">…</div></div>
+    <div class="barwrap">
+      <div class="nowmark" id="nowmark" style="left:0%"><span id="nowblk">burn …</span></div>
+      <div class="bar"><div class="fill" id="barfill" style="width:0%"></div><div class="mid" id="barmid">…</div></div>
+    </div>
     <div class="ends"><span id="barstart">start</span><span id="barend">end</span></div>
-    <p><small>Progress of the current reward cycle. A new stake, and any increase, extension, or pool switch, take effect at the start of the next cycle; unstaked STX unlocks then too.</small></p>
+    <p><small>Progress of the current reward cycle. The marker above the bar is the current Bitcoin block. A new stake, and any increase, extension, or pool switch, take effect at the start of the next cycle; unstaked STX unlocks then too. In the prepare phase (the last blocks of a cycle) these calls are rejected — the card turns amber and an attempt will explain why.</small></p>
   </div>
 
   <p class="foot">Real value moves on mainnet, this locks STX. The contract enforces the gates: the signer must be registered with a valid grant, not in the prepare phase, and your balance must cover the amount. Signer Sidekick is interim tooling.</p>
 </div>
 
+<div class="modal-overlay" id="prepmodal" hidden role="dialog" aria-modal="true" aria-labelledby="prepmodaltitle">
+  <div class="modal-box">
+    <h3 id="prepmodaltitle">Prepare phase active</h3>
+    <p id="prepmodaltext"></p>
+    <div class="row"><button id="prepmodalclose">Got it</button></div>
+  </div>
+</div>
+
 <script type="module">
-import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
-import { principalCV, uintCV, bufferCV, tupleCV, someCV, noneCV, serializeCV, cvToHex, hexToCV, ClarityType, postConditionToHex } from "https://esm.sh/@stacks/transactions@7.5.0";
-import { poxAddressToTuple } from "https://esm.sh/@stacks/stacking@7.5.0";
+// Robust loader: pinned esm.sh CDN primary, vendored ./js/ local fallback on any failure.
+// connect has no working esm.sh URL (its v6/v7 split breaks every ?deps pin), so it is local-only.
+async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
+const TX_CDN="https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0";
+const STACKING_CDN="https://esm.sh/@stacks/stacking@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0,@stacks/transactions@7.5.0";
+const { connect, request, disconnect } = await loadLib(null, "./js/connect.js");
+const { principalCV, uintCV, bufferCV, tupleCV, someCV, noneCV, serializeCV, cvToHex, hexToCV, ClarityType, postConditionToHex } = await loadLib(TX_CDN, "./js/transactions.js");
+const { poxAddressToTuple } = await loadLib(STACKING_CDN, "./js/stacking.js");
 
 const NETWORKS = {
   "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
@@ -243,16 +280,23 @@ function updatePc(){
 }
 function gateSu(){ const b=$("su-go"); if(!b)return; if(!account){ b.textContent="Connect wallet"; return; } b.textContent = reMgr($("su-manager").value.trim()) ? "Update stake" : "Input a signer-manager contract first"; }
 function gateUn(){ const b=$("un-go"); if(!b)return; if(!account){ b.textContent="Connect wallet"; return; } b.textContent = reMgr($("un-manager").value.trim()) ? "Unstake (full exit)" : "Input a signer-manager contract first"; }
-function updateSuPc(){ const s=$("su-increase").value.trim()||"0"; const u=s==="0"?0n:stxToU(s); $("su-pcdesc").textContent = (u&&u>0n) ? `deny, staking-postcondition (locks the added ${fmtStx(u)})` : "deny, no post-condition (no additional STX locked)"; }
+function updateSuPc(){
+  if($("su-pcmode") && $("su-pcmode").value==="allow"){ $("su-pcdesc").textContent="allow, no post-conditions (testing only)"; return; }
+  const s=$("su-increase").value.trim()||"0"; const u=s==="0"?0n:stxToU(s);
+  $("su-pcdesc").textContent = (u&&u>0n) ? `deny, pox-postcondition (will-perform) + staking-postcondition (locks the added ${fmtStx(u)})` : "deny, pox-postcondition (will-perform)";
+}
+function updateUnPc(){ if(!$("un-pcmode"))return; $("un-pcdesc").textContent = $("un-pcmode").value==="allow" ? "allow, no post-conditions (testing only)" : "deny, pox-postcondition (will-perform; your account performs a PoX action)"; }
 ["manager","amount","cycles"].forEach(id=>$(id).addEventListener("input",gate));
 $("pcmode").addEventListener("change",updatePc); updatePc();
 ["su-manager","su-newmanager","su-increase","su-extend"].forEach(id=>$(id).addEventListener("input",()=>{ gateSu(); updateSuPc(); }));
 $("un-manager").addEventListener("input",gateUn);
 $("su-switch").addEventListener("change",()=>{ $("su-newwrap").hidden=!$("su-switch").checked; gateSu(); });
 $("su-payout").addEventListener("change",()=>{ $("su-btcwrap").hidden = $("su-payout").value!=="btc"; });
+$("su-pcmode").addEventListener("change",updateSuPc);
+$("un-pcmode").addEventListener("change",updateUnPc);
 // Default the update/unstake managers to the one just typed in the Stake card, within this session.
 $("manager").addEventListener("input",()=>{ const m=$("manager").value.trim(); if(m&&!$("su-manager").value.trim()){ $("su-manager").value=m; } if(m&&!$("un-manager").value.trim()){ $("un-manager").value=m; } gateSu(); gateUn(); updateSuPc(); });
-updateSuPc(); gate(); paintCycle();
+updateSuPc(); updateUnPc(); gate(); paintCycle();
 $("manager").addEventListener("input",scheduleStake);
 
 $("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
@@ -287,24 +331,40 @@ async function loadReads(){
       $("bal").textContent=`${fmtStx(bal?.stx?.balance??"0")} (unlocked ${fmtStx(unlocked<0n?0n:unlocked)})`;
       $("un-staked").innerHTML = locked>0n ? `<span>This wallet has <span class="amt">${fmtStx(locked)}</span> locked. Unstaking exits your full stake with the named signer-manager.</span>` : `<span>No locked STX detected in this wallet.</span>`;
     }
-    if(poxInfo.next_cycle && poxInfo.next_cycle.blocks_until_prepare_phase<=0){
-      say("Heads up: the network appears to be in the prepare phase, so the contract rejects stake now. Wait for the next cycle.","info");
-    }
   }catch(e){}
 }
 
+function isPrepare(pox){ return !!(pox && pox.next_cycle && pox.next_cycle.blocks_until_prepare_phase<=0); }
+function prepLen(){ return (poxInfo&&poxInfo.prepare_phase_block_length)||100; }
 async function paintCycle(){
   const n=net();
   try{
     const pox = poxInfo || await fetch(n.api+"/v2/pox").then(r=>r.json());
     const cyc=pox.reward_cycle_id, len=pox.reward_cycle_length, until=pox.next_reward_cycle_in;
-    const end=pox.current_burnchain_block_height+until, start=end-len;
+    const cur=pox.current_burnchain_block_height, end=cur+until, start=end-len;
     const pct=Math.max(0,Math.min(100,Math.round((len-until)/len*100)));
+    const prep=isPrepare(pox);
     $("curcycle").textContent=`#${cyc}`;
-    $("barfill").style.width=pct+"%"; $("barmid").textContent=`cycle #${cyc}, ${pct}% done`;
-    $("barstart").textContent="start burn "+start; $("barend").textContent="end burn "+end;
-  }catch(e){}
+    $("barfill").style.width=pct+"%"; $("barmid").textContent=prep?"prepare phase":`cycle #${cyc}, ${pct}% done`;
+    $("barstart").textContent="Start bitcoin block "+start; $("barend").textContent="end "+end;
+    $("nowmark").style.left=Math.max(6,Math.min(94,pct))+"%"; $("nowblk").textContent=""+cur;
+    $("cyclecard").classList.toggle("prepare", prep);
+  }catch(e){ console.error("paintCycle failed:",e); }
 }
+// Prepare-phase explainer. Stake / unstake / stake-update all revert during the prepare phase (the
+// last blocks of a cycle), so intercept the click and explain instead of opening the wallet to a
+// certain failure. Detected via the API's blocks_until_prepare_phase, robust across network configs.
+function showPrepModal(){
+  $("prepmodaltext").textContent=`The network is currently in the prepare phase for the next cycle. In the last ${prepLen()} blocks of the cycle, transactions to stake, unstake and update stakes will fail. Please wait for the next cycle to start, then you can create your transaction.`;
+  $("prepmodal").hidden=false;
+}
+function hidePrepModal(){ $("prepmodal").hidden=true; }
+async function blockedByPrepare(){ await loadReads(); if(isPrepare(poxInfo)){ showPrepModal(); return true; } return false; }
+$("prepmodalclose").addEventListener("click",hidePrepModal);
+$("prepmodal").addEventListener("click",e=>{ if(e.target===$("prepmodal")) hidePrepModal(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!$("prepmodal").hidden) hidePrepModal(); });
+// Burn blocks land ~every 10 min; refresh the cycle view every 5 min so the marker and prepare state stay live.
+setInterval(async()=>{ try{ poxInfo=await fetch(net().api+"/v2/pox").then(r=>r.json()); paintCycle(); }catch{} }, 300000);
 
 let stakeTimer=null;
 function scheduleStake(){ clearTimeout(stakeTimer); const m=$("manager").value.trim(); if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(m)){ $("stakeline").innerHTML=""; $("regline").innerHTML=""; return; } stakeTimer=setTimeout(()=>loadStaked(m),450); }
@@ -329,6 +389,7 @@ async function loadStaked(manager){
 $("stake").addEventListener("click",async()=>{
   if(!account){ doConnect(); return; }
   const n=net();
+  if(await blockedByPrepare()) return;
   const manager=$("manager").value.trim(); const amountU=stxToU($("amount").value); const cycles=$("cycles").value.trim();
   if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(manager)){say("Enter the signer-manager contract first.","err");return;}
   if(!n.stxPrefix.test(account)){say(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
@@ -369,6 +430,7 @@ $("stake").addEventListener("click",async()=>{
 $("su-go").addEventListener("click",async()=>{
   if(!account){ doConnect(); return; }
   const n=net();
+  if(await blockedByPrepare()) return;
   const oldMgr=$("su-manager").value.trim();
   if(!reMgr(oldMgr)){ say("Input a signer-manager contract first.","err"); return; }
   if(!n.stxPrefix.test(account)){ say(`Refusing: ${account} is not a ${n.label} address.`,"err"); return; }
@@ -392,11 +454,17 @@ $("su-go").addEventListener("click",async()=>{
     const poxId=poxInfo.contract_id;
     const args=[ cvToHex(principalCV(newMgr)), cvToHex(principalCV(oldMgr)), cvToHex(uintCV(BigInt(ext))), cvToHex(uintCV(incU)), cd.hex ];
     say("Building the stake-update request. Review it carefully in your wallet before signing.");
-    // Only the added STX (amount-increase) is newly locked; the existing lock and the switch move no
-    // assets to another principal (solo-style, locked in place). One staking-postcondition for the
-    // added amount is correct; when there is no increase, no post-condition is needed under deny.
-    const postConditions = incU>0n ? [ postConditionToHex({ type:"staking-postcondition", address:account, condition:"eq", amount:incU.toString() }) ] : [];
-    const params={ contract:poxId, functionName:"stake-update", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions };
+    // stake-update PERFORMS a PoX action (it modifies the stack), so deny mode needs a pox-postcondition
+    // (will-perform) or it aborts with "performed a PoX action but it was not checked". Any STX you ADD
+    // is newly locked, so include a staking-postcondition for amount-increase when it is non-zero.
+    // connect 8.2.6 whitelists only stx/ft/nft objects, so pre-serialize both to wire hex.
+    const suMode=$("su-pcmode").value;
+    let postConditions=[];
+    if(suMode==="deny"){
+      postConditions.push(postConditionToHex({ type:"pox-postcondition", address:account, condition:"will-perform" }));
+      if(incU>0n) postConditions.push(postConditionToHex({ type:"staking-postcondition", address:account, condition:"eq", amount:incU.toString() }));
+    }
+    const params={ contract:poxId, functionName:"stake-update", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:suMode, postConditions };
     const res=await request("stx_callContract",params);
     const txid=(res?.txid||"").replace(/^0x/i,"");
     if(!/^[0-9a-f]{64}$/i.test(txid)){ say("The wallet returned no usable txid. Check wallet activity.","err"); return; }
@@ -408,6 +476,7 @@ $("su-go").addEventListener("click",async()=>{
 $("un-go").addEventListener("click",async()=>{
   if(!account){ doConnect(); return; }
   const n=net();
+  if(await blockedByPrepare()) return;
   const mgr=$("un-manager").value.trim();
   if(!reMgr(mgr)){ say("Input a signer-manager contract first.","err"); return; }
   if(!n.stxPrefix.test(account)){ say(`Refusing: ${account} is not a ${n.label} address.`,"err"); return; }
@@ -419,9 +488,14 @@ $("un-go").addEventListener("click",async()=>{
     const poxId=poxInfo.contract_id;
     const args=[ cvToHex(principalCV(mgr)) ];
     say("Building the unstake request. Review it carefully in your wallet before signing.");
-    // Unstake releases your own lock in place and returns nothing to another principal, so deny mode
-    // with zero post-conditions is correct. STX unlocks at the start of the next reward cycle.
-    const params={ contract:poxId, functionName:"unstake", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:"deny", postConditions:[] };
+    // Unstake PERFORMS a PoX action (it releases the lock). Under deny mode the wallet/node aborts with
+    // "performed a PoX action but it was not checked" unless a pox-postcondition (will-perform) covers
+    // the account. connect 8.2.6 only whitelists stx/ft/nft objects, so pre-serialize to wire hex.
+    const unMode=$("un-pcmode").value;
+    const postConditions = unMode==="deny"
+      ? [ postConditionToHex({ type:"pox-postcondition", address:account, condition:"will-perform" }) ]
+      : [];
+    const params={ contract:poxId, functionName:"unstake", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:unMode, postConditions };
     const res=await request("stx_callContract",params);
     const txid=(res?.txid||"").replace(/^0x/i,"");
     if(!/^[0-9a-f]{64}$/i.test(txid)){ say("The wallet returned no usable txid. Check wallet activity.","err"); return; }

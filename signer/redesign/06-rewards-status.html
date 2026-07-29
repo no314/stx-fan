@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Rewards and signer status · Signer Sidekick</title>
-<link rel="stylesheet" href="stacks.css?v=3">
+<link rel="stylesheet" href="stacks.css?v=4">
 <style>
 .netbar .tier{margin-left:auto;margin-right:0}
 .badge{font-weight:700;padding:2px 8px;border-radius:6px;font-size:var(--fs-xs);font-family:var(--font-mono)}
@@ -25,7 +25,6 @@
         <option value="mainnet">Mainnet</option>
       </select>
     </div>
-    <span class="tier" id="tier">TIER 1</span>
   </div>
 
   <h1>Rewards and signer status</h1>
@@ -72,7 +71,9 @@
 </div>
 
 <script type="module">
-import { principalCV, bufferCV, uintCV, cvToHex, hexToCV, ClarityType } from "https://esm.sh/@stacks/transactions@7.5.0";
+// Robust loader: pinned esm.sh CDN primary, vendored ./js/ local fallback on any failure.
+async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
+const { principalCV, bufferCV, uintCV, cvToHex, hexToCV, ClarityType } = await loadLib("https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0", "./js/transactions.js");
 const NETWORKS={
   "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
   "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",mainnet:true,expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
@@ -80,13 +81,19 @@ const NETWORKS={
 const MIN_USTX=50_000_000_000n;
 const $=id=>document.getElementById(id);
 function net(){return NETWORKS[$("network").value];}
-function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;$("exppox").textContent=n.expectedPox;}
+function explorerTx(t){ t=String(t).replace(/^0x/i,"").toLowerCase(); const n=net(); return n.mainnet?`https://explorer.hiro.so/txid/0x${t}?chain=mainnet`:`https://explorer.hiro.so/txid/0x${t}?chain=testnet&api=${n.api}`; }
+// Reflect the selected network (and optional custom read node) in the URL, so a refresh keeps state
+// and a signer can point reads at their own node. api affects reads only.
+const CHAIN2KEY={testnet:"pox5-testnet",mainnet:"mainnet"}, KEY2CHAIN={"pox5-testnet":"testnet",mainnet:"mainnet"};
+function applyUrlNet(){ const p=new URLSearchParams(location.search); const key=CHAIN2KEY[p.get("chain")]; if(key&&NETWORKS[key]) $("network").value=key; const api=p.get("api"); if(api&&/^https:\/\//i.test(api)) NETWORKS[$("network").value].api=api.replace(/\/+$/,""); }
+function writeUrlNet(){ const key=$("network").value; const p=new URLSearchParams(location.search); p.set("chain",KEY2CHAIN[key]); p.set("api",NETWORKS[key].api); history.replaceState(null,"",location.pathname+"?"+p.toString()); }
+function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("exppox").textContent=n.expectedPox;}
 function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
 function stx(u){return (Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";}
 function badge(cls,text){return `<span class="badge ${cls}">${text}</span>`;}
 const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
-paintNet();
-$("network").addEventListener("change",paintNet);
+applyUrlNet(); paintNet(); writeUrlNet();
+$("network").addEventListener("change",()=>{paintNet();writeUrlNet();});
 $("manager").addEventListener("input",()=>{$("load").disabled=!$("manager").value.trim();});
 $("load").addEventListener("click",load);
 $("refresh").addEventListener("click",load);
@@ -153,7 +160,7 @@ async function load(){
       $("txs").innerHTML = list.length? list.map(t=>{
         const tx=t.tx||t; const fn=tx.contract_call?.function_name||tx.tx_type;
         const glyph=tx.tx_status==="success"?"✓":tx.tx_status==="pending"?"·":"✕";
-        return `<div class="tx">${glyph} ${fn} · <a href="${n.api}/extended/v1/tx/${tx.tx_id}" target="_blank" rel="noopener">${(tx.tx_id||"").slice(0,14)}…</a></div>`;
+        return `<div class="tx">${glyph} ${fn} · <a href="${explorerTx(tx.tx_id)}" target="_blank" rel="noopener">${(tx.tx_id||"").slice(0,14)}…</a></div>`;
       }).join(""):"<small>No transactions found.</small>";
     }catch(e){ $("txs").innerHTML="<small>Could not load transactions.</small>"; }
 

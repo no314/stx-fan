@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Claim rewards · Signer Sidekick</title>
-<link rel="stylesheet" href="stacks.css?v=3">
+<link rel="stylesheet" href="stacks.css?v=4">
 <style>
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .flow{display:flex;align-items:stretch;gap:8px;margin:6px 0 2px;flex-wrap:wrap}
@@ -17,6 +17,12 @@
 .bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent-bg)}
 .bar .mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);font-family:var(--font-mono)}
 .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);margin-top:3px}
+.barwrap{position:relative;margin-top:24px}
+.nowmark{position:absolute;top:-20px;transform:translateX(-50%);font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);white-space:nowrap;pointer-events:none}
+.nowmark::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:4px solid transparent;border-top-color:currentColor}
+.cyclecard.prepare{border-color:var(--warn)}
+.cyclecard.prepare .bar{border-color:var(--warn)}
+.cyclecard.prepare .nowmark{color:var(--warn);font-weight:700}
 .note{background:rgba(210,153,34,.1);border:1px solid var(--warn);border-radius:var(--radius-md);padding:11px 13px;font-size:var(--fs-xs);margin:10px 0}.note b{color:var(--warn)}
 .slist{max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-md);margin-top:8px}
 .rtable{width:100%;border-collapse:collapse;font-size:var(--fs-xs)}
@@ -41,7 +47,6 @@ input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
         <option value="mainnet">Mainnet</option>
       </select>
     </div>
-    <span class="tier" id="tier">TIER 1</span>
     <div class="wallet" id="wallet">
       <button id="walletbtn" aria-haspopup="menu" aria-expanded="false">Connect wallet</button>
       <div class="menu" id="menu" role="menu" hidden>
@@ -68,10 +73,13 @@ input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
     <div class="note" style="margin-top:10px">This tool manages <b>STX</b> staking rewards. The sBTC <b>bond</b> parameters (bond periods, bond index) are for the Bitcoin-staking side and are left empty here. They apply only to sBTC bond positions, which this tool does not cover.</div>
   </div>
 
-  <div class="card">
+  <div class="card cyclecard" id="cyclecard">
     <h2>Cycle</h2>
     <div class="kv"><span>Current cycle</span><span class="v" id="curcycle">…</span></div>
-    <div class="bar"><div class="fill" id="barfill" style="width:0%"></div><div class="mid" id="barmid">…</div></div>
+    <div class="barwrap">
+      <div class="nowmark" id="nowmark" style="left:0%"><span id="nowblk">burn …</span></div>
+      <div class="bar"><div class="fill" id="barfill" style="width:0%"></div><div class="mid" id="barmid">…</div></div>
+    </div>
     <div class="ends"><span id="barstart">start</span><span id="barend">end</span></div>
     <div class="note" style="margin-top:12px"><b>Which cycle?</b> Claim <b>completed</b> cycles. Claiming a cycle with nothing accrued just reverts (<code>ERR_NO_CLAIMABLE_REWARDS</code>) and costs the transaction fee. It is not harmful. On mainnet the first PoX-5 cycle is <b>141</b>.</div>
     <label>Reward cycle</label>
@@ -90,7 +98,7 @@ input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
   <div class="card">
     <h2>Step 1, collect pool rewards (claim-rewards)</h2>
     <p class="sub" style="margin:0 0 10px">Run once per cycle. Pulls the signer's rewards from PoX-5 into the signer-manager contract. Anyone can do this.</p>
-    <div class="row" style="margin-top:4px"><button id="collect" disabled>Collect pool rewards</button></div>
+    <div class="row" style="margin-top:4px"><button id="collect">Connect wallet</button></div>
     <div id="cstatus" class="status"></div>
     <div id="cresult" style="display:none;margin-top:8px"><div class="kv"><span>txid</span><span class="v"><a id="ctx" target="_blank" rel="noopener"></a></span></div></div>
   </div>
@@ -99,7 +107,7 @@ input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
     <h2>Step 2, claim a staker's rewards (claim-staker-rewards)</h2>
     <label>Staker address (defaults to your connected wallet; change it to claim for anyone staking with this signer-manager contract)</label>
     <input id="staker" placeholder="ST... staker principal" spellcheck="false">
-    <div class="row" style="margin-top:12px"><button id="claim" disabled>Claim staker rewards</button></div>
+    <div class="row" style="margin-top:12px"><button id="claim">Connect wallet</button></div>
     <div class="note" style="margin-top:10px">Runs in <b>originator</b> post-condition mode: nothing can leave the caller's wallet without a post-condition, while the manager and PoX-5 contracts are still allowed to move the sBTC reward to the staker. You send nothing, so none of your own assets can move.</div>
     <div id="sstatus" class="status"></div>
     <div id="sresult" style="display:none;margin-top:8px"><div class="kv"><span>txid</span><span class="v"><a id="stx" target="_blank" rel="noopener"></a></span></div></div>
@@ -119,8 +127,12 @@ input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
 </div>
 
 <script type="module">
-import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
-import { principalCV, uintCV, listCV, someCV, noneCV, cvToHex, hexToCV, ClarityType } from "https://esm.sh/@stacks/transactions@7.5.0";
+// Robust loader: pinned esm.sh CDN primary, vendored ./js/ local fallback on any failure.
+// connect has no working esm.sh URL (its v6/v7 split breaks every ?deps pin), so it is local-only.
+async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
+const TX_CDN="https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0";
+const { connect, request, disconnect } = await loadLib(null, "./js/connect.js");
+const { principalCV, uintCV, listCV, someCV, noneCV, cvToHex, hexToCV, ClarityType } = await loadLib(TX_CDN, "./js/transactions.js");
 
 const NETWORKS={
   "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
@@ -129,6 +141,12 @@ const NETWORKS={
 const $=id=>document.getElementById(id);
 let account=null, pox=null, poxId=null, menuOpen=false, walletName=null;
 function net(){return NETWORKS[$("network").value];}
+function explorerTx(t){ t=String(t).replace(/^0x/i,"").toLowerCase(); const n=net(); return n.mainnet?`https://explorer.hiro.so/txid/0x${t}?chain=mainnet`:`https://explorer.hiro.so/txid/0x${t}?chain=testnet&api=${n.api}`; }
+// Reflect the selected network (and optional custom read node) in the URL, so a refresh keeps state
+// and a signer can point reads at their own node. api affects reads only, never what the wallet signs.
+const CHAIN2KEY={testnet:"pox5-testnet",mainnet:"mainnet"}, KEY2CHAIN={"pox5-testnet":"testnet",mainnet:"mainnet"};
+function applyUrlNet(){ const p=new URLSearchParams(location.search); const key=CHAIN2KEY[p.get("chain")]; if(key&&NETWORKS[key]) $("network").value=key; const api=p.get("api"); if(api&&/^https:\/\//i.test(api)) NETWORKS[$("network").value].api=api.replace(/\/+$/,""); }
+function writeUrlNet(){ const key=$("network").value; const p=new URLSearchParams(location.search); p.set("chain",KEY2CHAIN[key]); p.set("api",NETWORKS[key].api); history.replaceState(null,"",location.pathname+"?"+p.toString()); }
 function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
 function paintWallet(){ const b=$("walletbtn"); if(account){ b.innerHTML=`${walletName||shortAddr(account)}<span class="caret">▼</span>`; b.classList.add("connected"); } else { b.textContent="Connect wallet"; b.classList.remove("connected"); } b.setAttribute("aria-expanded",menuOpen?"true":"false"); }
 // Wallet BNS name (mainnet only). Primary path is Hiro on-chain reads against the BNS-V2 contract:
@@ -163,15 +181,15 @@ async function resolveWalletName(){
   }
 }
 function openMenu(o){ menuOpen=o; $("menu").hidden=!o; $("walletbtn").setAttribute("aria-expanded",o?"true":"false"); }
-function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("tier").textContent=n.tier;}
+function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;}
 function cstat(m,k="info"){const s=$("cstatus");s.textContent=m;s.className="status show "+k;}
 function sstat(m,k="info"){const s=$("sstatus");s.textContent=m;s.className="status show "+k;}
 function say(m,k="info"){const s=$("status");s.textContent=m;s.className="status show "+k;}
 const stx=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6})+" STX";
 const stxNum=u=>(Number(BigInt(u))/1e6).toLocaleString(undefined,{maximumFractionDigits:6});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-paintNet(); paintWallet();
-$("network").addEventListener("change",()=>{paintNet();loadPox();resolveWalletName();});
+applyUrlNet(); paintNet(); writeUrlNet(); paintWallet();
+$("network").addEventListener("change",()=>{paintNet();writeUrlNet();loadPox();resolveWalletName();});
 
 async function callReadOnly(api,contractId,fn,sender,args){
   const [addr,name]=contractId.split(".");
@@ -179,16 +197,26 @@ async function callReadOnly(api,contractId,fn,sender,args){
   const j=await r.json(); if(!j.okay) throw new Error(fn+": "+(j.cause||"read failed")); return hexToCV(j.result);
 }
 
+function isPrepare(p){ return !!(p && p.next_cycle && p.next_cycle.blocks_until_prepare_phase<=0); }
+// Repaints only the cycle bar + current-block marker; does not touch the cycle selector, so it is safe
+// to run on a timer without clobbering the user's chosen cycle.
+function paintCycleBar(p){
+  const cyc=p.reward_cycle_id, len=p.reward_cycle_length, until=p.next_reward_cycle_in;
+  const cur=p.current_burnchain_block_height, end=cur+until, start=end-len;
+  const pct=Math.max(0,Math.min(100,Math.round((len-until)/len*100)));
+  const prep=isPrepare(p);
+  $("curcycle").textContent=`#${cyc}`;
+  $("barfill").style.width=pct+"%"; $("barmid").textContent=prep?"prepare phase":`cycle #${cyc}, ${pct}% done`;
+  $("barstart").textContent="Start bitcoin block "+start; $("barend").textContent="end "+end;
+  $("nowmark").style.left=Math.max(6,Math.min(94,pct))+"%"; $("nowblk").textContent=""+cur;
+  $("cyclecard").classList.toggle("prepare", prep);
+}
 async function loadPox(){
   const n=net();
   try{
     pox=await fetch(n.api+"/v2/pox").then(r=>r.json()); poxId=pox.contract_id;
-    const cyc=pox.reward_cycle_id, len=pox.reward_cycle_length, until=pox.next_reward_cycle_in;
-    const end=pox.current_burnchain_block_height+until, start=end-len;
-    const pct=Math.max(0,Math.min(100,Math.round((len-until)/len*100)));
-    $("curcycle").textContent=`#${cyc}`;
-    $("barfill").style.width=pct+"%"; $("barmid").textContent=`cycle #${cyc}, ${pct}% done`;
-    $("barstart").textContent="start burn "+start; $("barend").textContent="end burn "+end;
+    paintCycleBar(pox);
+    const cyc=pox.reward_cycle_id;
     const pv=(pox.contract_versions||[]).find(v=>String(v.contract_id).endsWith(".pox-5"));
     const first=pv?pv.first_reward_cycle_id:cyc;
     const sel=$("cyclesel"); sel.innerHTML="";
@@ -203,9 +231,12 @@ async function loadPox(){
 }
 $("cyclesel").addEventListener("change",()=>{ $("cycle").value=$("cyclesel").value; gate(); });
 loadPox();
+// Burn blocks land ~every 10 min; refresh the cycle bar + marker every 5 min (selector left untouched).
+setInterval(async()=>{ try{ const p=await fetch(net().api+"/v2/pox").then(r=>r.json()); pox=p; poxId=p.contract_id; paintCycleBar(p); }catch{} }, 300000);
 
-function gate(){ const ok=account&&$("manager").value.trim()&&/^\d+$/.test($("cycle").value.trim()); $("collect").disabled=!ok; $("claim").disabled=!ok; }
+function gate(){ $("collect").textContent=account?"Collect pool rewards":"Connect wallet"; $("claim").textContent=account?"Claim staker rewards":"Connect wallet"; $("collect").disabled=false; $("claim").disabled=false; }
 ["manager","cycle"].forEach(id=>$(id).addEventListener("input",gate));
+gate();
 
 $("walletbtn").addEventListener("click",(e)=>{ e.stopPropagation(); if(!account){ doConnect(); } else { openMenu(!menuOpen); } });
 $("menu").addEventListener("click",e=>e.stopPropagation());
@@ -229,7 +260,10 @@ async function doConnect(){
 function cycleVal(){ return BigInt($("cycle").value.trim()); }
 
 $("collect").addEventListener("click",async()=>{
+  if(!account){ doConnect(); return; }
   const n=net(); const manager=$("manager").value.trim();
+  if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(manager)){cstat("Enter the signer-manager contract first.","err");return;}
+  if(!/^\d+$/.test($("cycle").value.trim())){cstat("Choose a reward cycle first.","err");return;}
   if(!n.stxPrefix.test(account)){cstat(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
   try{
     cstat("Building claim-rewards. Review it in your wallet.");
@@ -240,13 +274,16 @@ $("collect").addEventListener("click",async()=>{
     const res=await request("stx_callContract",params);
     const t=(res?.txid||"").replace(/^0x/i,"");
     if(!/^[0-9a-f]{64}$/i.test(t)){cstat("No usable txid returned. Check wallet activity.","err");return;}
-    $("ctx").textContent="0x"+t.toLowerCase(); $("ctx").href=`${n.api}/extended/v1/tx/0x${t.toLowerCase()}`; $("cresult").style.display="block";
+    $("ctx").textContent="0x"+t.toLowerCase(); $("ctx").href=explorerTx(t); $("cresult").style.display="block";
     cstat("Submitted. If it reverts with no-claimable-rewards, that cycle has nothing to collect.","ok");
   }catch(e){ const c=e&&typeof e==="object"&&"code"in e?Number(e.code):null; cstat(c===4001||c===-31001?"Signing cancelled.":"claim-rewards failed: "+(e?.message||e),"err"); }
 });
 
 $("claim").addEventListener("click",async()=>{
+  if(!account){ doConnect(); return; }
   const n=net(); const manager=$("manager").value.trim(); const staker=$("staker").value.trim()||account;
+  if(!/^S[A-Z0-9]+\.[a-zA-Z][a-zA-Z0-9\-_]*$/.test(manager)){sstat("Enter the signer-manager contract first.","err");return;}
+  if(!/^\d+$/.test($("cycle").value.trim())){sstat("Choose a reward cycle first.","err");return;}
   if(!n.stxPrefix.test(account)){sstat(`Refusing: ${account} is not a ${n.label} address.`,"err");return;}
   if(!/^S[A-Z0-9]{20,50}$/.test(staker)){sstat("Enter a valid staker principal (ST... or SP...).","err");return;}
   try{
@@ -258,7 +295,7 @@ $("claim").addEventListener("click",async()=>{
     const res=await request("stx_callContract",params);
     const t=(res?.txid||"").replace(/^0x/i,"");
     if(!/^[0-9a-f]{64}$/i.test(t)){sstat("No usable txid returned. Check wallet activity.","err");return;}
-    $("stx").textContent="0x"+t.toLowerCase(); $("stx").href=`${n.api}/extended/v1/tx/0x${t.toLowerCase()}`; $("sresult").style.display="block";
+    $("stx").textContent="0x"+t.toLowerCase(); $("stx").href=explorerTx(t); $("sresult").style.display="block";
     sstat("Submitted. If it reverts, run step 1 (collect) for this cycle first, or there were no rewards for this staker.","ok");
   }catch(e){ const c=e&&typeof e==="object"&&"code"in e?Number(e.code):null; sstat(c===4001||c===-31001?"Signing cancelled.":"claim-staker-rewards failed: "+(e?.message||e),"err"); }
 });
