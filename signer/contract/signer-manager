@@ -249,7 +249,7 @@
         (asserts!
             (>
                 (unwrap-panic (contract-call?
-                    'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+                    'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-token
                     get-balance current-contract
                 ))
                 u0
@@ -264,7 +264,7 @@
         ;; `initiate-withdrawal-request`, `none` when the staker was paid
         ;; directly in sBTC.
         (let ((withdrawal-request (try! (as-contract?
-                ((with-ft 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+                ((with-ft 'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-token
                     "sbtc-token" earned
                 ))
                 (match (get-pox-addr staker)
@@ -274,7 +274,7 @@
                                 ERR_NO_CLAIMABLE_REWARDS
                             )))
                             (withdrawal-request (try! (contract-call?
-                                'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-withdrawal
+                                'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-withdrawal
                                 initiate-withdrawal-request amount
                                 (get pox-addr l1-info) (get max-fee l1-info)
                             )))
@@ -310,7 +310,7 @@
                             bond-index: bond-index,
                         })
                         (try! (contract-call?
-                            'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+                            'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-token
                             transfer earned tx-sender staker none
                         ))
                         ;; Direct sBTC payout: there is no L1 withdrawal to track.
@@ -348,7 +348,7 @@
             ))
             (request (unwrap!
                 (contract-call?
-                    'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
+                    'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-registry
                     get-withdrawal-request request-id
                 )
                 ERR_UNKNOWN_WITHDRAWAL_REQUEST
@@ -370,10 +370,10 @@
             amount-sats: refund,
         })
         (as-contract?
-            ((with-ft 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+            ((with-ft 'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-token
                 "sbtc-token" refund
             ))
-            (try! (contract-call? 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+            (try! (contract-call? 'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-token
                 transfer refund tx-sender staker none
             ))
         )
@@ -400,7 +400,7 @@
             ))
             (request (unwrap!
                 (contract-call?
-                    'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
+                    'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-registry
                     get-withdrawal-request request-id
                 )
                 ERR_UNKNOWN_WITHDRAWAL_REQUEST
@@ -474,10 +474,10 @@
         (asserts! (<= amount fees) ERR_INSUFFICIENT_FEES)
         (var-set earned-fees (- fees amount))
         (try! (as-contract?
-            ((with-ft 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+            ((with-ft 'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-token
                 "sbtc-token" amount
             ))
-            (try! (contract-call? 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+            (try! (contract-call? 'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-token
                 transfer amount tx-sender recipient none
             ))
         ))
@@ -509,7 +509,7 @@
 ;; ones to finalize).
 (define-public (sweep-fee-refunds (recipient principal))
     (let (
-            (balance (unwrap-panic (contract-call? 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+            (balance (unwrap-panic (contract-call? 'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-token
                 get-balance current-contract
             )))
             (reserved (+ (var-get earned-fees) (var-get withdrawal-liability)
@@ -528,10 +528,10 @@
             recipient: recipient,
         })
         (try! (as-contract?
-            ((with-ft 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+            ((with-ft 'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-token
                 "sbtc-token" sweepable
             ))
-            (try! (contract-call? 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+            (try! (contract-call? 'SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1.sbtc-token
                 transfer sweepable tx-sender recipient none
             ))
         ))
