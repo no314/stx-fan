@@ -188,9 +188,14 @@ label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;
 </div>
 
 <script type="module">
-import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6?deps=@stacks/transactions@7.5.0,@stacks/network@7.5.0,@stacks/profile@7.5.0,@stacks/auth@7.5.0,@stacks/stacking@7.5.0,@stacks/wallet-sdk@7.5.0,@stacks/storage@7.5.0,@stacks/bns@7.5.0,@stacks/cli@7.5.0";
-import { principalCV, uintCV, bufferCV, tupleCV, someCV, noneCV, serializeCV, cvToHex, hexToCV, ClarityType, postConditionToHex } from "https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/transactions@7.5.0,@stacks/network@7.5.0,@stacks/profile@7.5.0,@stacks/auth@7.5.0,@stacks/stacking@7.5.0,@stacks/wallet-sdk@7.5.0,@stacks/storage@7.5.0,@stacks/bns@7.5.0,@stacks/cli@7.5.0";
-import { poxAddressToTuple } from "https://esm.sh/@stacks/stacking@7.5.0?deps=@stacks/transactions@7.5.0,@stacks/network@7.5.0,@stacks/profile@7.5.0,@stacks/auth@7.5.0,@stacks/stacking@7.5.0,@stacks/wallet-sdk@7.5.0,@stacks/storage@7.5.0,@stacks/bns@7.5.0,@stacks/cli@7.5.0";
+// Robust loader: pinned esm.sh CDN primary, vendored ./js/ local fallback on any failure.
+// connect has no working esm.sh URL (its v6/v7 split breaks every ?deps pin), so it is local-only.
+async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
+const TX_CDN="https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0";
+const STACKING_CDN="https://esm.sh/@stacks/stacking@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0,@stacks/transactions@7.5.0";
+const { connect, request, disconnect } = await loadLib(null, "./js/connect.js");
+const { principalCV, uintCV, bufferCV, tupleCV, someCV, noneCV, serializeCV, cvToHex, hexToCV, ClarityType, postConditionToHex } = await loadLib(TX_CDN, "./js/transactions.js");
+const { poxAddressToTuple } = await loadLib(STACKING_CDN, "./js/stacking.js");
 
 const NETWORKS = {
   "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},

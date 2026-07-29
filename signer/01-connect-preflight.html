@@ -57,8 +57,12 @@
 </div>
 
 <script type="module">
-import { connect, disconnect } from "https://esm.sh/@stacks/connect@8.2.6?deps=@stacks/transactions@7.5.0,@stacks/network@7.5.0,@stacks/profile@7.5.0,@stacks/auth@7.5.0,@stacks/stacking@7.5.0,@stacks/wallet-sdk@7.5.0,@stacks/storage@7.5.0,@stacks/bns@7.5.0,@stacks/cli@7.5.0";
-import { principalCV, uintCV, cvToHex, hexToCV, ClarityType } from "https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/transactions@7.5.0,@stacks/network@7.5.0,@stacks/profile@7.5.0,@stacks/auth@7.5.0,@stacks/stacking@7.5.0,@stacks/wallet-sdk@7.5.0,@stacks/storage@7.5.0,@stacks/bns@7.5.0,@stacks/cli@7.5.0"; // BNS-V2 wallet-name lookup
+// Robust loader: pinned esm.sh CDN primary, vendored ./js/ local fallback on any failure.
+// connect has no working esm.sh URL (its v6/v7 split breaks every ?deps pin), so it is local-only.
+async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
+const TX_CDN="https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0";
+const { connect, disconnect } = await loadLib(null, "./js/connect.js");
+const { principalCV, uintCV, cvToHex, hexToCV, ClarityType } = await loadLib(TX_CDN, "./js/transactions.js"); // BNS-V2 wallet-name lookup
 
 const NETWORKS = {
   // caip = CAIP-2 network id (stacks:<decimal chain id>). pox5-testnet chain 0x80000005 = 2147483653.

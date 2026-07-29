@@ -97,9 +97,14 @@ pre{background:var(--surface-input);border:1px solid var(--border);border-radius
 </div>
 
 <script type="module">
-import { generateSecretKey, generateWallet, getStxAddress } from "https://esm.sh/@stacks/wallet-sdk@7.5.0?deps=@stacks/transactions@7.5.0,@stacks/network@7.5.0,@stacks/profile@7.5.0,@stacks/auth@7.5.0,@stacks/stacking@7.5.0,@stacks/wallet-sdk@7.5.0,@stacks/storage@7.5.0,@stacks/bns@7.5.0,@stacks/cli@7.5.0";
-import * as secp from "https://esm.sh/@noble/secp256k1@2.1.0";
-import { stringAsciiCV, tupleCV, uintCV, principalCV, serializeCV } from "https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/transactions@7.5.0,@stacks/network@7.5.0,@stacks/profile@7.5.0,@stacks/auth@7.5.0,@stacks/stacking@7.5.0,@stacks/wallet-sdk@7.5.0,@stacks/storage@7.5.0,@stacks/bns@7.5.0,@stacks/cli@7.5.0";
+// Robust loader: pinned esm.sh CDN primary, vendored ./js/ local fallback on any failure.
+// This tool is meant to run offline; if the CDN is unreachable it uses the vendored copies.
+async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
+const TX_CDN="https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0";
+const WALLETSDK_CDN="https://esm.sh/@stacks/wallet-sdk@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0,@stacks/transactions@7.5.0,@stacks/encryption@7.5.0,@stacks/auth@7.5.0";
+const { generateSecretKey, generateWallet, getStxAddress } = await loadLib(WALLETSDK_CDN, "./js/walletsdk.js");
+const secp = await loadLib("https://esm.sh/@noble/secp256k1@2.1.0", "./js/secp.js");
+const { stringAsciiCV, tupleCV, uintCV, principalCV, serializeCV } = await loadLib(TX_CDN, "./js/transactions.js");
 const $=id=>document.getElementById(id);
 const toHex=b=>Array.from(b,x=>x.toString(16).padStart(2,"0")).join("");
 const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};

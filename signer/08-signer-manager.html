@@ -121,8 +121,11 @@
 </div>
 
 <script type="module">
-import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6?deps=@stacks/transactions@7.5.0,@stacks/network@7.5.0,@stacks/profile@7.5.0,@stacks/auth@7.5.0,@stacks/stacking@7.5.0,@stacks/wallet-sdk@7.5.0,@stacks/storage@7.5.0,@stacks/bns@7.5.0,@stacks/cli@7.5.0";
-import * as tx from "https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/transactions@7.5.0,@stacks/network@7.5.0,@stacks/profile@7.5.0,@stacks/auth@7.5.0,@stacks/stacking@7.5.0,@stacks/wallet-sdk@7.5.0,@stacks/storage@7.5.0,@stacks/bns@7.5.0,@stacks/cli@7.5.0";
+// Robust loader: pinned esm.sh CDN primary, vendored ./js/ local fallback on any failure.
+// connect has no working esm.sh URL (its v6/v7 split breaks every ?deps pin), so it is local-only.
+async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
+const { connect, request, disconnect } = await loadLib(null, "./js/connect.js");
+const tx = await loadLib("https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0", "./js/transactions.js");
 const { principalCV, uintCV, bufferCV, trueCV, falseCV, cvToHex, hexToCV, ClarityType } = tx;
 
 const NETWORKS = {
