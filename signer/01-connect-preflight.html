@@ -57,8 +57,8 @@
 </div>
 
 <script type="module">
-import { connect, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
-import { principalCV, uintCV, cvToHex, hexToCV, ClarityType } from "https://esm.sh/@stacks/transactions@7.5.0"; // BNS-V2 wallet-name lookup
+import { connect, disconnect } from "https://esm.sh/@stacks/connect@8.2.6?deps=@stacks/common@7.5.0,@stacks/network@7.5.0,@stacks/transactions@7.5.0,@stacks/profile@7.5.0,@stacks/encryption@7.5.0,@stacks/auth@7.5.0";
+import { principalCV, uintCV, cvToHex, hexToCV, ClarityType } from "https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0,@stacks/transactions@7.5.0,@stacks/profile@7.5.0,@stacks/encryption@7.5.0,@stacks/auth@7.5.0"; // BNS-V2 wallet-name lookup
 
 const NETWORKS = {
   // caip = CAIP-2 network id (stacks:<decimal chain id>). pox5-testnet chain 0x80000005 = 2147483653.

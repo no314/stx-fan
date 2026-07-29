@@ -99,8 +99,8 @@
 </div>
 
 <script type="module">
-import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6";
-import { principalCV, trueCV, falseCV, uintCV, cvToHex, hexToCV, ClarityType } from "https://esm.sh/@stacks/transactions@7.5.0";
+import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6?deps=@stacks/common@7.5.0,@stacks/network@7.5.0,@stacks/transactions@7.5.0,@stacks/profile@7.5.0,@stacks/encryption@7.5.0,@stacks/auth@7.5.0";
+import { principalCV, trueCV, falseCV, uintCV, cvToHex, hexToCV, ClarityType } from "https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0,@stacks/transactions@7.5.0,@stacks/profile@7.5.0,@stacks/encryption@7.5.0,@stacks/auth@7.5.0";
 
 const NETWORKS = {
   "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,pox5:"ST000000000000000000002AMW42H.pox-5",
@@ -108,9 +108,9 @@ const NETWORKS = {
       sourceSha256:"28fd9b3dcb89c165723f54b5e61bfaa9e960cd6adfb69f87f2830d4c809aceb4", canonicalSha256:"409e8cfa6a447e159062536aff677ca6df7e04e5c7ced92189b6dd90a4689c51",
       note:"Use this source on pox5-testnet. The sidekick devnet artifact embeds sBTC contracts that do not exist here; this version points token, registry, and withdrawal at SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1." }},
   "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,pox5:"SP000000000000000000002Q6VF78.pox-5",
-    reference:{ label:"mainnet reference manager (pinned in signer-sidekick)", link:"https://github.com/stx-labs/signer-sidekick/blob/main/contracts/reference-manager/generated/mainnet/signer-manager.clar",
+    reference:{ label:"mainnet reference manager (stacks-core signer-manager.clar)", link:"https://github.com/stacks-network/stacks-core/blob/efc34a07a225c4b950ab9404a1652aa5e14affaf/contrib/core-contract-tests/contracts/signer-manager.clar",
       sourceSha256:"48d22cf832f2b61118327265b6b7f303c911a98bdb5af2a54a931a1cf432e316", canonicalSha256:"004da6bde5f91b9cdf555a020494cab73d29cc75733ad0c05e4f4b32a94e251b",
-      note:"Fixed reference from packages/protocol known-managers.ts. Confirm the mainnet sBTC contracts exist before relying on the sBTC paths." }}
+      note:"Reference from stacks-core contrib/core-contract-tests. Confirm the mainnet sBTC contracts exist before relying on the sBTC paths." }}
 };
 const $=id=>document.getElementById(id);
 let account=null, menuOpen=false, walletName=null;

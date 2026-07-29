@@ -97,9 +97,9 @@ pre{background:var(--surface-input);border:1px solid var(--border);border-radius
 </div>
 
 <script type="module">
-import { generateSecretKey, generateWallet, getStxAddress } from "https://esm.sh/@stacks/wallet-sdk@7.5.0";
+import { generateSecretKey, generateWallet, getStxAddress } from "https://esm.sh/@stacks/wallet-sdk@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0,@stacks/transactions@7.5.0,@stacks/profile@7.5.0,@stacks/encryption@7.5.0,@stacks/auth@7.5.0";
 import * as secp from "https://esm.sh/@noble/secp256k1@2.1.0";
-import { stringAsciiCV, tupleCV, uintCV, principalCV, serializeCV } from "https://esm.sh/@stacks/transactions@7.5.0";
+import { stringAsciiCV, tupleCV, uintCV, principalCV, serializeCV } from "https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0,@stacks/transactions@7.5.0,@stacks/profile@7.5.0,@stacks/encryption@7.5.0,@stacks/auth@7.5.0";
 const $=id=>document.getElementById(id);
 const toHex=b=>Array.from(b,x=>x.toString(16).padStart(2,"0")).join("");
 const hexToBytes=h=>{h=h.replace(/^0x/i,"");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
