@@ -55,7 +55,7 @@ dApps 4 and 5 show, under the signer-manager input, a non-blocking line that slo
 
 dApp 3 links the repo's reference contracts and shows raw + canonical SHA-256 of the pasted source (canonicalization ported from `manager-adapter.ts`):
 
-- Mainnet reference pinned in [`known-managers.ts`](https://github.com/stx-labs/signer-sidekick/blob/main/packages/protocol/src/known-managers.ts): raw `48d22cf832f2b61118327265b6b7f303c911a98bdb5af2a54a931a1cf432e316`, canonical `004da6bde5f91b9cdf555a020494cab73d29cc75733ad0c05e4f4b32a94e251b`.
+- Mainnet reference is [stacks-core `signer-manager.clar`](https://github.com/stacks-network/stacks-core/blob/efc34a07a225c4b950ab9404a1652aa5e14affaf/contrib/core-contract-tests/contracts/signer-manager.clar): raw `48d22cf832f2b61118327265b6b7f303c911a98bdb5af2a54a931a1cf432e316`, canonical `004da6bde5f91b9cdf555a020494cab73d29cc75733ad0c05e4f4b32a94e251b`.
 - Testnet reference is [no314/stx-fan `signer-manager`](https://github.com/no314/stx-fan/blob/main/signer/contract/signer-manager) (canonical `409e8cfa6a447e159062536aff677ca6df7e04e5c7ced92189b6dd90a4689c51`), which points sBTC token/registry/withdrawal at `SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1`. The sidekick devnet artifact embeds sBTC contracts that don't exist on pox5-testnet and fails there.
 - dApp 3 auto-flags a match on raw **or** canonical. The difference between networks is the embedded PoX-5 boot principal and sBTC contracts — verify the embedded sBTC contracts exist on your target network.
 

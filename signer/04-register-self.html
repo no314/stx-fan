@@ -62,8 +62,8 @@
 </div>
 
 <script type="module">
-import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6?deps=@stacks/common@7.5.0,@stacks/network@7.5.0,@stacks/transactions@7.5.0,@stacks/profile@7.5.0,@stacks/encryption@7.5.0,@stacks/auth@7.5.0";
-import { principalCV, uintCV, bufferCV, tupleCV, cvToHex, hexToCV, ClarityType, verifySignature, publicKeyFromSignatureRsv } from "https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0,@stacks/transactions@7.5.0,@stacks/profile@7.5.0,@stacks/encryption@7.5.0,@stacks/auth@7.5.0";
+import { connect, request, disconnect } from "https://esm.sh/@stacks/connect@8.2.6?deps=@stacks/transactions@7.5.0,@stacks/network@7.5.0,@stacks/profile@7.5.0,@stacks/auth@7.5.0,@stacks/stacking@7.5.0,@stacks/wallet-sdk@7.5.0,@stacks/storage@7.5.0,@stacks/bns@7.5.0,@stacks/cli@7.5.0";
+import { principalCV, uintCV, bufferCV, tupleCV, cvToHex, hexToCV, ClarityType, verifySignature, publicKeyFromSignatureRsv } from "https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/transactions@7.5.0,@stacks/network@7.5.0,@stacks/profile@7.5.0,@stacks/auth@7.5.0,@stacks/stacking@7.5.0,@stacks/wallet-sdk@7.5.0,@stacks/storage@7.5.0,@stacks/bns@7.5.0,@stacks/cli@7.5.0";
 
 const NETWORKS = {
   "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
