@@ -115,7 +115,7 @@ const NETWORKS = {
   "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,pox5:"SP000000000000000000002Q6VF78.pox-5",
     reference:{ label:"mainnet reference manager (signer-sidekick PR #9, commit 214c67e)", link:"https://github.com/stx-labs/signer-sidekick/blob/214c67eae2f1ce1c3c818ab6528ce4f2e1bdc22a/contracts/reference-manager/generated/mainnet/signer-manager.clar",
       sourceSha256:"48d22cf832f2b61118327265b6b7f303c911a98bdb5af2a54a931a1cf432e316", canonicalSha256:"004da6bde5f91b9cdf555a020494cab73d29cc75733ad0c05e4f4b32a94e251b", structureSha256:"10fa8f7bfc6e41213b82682310aa0c7479214a87fd92d378892a74ffbe2b4357",
-      note:"Generated mainnet reference (SP-boot, mainnet sBTC contracts). Confirm the mainnet sBTC contracts exist before relying on the sBTC paths." }}
+      note:"" }}
 };
 const $=id=>document.getElementById(id);
 let account=null, menuOpen=false, walletName=null;
@@ -170,8 +170,9 @@ function paintNet(){
   $("ref").innerHTML =
     `<div class="kv"><span>${r.label}</span><span class="v"><a href="${r.link}" target="_blank" rel="noopener">View source</a></span></div>`+
     `<div class="kv"><span>Expected raw SHA-256</span><span class="v">${r.sourceSha256}</span></div>`+
-    `<div class="kv" style="border:none"><span>Expected canonical SHA-256</span><span class="v">${r.canonicalSha256}</span></div>`+
-    `<div style="color:var(--text-tertiary);margin-top:8px">${r.note}</div>`;
+    `<div class="kv"><span>Expected canonical SHA-256</span><span class="v">${r.canonicalSha256}</span></div>`+
+    `<div class="kv" style="border:none"><span>Expected structure SHA-256</span><span class="v">${r.structureSha256}</span></div>`+
+    (r.note ? `<div style="color:var(--text-tertiary);margin-top:8px">${r.note}</div>` : "");
   refreshHash();
 }
 function say(m,k="info"){const s=$("dstatus");s.textContent=m;s.className="status show "+k;}
