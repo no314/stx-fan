@@ -41,7 +41,8 @@
     <label>Clarity source</label>
     <textarea id="src" placeholder=";; signer-manager source for this network" spellcheck="false"></textarea>
     <div class="kv" style="margin-top:12px"><span>Raw source SHA-256</span><span class="v" id="hash">…</span></div>
-    <div class="kv"><span>Canonical SHA-256<span class="info" tabindex="0" role="button" aria-label="About the hash" data-tip="The canonical hash ignores comments and whitespace, so it is the reliable identity check. A raw mismatch with a canonical match just means reformatted whitespace.">i</span></span><span class="v" id="chash">…</span></div>
+    <div class="kv"><span>Canonical SHA-256<span class="info" tabindex="0" role="button" aria-label="About the hash" data-tip="The canonical hash strips comments and collapses whitespace runs, but is still sensitive to spacing around parentheses, so a formatter (e.g. clarinet format) can change it.">i</span></span><span class="v" id="chash">…</span></div>
+    <div class="kv"><span>Structure SHA-256<span class="info" tabindex="0" role="button" aria-label="About the structure hash" data-tip="Formatting-independent identity: it tokenises the Clarity (parentheses, braces, atoms, string literals) and ignores ALL whitespace, comments, and commas. If this matches the reference, the code is identical even after clarinet format or any re-indentation. It does not cover comment text.">i</span></span><span class="v" id="shash">…</span></div>
     <div class="kv"><span>Reference match</span><span class="v" id="match"><span class="badge b-idle">…</span></span></div>
     <div class="kv"><span>Embedded PoX-5 principal</span><span class="v" id="embpox">…</span></div>
     <div class="kv"><span>Deploys as</span><span class="v" id="principal">…</span></div>
@@ -109,11 +110,11 @@ const { principalCV, trueCV, falseCV, uintCV, cvToHex, hexToCV, ClarityType } = 
 const NETWORKS = {
   "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,pox5:"ST000000000000000000002AMW42H.pox-5",
     reference:{ label:"pox5-testnet signer-manager (no314/stx-fan PR #2, commit efe2640)", link:"https://github.com/no314/stx-fan/blob/efe2640a629ce6a25270f82bfe13d710fe07b699/signer/contract/signer-manager",
-      sourceSha256:"b9c49ce03453a734fed8cf0d9202adb807d53d585108cdf4839be86728693e76", canonicalSha256:"97e003554c90ff8cefe0a17ee7f52e47fd42464a464ff02f666b117740e84214",
+      sourceSha256:"b9c49ce03453a734fed8cf0d9202adb807d53d585108cdf4839be86728693e76", canonicalSha256:"97e003554c90ff8cefe0a17ee7f52e47fd42464a464ff02f666b117740e84214", structureSha256:"75c4f191cdce1372b0869cb4b068232c740288f769edf9b60a2416059ada9183",
       note:"Use this source on pox5-testnet. The sidekick devnet artifact embeds sBTC contracts that do not exist here; this version points token, registry, and withdrawal at SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1." }},
   "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,pox5:"SP000000000000000000002Q6VF78.pox-5",
     reference:{ label:"mainnet reference manager (signer-sidekick PR #9, commit 214c67e)", link:"https://github.com/stx-labs/signer-sidekick/blob/214c67eae2f1ce1c3c818ab6528ce4f2e1bdc22a/contracts/reference-manager/generated/mainnet/signer-manager.clar",
-      sourceSha256:"48d22cf832f2b61118327265b6b7f303c911a98bdb5af2a54a931a1cf432e316", canonicalSha256:"004da6bde5f91b9cdf555a020494cab73d29cc75733ad0c05e4f4b32a94e251b",
+      sourceSha256:"48d22cf832f2b61118327265b6b7f303c911a98bdb5af2a54a931a1cf432e316", canonicalSha256:"004da6bde5f91b9cdf555a020494cab73d29cc75733ad0c05e4f4b32a94e251b", structureSha256:"10fa8f7bfc6e41213b82682310aa0c7479214a87fd92d378892a74ffbe2b4357",
       note:"Generated mainnet reference (SP-boot, mainnet sBTC contracts). Confirm the mainnet sBTC contracts exist before relying on the sBTC paths." }}
 };
 const $=id=>document.getElementById(id);
@@ -191,17 +192,37 @@ function canonicalizeClaritySource(source){
   if(inString) throw new Error("unterminated string");
   return result.trim();
 }
+// Structure canonicalization: tokenise the Clarity and drop ALL whitespace, comments, and commas.
+// ( ) { } : are each their own token; string literals are kept whole. The result is invariant to
+// any reformatting (indentation, spacing around delimiters, clarinet format), so its hash identifies
+// the code itself, not its layout. It intentionally ignores comment text.
+function structureCanonical(source){
+  const t=[]; let a=""; const flush=()=>{ if(a){t.push(a);a="";} };
+  for(let i=0;i<source.length;i++){ const c=source[i];
+    if(c===";"&&source[i+1]===";"){ flush(); i+=2; while(i<source.length&&source[i]!=="\n")i++; continue; }
+    if(c==='"'){ flush(); let s=c; i++; for(;i<source.length;i++){ const d=source[i]; s+=d; if(d==="\\"){ i++; s+=source[i]||""; continue; } if(d==='"') break; } t.push(s); continue; }
+    if(/\s/.test(c)){ flush(); continue; }
+    if(c===","){ flush(); continue; }
+    if(c==="("||c===")"||c==="{"||c==="}"||c===":"){ flush(); t.push(c); continue; }
+    a+=c; }
+  flush(); return t.join("\n");
+}
 function updatePayload(){ $("payload").textContent = $("force06").checked ? "Clarity 6 versioned (0x06), forced" : "omitted, network defaults to Clarity 6 (epoch 4)"; }
 async function refreshHash(){
   const n=net(); const src=$("src").value;
-  if(!src.length){ $("hash").textContent="…"; $("chash").textContent="…"; $("match").innerHTML=badge("b-idle","…"); $("embpox").textContent="…"; updatePrincipal(); gate(); return; }
+  if(!src.length){ $("hash").textContent="…"; $("chash").textContent="…"; $("shash").textContent="…"; $("match").innerHTML=badge("b-idle","…"); $("embpox").textContent="…"; updatePrincipal(); gate(); return; }
   const raw=await sha256hex(src);
   let canon="…"; try{ canon=await sha256hex(canonicalizeClaritySource(src)); }catch{ canon="unterminated string"; }
-  $("hash").textContent=raw; $("chash").textContent=canon;
+  let struct="…"; try{ struct=await sha256hex(structureCanonical(src)); }catch{ struct="unterminated string"; }
+  $("hash").textContent=raw; $("chash").textContent=canon; $("shash").textContent=struct;
   const m=src.match(/'(S[A-Z0-9]+\.pox-5)/); const emb=m?m[1]:null;
   $("embpox").innerHTML = emb ? (emb===n.pox5?`${emb} ${badge("b-ok","matches "+n.label)}`:`${emb} ${badge("b-bad","not "+n.pox5)}`) : badge("b-warn","no pox-5 reference found");
-  const ref=n.reference; const ok = raw===ref.sourceSha256 || canon===ref.canonicalSha256;
-  $("match").innerHTML = ok ? badge("b-ok","matches "+n.label+" reference") : badge("b-warn","no match, verify against your source");
+  const ref=n.reference;
+  const exact = raw===ref.sourceSha256 || canon===ref.canonicalSha256;
+  const structOk = ref.structureSha256 && struct===ref.structureSha256;
+  $("match").innerHTML = exact ? badge("b-ok","matches "+n.label+" reference")
+    : structOk ? badge("b-ok","structure match — same code as "+n.label+" reference, reformatted")
+    : badge("b-warn","no match, verify against your source");
   updatePrincipal(); gate();
 }
 function updatePrincipal(){ const name=$("cname").value.trim(); $("principal").textContent = (account && name) ? `${account}.${name}` : (name?`your-address.${name}`:"…"); }
