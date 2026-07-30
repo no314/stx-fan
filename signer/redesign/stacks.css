@@ -56,6 +56,7 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--surface-raised
 .netbar{display:flex;align-items:center;gap:12px;padding:8px 10px 8px 14px;border:1px solid var(--accent);background:var(--accent-bg);border-radius:var(--radius-lg);font-family:var(--font-display);font-weight:600;margin-bottom:20px}
 .netbar .nb-left{display:flex;align-items:center;gap:10px;min-width:0}
 .netbar .tier{margin-left:auto;margin-right:auto;font-size:var(--fs-xs);font-weight:600;letter-spacing:.04em;padding:3px 9px;border-radius:var(--radius-sm);border:1px solid var(--accent);color:var(--accent-hi)}
+.netbar .wallet{margin-left:auto}
 .netbar .wallet button{min-height:36px;padding:7px 13px}
 
 /* cards: one continuous shell surface separated by borders (quiet), or a standout form surface */

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How these apps were built · Signer Sidekick</title>
+<link rel="stylesheet" href="stacks.css?v=4">
+<style>
+.mdblock{background:var(--surface-raised);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;overflow:auto;font-family:var(--font-mono);font-size:var(--fs-xs);line-height:1.5;white-space:pre-wrap;word-break:break-word;color:var(--text-secondary);max-height:560px;margin-top:10px}
+.filetag{font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--text-tertiary)}
+.back{font-size:var(--fs-sm);font-weight:700}
+</style>
+</head>
+<body class="net-testnet">
+<div class="wrap">
+  <p style="margin:0 0 14px"><a class="back" href="index.html">← Signer Sidekick</a></p>
+  <h1>How these apps were built</h1>
+  <p class="sub">Why these are composable, standalone browser apps, and the skills and tiers behind them.</p>
+
+  <div class="card">
+    <p>Signer Sidekick is a set of standalone, single-file browser apps. Each page is plain HTML, CSS, and JavaScript that talks directly to the user's wallet and to public Stacks APIs; there is no backend of our own. That is a deliberate choice, guided by the two skills included verbatim below.</p>
+    <p>The first, static-first architecture, picks the least operationally expensive option that meets the real requirements: pre-rendered static assets by default, escalating to a server only for a named, concrete need. The second, Stacks dApp architecture, adds an axis generic web tools do not have: a security tier. A dApp can move real value, and much of the user-protecting logic (post-conditions, pinned contract identity, keys that stay in the wallet) lives in the frontend, not a backend. So the safeguards that never relax are applied from the first line of code, even on a throwaway testnet toy, so a promoted demo is not born insecure.</p>
+    <p>That is why these apps separate testnet from mainnet so deliberately. Testnet is a learning tier: faucet tokens, no real value. Mainnet moves real assets and forces the full set of safeguards. The network switch on every page is that boundary, made explicit, which is how the tier is judged here.</p>
+  </div>
+
+  <div class="card">
+    <h2>Static-first architecture</h2>
+    <p class="filetag">skill: static-first-architecture</p>
+    <pre class="mdblock">---
+name: static-first-architecture
+description: Choose the least operationally expensive architecture for prototypes, dashboards, data explorers, reports, and read-heavy internal tools. Use when selecting an architecture or hosting model, building a prototype/dashboard, replacing an API or container, or deciding whether a backend is needed at all. Prefer pre-rendered static assets; escalate to browser-side compute, then WASM-backed libraries, then serverless, then an always-on server — only for named, concrete requirements.
+---
+
+# Static-First Architecture
+
+Choose the least operationally expensive architecture that satisfies the real requirements. A static site on object storage/CDN/Pages is the default. Everything else is an escalation that must be justified by a named requirement. WASM is not an architecture: it is a compilation target used by some libraries (in-browser SQLite/DuckDB, ffmpeg, etc.). It appears in a project as a dependency pulled in at rung 3 of the ladder, never as a goal in itself. Do not instruct agents or teammates to "use WASM"; state the actual requirement (no backend, static deploy, local querying) and let wasm-backed libraries appear only where a dependency demands them.
+
+## Apply the architecture ladder
+
+Evaluate options in this order, and stop at the first rung that satisfies the requirements:
+
+1. **Pre-render.** Build UI and bounded results into static HTML, JavaScript, JSON, CSV, Parquet, or other immutable assets at build time. This includes SPAs: a React/Preact/Vue app built with Vite is static output and belongs on this rung.
+2. **Browser-side JavaScript.** Perform filtering, sorting, aggregation, visualization, and local persistence (IndexedDB) in plain JS over data shipped as static assets.
+3. **WASM-backed local querying.** Lazily load a wasm-based library (sql.js, wa-sqlite, DuckDB-WASM) for arbitrary local queries or compute that static snapshots and plain JS cannot answer economically. Prefer a static SQLite/DuckDB-style dataset over a hosted database for read-only prototypes. Use pre-compiled library binaries; never compile application code to WASM for this purpose.
+4. **Narrow serverless.** Add a small edge/serverless endpoint only for the irreducible secret, write, authorization, or freshness boundary.
+5. **Always-on server.** Introduce an API/database service only after naming the requirement that makes every previous rung insufficient.
+
+Do not ask the user to choose a hosting provider before inspecting the repository and requirements. Make the static-first choice by default and explain any escalation. Exception: if the sensitivity of the data is unclear and rungs 1–3 would ship the dataset to every visitor, ask before deploying.
+
+## Separate the data tiers
+
+For dashboards with both hot and arbitrary reads, use three tiers:
+
+- **Snapshot hot paths:** precompute initial pages and common reports as versioned JSON. Do not boot WASM for these views.
+- **Static bounded datasets:** ship complete, reasonably sized tables and implement sort/filter/page operations locally in JS.
+- **WASM long tail:** query a packaged database only for arbitrary drill-downs that cannot be enumerated safely at build time.
+
+Avoid using WASM for answers that can be precomputed cheaply. Lazy-load it on the first genuine tail query, not at page load.
+
+## Package WASM data for remote reads
+
+When querying a static database over HTTP:
+
+- Prune unused tables and columns from the deployed copy.
+- Add indexes for every interactive lookup and run planner statistics generation after indexing.
+- Bound high-fan-out graph expansions and result sets.
+- Batch lookups instead of issuing one query per rendered item.
+- Materialize compact serving projections when wide or scattered source tables cause excessive page reads.
+- Match remote request chunks to the database page size and verify host range-request behavior.
+- Content-address database files and snapshot generations to prevent mixed or stale deployments.
+- Test with production-scale data; small fixtures validate correctness, not remote-I/O performance.
+
+Measure actual response bodies and range `GET` requests. Do not count a bodyless `HEAD` response's advertised full-file `Content-Length` as transferred bytes.
+
+## Escalate only for concrete constraints
+
+Use server-side infrastructure when one or more of these requirements are real:
+
+- Secrets or privileged credentials must be used at request time.
+- Authoritative writes, transactions, server-enforced authorization, or multi-user coordination are required.
+- Data must not be downloadable by every authorized static-site visitor.
+- Freshness cannot be met by periodic artifact rebuilds or narrow serverless refreshes.
+- The working set is too large for target devices or economical ranged reads.
+- Compute is long-running, memory-heavy, unsupported in browsers, or must be trusted.
+- True realtime push or collaborative state is required.
+
+Keep the exception narrow. A write endpoint does not imply that reads, filtering, rendering, or analytics also belong on the server.
+
+## Protect security boundaries
+
+Treat every shipped static asset — including any WASM binary and packaged database — as downloadable by every visitor who can load the page. WASM provides no confidentiality, obfuscation, or sandboxing benefit over JavaScript; it runs in the same browser sandbox with the same origin and network access. Never embed secrets, API keys, or credentials in any client-side bundle regardless of format.
+
+Use platform-level access control (private Pages, authenticated CDN) only when downloading the complete deployed dataset is acceptable for each authorized viewer. Verify the platform actually enforces the access control assumed — for example, private GitHub Pages publishing requires GitHub Enterprise Cloud; on other plans the site is publicly reachable. If per-viewer restriction of rows or fields is required, keep the sensitive data behind an authenticated server boundary (rung 4 or 5).
+
+## Implement and verify
+
+1. Identify reads, writes, secrets, authorization, freshness, data size, and target devices.
+2. State the selected rung of the architecture ladder and the evidence for any escalation.
+3. Build a reproducible static artifact and keep deployment host-agnostic where practical.
+4. Verify correctness against the source implementation or database with parity tests.
+5. Gate representative scenarios on transferred bytes, request count, WASM boot, and usable-content latency.
+6. Test the exact production-sized artifact on a range-capable local server before claiming performance.
+
+Prefer a deployable artifact over infrastructure scaffolding. Do not add Docker, a hosted database, queues, or an API process merely because they are conventional.</pre>
+  </div>
+
+  <div class="card">
+    <h2>Stacks dApp architecture</h2>
+    <p class="filetag">skill: stacks-dapp-architecture</p>
+    <pre class="mdblock">---
+name: stacks-dapp-architecture
+description: "Choose the architecture, deployment, and security posture for a Stacks (or similar wallet-and-chain) decentralized application: playgrounds, single-feature demos, testnet experiments, and production value-moving dApps such as swaps, DEXs, lending, and token sales. Use when building or deploying a dApp frontend, deciding whether it needs a backend, wiring wallet connection and contract calls, or moving something from a demo to real value. Governs the security tier separately from the deployment cost, and enforces a hard boundary between throwaway demos and anything that moves real assets."
+---
+
+## Scope and relationship to static-first
+
+This skill governs dApps. It sits alongside `prefer-static-builds`, which governs generic prototype deployment. Read both. A dApp frontend is still a static build in the ordinary case (see below), so the deployment ladder from that skill applies. What this skill adds is a **second, independent axis: security tier.** Cheap deployment and relaxed security are not the same choice, and the dangerous mistake is carrying a playground's relaxed security into something that moves real value while keeping the playground's cheap deployment.
+
+Do not treat a dApp as "just a quick thing you show colleagues." A dApp can be that — a playground or a single-feature testnet demo — but the same code shape also underlies swaps and token sales, and the frontend, not a backend, is where much of the user-protecting security lives. Establish the tier explicitly before writing code.
+
+## Why a dApp usually needs no backend of its own
+
+A Stacks dApp is close to the ideal static-first case, because the concerns that normally force a server are handled by infrastructure that is neither yours nor a server you run:
+
+- **Keys and signing: the wallet.** Leather, Xverse, and other SIP-030 wallets hold the seed and sign. The frontend talks to them over the injected provider / `@stacks/connect` (currently migrating from 7.x JWT-based Connect to 8.x SIP-030 JSON-RPC; verify which the target wallets support before depending on it). Keys never touch your frontend or any server.
+- **Writes: the wallet.** `stx_callContract` / `stx_transferStx` build, the wallet signs, the wallet broadcasts. There is no write endpoint of yours to host.
+- **Auth: wallet connect + signature.** Connection plus SIP-018 structured-message signing replaces credential servers. No session backend.
+- **Reads: the public node / Hiro API.** Balances, contract state, and tx status come from public chain infrastructure over HTTPS. That is a public read, not your secret backend.
+
+Consequence for the escalation logic in `prefer-static-builds`: the triggers "secrets used at request time," "authoritative writes," and "server-enforced authorization" are, for a dApp, **satisfied by the wallet and the chain and therefore do NOT justify a backend of your own.** Do not stand up a server just because a dApp signs, writes, or authenticates.
+
+A dApp does have its own genuine backend triggers, distinct from the generic list:
+
+- Data the public API cannot serve at the needed shape or freshness (a custom indexer + database).
+- A transaction relayer or sponsored-transaction service.
+- Off-chain order matching or an order book.
+- Private per-user data that must not be world-readable.
+
+Escalate only for those, and keep the exception narrow.
+
+## Reads: what can and cannot be snapshotted
+
+Live chain state — current balances, mempool, latest block, current pool reserves — is the "constantly changing" case and cannot be served from a static snapshot. A static SQLite/JSON snapshot is stale the moment a block lands. Read live state from the node/Hiro API.
+
+Immutable historical or indexed data (past events, closed epochs) can be shipped as a static dataset and queried client-side per the `prefer-static-builds` data ladder. That is an optimization to avoid running your own indexer; it is never the source of truth for anything a user acts on. Never snapshot state that a user will make a value decision against.
+
+## WASM in a dApp
+
+Same rule as `prefer-static-builds`: do not compile the project to WASM. Use precompiled WASM libraries only where they earn it — secp256k1 signing/hashing helpers, or a local Clarity VM. Note that `clar2wasm` is primarily the node-runtime compiler; the browser-usable Clarity path is the Clarinet / Clarity-VM WASM simnet used by web IDEs and the JS test SDK. That simnet is a **playground and testing** tool (run and inspect contract calls with no network), not a per-dApp production runtime. Verify maturity before depending on it.
+
+## Security tiers (the second axis)
+
+Set the tier before building. The tier fixes both the financial exposure and — critically — which safeguards are allowed to be absent.
+
+**Tier 0 — Playground / learning.** Local Clarity simnet (Clarinet WASM) or a scratch testnet contract. No real value, often no network. Purpose: learn the tech, try an idea. Deployment can be a private static build (org-only Pages is fine). Financial safeguards: not applicable, nothing is at stake.
+
+**Tier 1 — Single-feature testnet demo.** One flow, on testnet, faucet tokens, shown to colleagues. No real value. Deployment: private static build. Financial safeguards: still not applicable.
+
+**Tier 2 — Single-feature mainnet demo.** Real network, real (if small) value, limited scope. The moment real value is involved, full user-protecting safeguards apply regardless of how small the feature looks. There is no "it's only a demo" discount once mainnet assets can move.
+
+**Tier 3 — Production value-moving dApp (swap, DEX, lending, sale, treasury).** Real value, adversarial environment, multiple users. Maximum posture, plus contract-level concerns (audit, oracle trust, front-running/MEV, governance) that are out of scope for a frontend but must be named and owned by someone.
+
+### The invariants that never relax
+
+These are structural, not financial. They cost nothing on testnet and they are the habits that get carried forward. Apply them at **every** tier, including playgrounds, so that a promoted demo is not born insecure:
+
+- **Post-conditions on every asset-moving call, in Deny mode, with explicit amounts.** Post-conditions are declared in your frontend and enforced at the protocol level; the wallet shows them to the user. They are the primary defense against a malicious or buggy contract moving more than intended. Allow mode and missing post-conditions are the default failure and must not appear even in a testnet toy.
+- **Never trust client-side validation for correctness.** Frontend checks are UX, not security. The contract and the post-conditions are the enforcement.
+- **Pin and verify contract identity.** Hardcode the exact contract principal you intend to call; verify the deployed contract is the one you think it is. A fake or swapped contract address is a live attack, not a testnet-only concern.
+- **Scope token approvals/allowances tightly.** Prefer exact amounts over unlimited approvals.
+- **Keys stay in the wallet.** Never handle a seed or private key in frontend code or config, not even a throwaway one, because the pattern propagates.
+
+### What scales with the tier
+
+- **Financial safeguards** (slippage bounds tuned to pool depth, sanity checks on displayed prices, confirmation friction, rate limits): irrelevant at Tier 0–1, mandatory from Tier 2 up.
+- **Slippage tolerance** for any swap is a frontend-set parameter and a top cause of real-world losses when misconfigured — too loose invites sandwich/front-running, too tight wastes fees on failed txs. Owned by the frontend at Tier 2+.
+- **Front-running / MEV awareness:** mempool visibility means a value-moving swap's intent is public before it lands. This is largely a contract/UX concern; name it and assign it at Tier 3.
+- **Frontend integrity and anti-phishing:** for a public Tier 3 dApp the frontend must be publicly reachable, so "org-only access control" is not a security control here — interface phishing (fake URLs mimicking the real dApp) is a leading incident category. Integrity and authenticity of the served frontend matter more than restricting who can load it.
+
+## The playground-to-production guard
+
+The core risk: someone builds a Tier 0/1 demo, it works, and it silently becomes a Tier 3 dApp while keeping the demo's relaxed security and cheap deployment. Prevent it structurally.
+
+- **Mainnet + real value forces Tier 2+ automatically.** There is no path where a mainnet asset can move under playground rules. If the target is mainnet, apply Tier 2 safeguards from the first line of code.
+- **The invariants above are enforced even at Tier 0**, so a promoted demo starts from correct patterns rather than teaching post-condition-free, allow-mode, or unpinned-contract habits that then ship to mainnet.
+- **Crossing from Tier 1 to Tier 2+ is an explicit promotion, not a config flip.** Require, and surface to the user, a checklist: switch network to mainnet deliberately; confirm post-conditions are Deny mode with explicit amounts on every asset call; verify pinned contract identity on mainnet; add slippage bounds and price sanity checks; remove every testnet shortcut (faucet assumptions, disabled checks, hardcoded values); and for Tier 3, confirm the contract has been audited and that oracle, front-running, and governance risks have an owner. Do not let a demo reach real users by quietly repointing an RPC URL.
+- **State the tier in the output.** When building or deploying, say which tier this is and which safeguards are consequently active or deferred, so the boundary is visible rather than assumed.
+
+Be conservative about the tier. When unsure whether something is a demo or the seed of a production dApp, treat it as the higher tier. The cost of over-securing a playground is a few unnecessary post-conditions. The cost of under-securing a swap is user funds.</pre>
+  </div>
+
+  <div class="card">
+    <h2>Design and tone of voice</h2>
+    <p class="filetag">skill: reserved</p>
+    <p>Reserved for a design and tone-of-voice skill, to be added here later.</p>
+    <p>For now these apps share one stylesheet, <code>stacks.css</code>, vendored from the Stacks Labs design tokens: dark-only, self-hosted OFL fonts, no external CSS or CDN, and an accent that flips per network (violet on testnet, Stacks orange on mainnet). The rules that keep each page standalone: one self-contained file per app, no build step, no framework, and only <code>esm.sh</code> module imports for the Stacks libraries.</p>
+  </div>
+
+  <p class="foot">Signer Sidekick is interim tooling. The skills above are included verbatim.</p>
+</div>
+</body>
+</html>
