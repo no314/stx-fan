@@ -55,17 +55,34 @@ dApps 4 and 5 show, under the signer-manager input, a non-blocking line that slo
 
 dApp 3 links the repo's reference contracts and shows raw + canonical SHA-256 of the pasted source (canonicalization ported from `manager-adapter.ts`):
 
-- Mainnet reference is [stacks-core `signer-manager.clar`](https://github.com/stacks-network/stacks-core/blob/efc34a07a225c4b950ab9404a1652aa5e14affaf/contrib/core-contract-tests/contracts/signer-manager.clar): raw `48d22cf832f2b61118327265b6b7f303c911a98bdb5af2a54a931a1cf432e316`, canonical `004da6bde5f91b9cdf555a020494cab73d29cc75733ad0c05e4f4b32a94e251b`.
-- Testnet reference is [no314/stx-fan `signer-manager`](https://github.com/no314/stx-fan/blob/main/signer/contract/signer-manager) (canonical `409e8cfa6a447e159062536aff677ca6df7e04e5c7ced92189b6dd90a4689c51`), which points sBTC token/registry/withdrawal at `SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1`. The sidekick devnet artifact embeds sBTC contracts that don't exist on pox5-testnet and fails there.
+- Mainnet reference is the signer-sidekick generated mainnet `signer-manager.clar`, pinned to the immutable [PR #9 head commit `214c67e`](https://github.com/stx-labs/signer-sidekick/blob/214c67eae2f1ce1c3c818ab6528ce4f2e1bdc22a/contracts/reference-manager/generated/mainnet/signer-manager.clar): canonical `004da6bde5f91b9cdf555a020494cab73d29cc75733ad0c05e4f4b32a94e251b`. (That repo file's own raw SHA-256 is `05aaf409ed285f02d8b6d5d540f94feb8baea139a14263b7e7de7ba9f054d3c5`; the app pins raw `48d22cf832f2b61118327265b6b7f303c911a98bdb5af2a54a931a1cf432e316` from a reformatted copy — both share the canonical, which is the reliable identity.)
+- Testnet reference is no314/stx-fan `signer-manager`, pinned to the immutable [PR #2 head commit `efe2640`](https://github.com/no314/stx-fan/blob/efe2640a629ce6a25270f82bfe13d710fe07b699/signer/contract/signer-manager) (canonical `97e003554c90ff8cefe0a17ee7f52e47fd42464a464ff02f666b117740e84214`, raw `b9c49ce03453a734fed8cf0d9202adb807d53d585108cdf4839be86728693e76`). This is the same `claim-staker-rewards`→`{ earned, withdrawal-request }` change as mainnet PR #9, with testnet principals: pox-5 `ST000…AMW42H` and sBTC token/registry/withdrawal at `SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1` (the sidekick devnet artifact embeds sBTC contracts that don't exist on pox5-testnet and fails there).
 - dApp 3 auto-flags a match on raw **or** canonical. The difference between networks is the embedded PoX-5 boot principal and sBTC contracts — verify the embedded sBTC contracts exist on your target network.
+
+### How the source check works, and its limits
+
+dApp 3 compares the source you paste against the pinned reference two ways and flags a match on **either**:
+
+- **Raw SHA-256** — hash of the exact bytes you paste. Any byte difference (a space, a newline, line endings) changes it.
+- **Canonical SHA-256** — hash after stripping `;;` comments and collapsing runs of whitespace to single spaces (string literals preserved). Survives re-indentation, line-wrapping, and blank-line changes, but is still sensitive to spacing *around* parentheses.
+- **Structure SHA-256** — a formatting-independent token hash: it tokenizes the Clarity (parentheses, braces, atoms, string literals) and drops **all** whitespace, comments, and commas. A structure match means the code is identical even after `clarinet format` or any re-indentation. This is the check that catches a reformatted-but-identical deployment; it does not cover comment text.
+
+The check is deliberately narrow, and will report **"unverified" for a contract that is logically identical** in these cases:
+
+- **Reformatting.** The canonical hash collapses whitespace *runs* but does not normalize spacing *around delimiters*: `(ok true)` and `( ok true )` canonicalize differently, so `clarinet format` (and similar tools) change both the raw and canonical hashes. The **Structure SHA-256 covers this** — it token-matches regardless of formatting, so a reformatted-but-identical contract still shows a match (as "structure match — reformatted"). Comment-only differences are also ignored by the structure hash.
+- **Embedded principals.** The hash covers the whole source, including the embedded PoX-5 boot address and sBTC contract principals, so testnet vs mainnet references necessarily differ, and any principal edit changes the hash.
+- **Advisory, not on-chain verification.** The check compares your pasted text to a pinned reference hash. It does not read the deployed contract's on-chain source, and does not use the same algorithm/canonicalization as Clarity's `contract-hash?` (which is `SHA-512/256` over the deployed bytes — a different hash function *and* a different normalization, so it will never equal these SHA-256 values). Treat a match as "this text equals the reviewed reference," not as proof of what is deployed.
+
+The Structure SHA-256 handles reformatted deployments directly. For an ecosystem-standard match to `clarinet format` + `SHA-512/256` (what Clarity's `contract-hash?` returns, per draft SIP-043), a WASM formatter would be needed — tracked in `IMPROVEMENTS.md`.
 
 **Deploy payload / Ledger (temporary).** The manager uses Clarity-4+ constructs (`as-contract?`), so it must deploy as a Clarity-6 VersionedSmartContract (`0x06`, `clarityVersion: 6`). The Ledger Stacks app can't sign `0x06` yet, and omitting the version (`0x01`) makes the node analyse under the network's default Clarity (v3) → `as-contract?` unresolved → deploy aborts. So: **deploy from a software wallet**, then use dApp 3's **Admin rotation** to move admin to your cold/Ledger key (`update-admin` is a normal `0x02` call the Ledger signs). Once the Ledger app supports Clarity 6, deploy straight from hardware.
 
 ## Running them
 
 1. Install Leather. For testnet, add a **custom network** with key `pox5-testnet` and API URL `https://api.testnet-pox5.hiro.so` (Xverse is not enabled for that custom network).
-2. Open `index.html`, or any page directly. They load `@stacks/connect@8.2.6`, `@stacks/transactions@7.5.0`, `@stacks/stacking@7.5.0`, `@stacks/wallet-sdk@7.5.0`, and `@noble/secp256k1@2.1.0` from esm.sh on first use — internet needed (except dApp 2, run offline after it loads once).
-3. Serve over `http://` (`python3 -m http.server` in this folder) rather than `file://` — some wallets restrict `file://` origins.
+2. Open `index.html`, or any page directly. Each page loads its Stacks libraries from a pinned esm.sh URL, and **falls back to the vendored copies in `js/` on any failure** (CDN unreachable or a broken upstream publish), so the apps keep working offline and survive npm/CDN breakage. `@stacks/connect` loads directly from `js/` because esm.sh currently cannot resolve its mixed v6/v7 dependency graph.
+3. Keep the `js/` folder next to the HTML files. It contains self-contained bundles (`connect.js`, `transactions.js`, `stacking.js`, `walletsdk.js`, `secp.js`) built from the pinned versions; they are the offline fallback. To refresh them, re-bundle the pinned versions with esbuild and replace the files.
+4. Serve over `http://` (`python3 -m http.server` in this folder) rather than `file://` — some wallets restrict `file://` origins, and `file://` also blocks the `js/` module fallback.
 4. Fund the relevant address before deploying/registering/staking (faucet on testnet).
 
 ## Security tier
