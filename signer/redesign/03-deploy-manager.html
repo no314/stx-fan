@@ -5,13 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Deploy signer-manager · Signer Sidekick</title>
 <link rel="stylesheet" href="stacks.css?v=4">
-<style>
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
-.modal-overlay[hidden]{display:none}
-.modal-box{background:var(--surface);border:1px solid var(--warn);border-radius:var(--radius-lg);padding:22px 24px;max-width:460px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
-.modal-box h3{margin:0 0 10px;color:var(--warn)}
-.modal-box p{margin:0 0 14px}
-</style>
 </head>
 <body class="net-testnet">
 <div class="wrap">
@@ -33,7 +26,7 @@
 
   <h1>Deploy signer-manager</h1>
   <p class="sub">Deploy the reviewed <code>signer-manager</code> contract. The deploying address becomes the manager admin, so deploy from a wallet you control, then move admin to a cold key below.<span class="info" tabindex="0" role="button" aria-label="About the source" data-tip="This tool deploys exactly the source you paste and shows its hash. Source and name come from your reviewed render, in line with your organisation's process.">i</span></p>
-  <p class="sub" style="margin-top:-8px;font-size:var(--fs-xs)"><strong>Leather only.</strong> Xverse isn't supported — it can't enforce the post-conditions these calls rely on. <a href="xverse.html" target="_blank" rel="noopener">Why? →</a></p>
+  <p class="sub" style="margin-top:-8px;font-size:var(--fs-xs)">Pick a wallet at connect. Xverse is shown but can't be used — it can't enforce the post-conditions these calls rely on. <a href="xverse.html" target="_blank" rel="noopener">Why? →</a></p>
   <div id="status" class="status"></div>
 
   <div class="card">
@@ -107,21 +100,13 @@
   <p class="foot">Keys stay in the wallet. Testnet uses the violet accent, mainnet the Stacks orange. Signer Sidekick is interim tooling: verify the source hash and every on-chain result yourself.</p>
 </div>
 
-<div class="modal-overlay" id="xvmodal" hidden role="dialog" aria-modal="true" aria-labelledby="xvtitle">
-  <div class="modal-box">
-    <h3 id="xvtitle"><span id="xvname">This wallet</span> isn't supported</h3>
-    <p><span id="xvname2">This wallet</span> can't be used with these apps yet. They pass the network on connect and attach post-conditions to every contract call and deploy — safety guarantees this wallet's SIP-030 implementation doesn't currently support, so signing through it would drop those protections.</p>
-    <p>Please connect with <strong>Leather</strong>. <a href="xverse.html" target="_blank" rel="noopener">Read the full explanation →</a></p>
-    <div class="row"><button id="xvclose">Got it</button></div>
-  </div>
-</div>
-
 <script type="module">
 // Robust loader: pinned esm.sh CDN primary, vendored ./js/ local fallback on any failure.
 // connect has no working esm.sh URL (its v6/v7 split breaks every ?deps pin), so it is local-only.
 async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
 const TX_CDN="https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0";
-const { connect, request, disconnect, getSelectedProviderId } = await loadLib(null, "./js/connect.js");
+const { request, disconnect } = await loadLib(null, "./js/connect.js");
+const { pickAndConnect } = await loadLib(null, "./js/wallet-select.js");
 const { principalCV, trueCV, falseCV, uintCV, cvToHex, hexToCV, ClarityType } = await loadLib(TX_CDN, "./js/transactions.js");
 
 const NETWORKS = {
@@ -254,41 +239,22 @@ $("menu").addEventListener("click",e=>e.stopPropagation());
 document.addEventListener("click",()=>{ if(menuOpen) openMenu(false); });
 $("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; walletName=null; paintWallet(); updatePrincipal(); gate(); rotateGate(); feeGate(); });
 
-// Only Leather is supported: its SIP-030 implementation honours the network on connect and
-// post-conditions on stx_callContract/stx_deployContract, which this app's safety model requires.
-// getSelectedProviderId() reflects the wallet the user picked in the modal (stored even if the
-// connect request then fails), so we can catch an unsupported pick in both the success and error paths.
-function selectedWalletId(){ try{ return String(getSelectedProviderId()||""); }catch{ return ""; } }
-function isUnsupportedWallet(){ const id=selectedWalletId(); return !!id && !/leather/i.test(id); }
-async function rejectUnsupportedWallet(){
-  const id=selectedWalletId();
-  try{ await disconnect(); }catch{}
-  account=null; walletName=null; paintWallet(); updatePrincipal(); gate(); rotateGate(); feeGate();
-  const nm = /xverse/i.test(id) ? "Xverse" : "This wallet";
-  $("xvname").textContent=nm; $("xvname2").textContent=nm; $("xvmodal").hidden=false;
-}
-function hideXv(){ $("xvmodal").hidden=true; }
-$("xvclose").addEventListener("click",hideXv);
-$("xvmodal").addEventListener("click",e=>{ if(e.target===$("xvmodal")) hideXv(); });
-document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!$("xvmodal").hidden) hideXv(); });
-
+// Connection goes through our own wallet picker (js/wallet-select.js): it lists the wallets,
+// connects a supported one directly, and shows Xverse as "Not supported" linking to xverse.html
+// (Xverse can't enforce the post-conditions these calls require). "cancel" = user closed the picker.
 async function doConnect(){
   const n=net();
   try{
-    // Restrict the selector to Leather. The vendored connect-ui only records the picked provider on a
-    // SUCCESSFUL request and fires the request inside the modal callback, so a wallet that hangs (Xverse
-    // sends only a Bitcoin provider for Stacks getAddresses) leaves connect() pending forever with no
-    // stored id — a post-hoc warning can't fire. Allow-listing Leather prevents the hang entirely.
-    const res=await connect({network:$("network").value,forceWalletSelect:true,approvedProviderIds:["LeatherProvider"]});
-    if(isUnsupportedWallet()){ await rejectUnsupportedWallet(); return; }
+    const res=await pickAndConnect($("network").value);
     const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
     if(!e){conStat("The wallet returned no STX address.","err");return;}
     account=e.address.toUpperCase(); paintWallet(); resolveWalletName();
     if(!n.stxPrefix.test(account)) conStat(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err");
     updatePrincipal(); gate(); rotateGate(); feeGate();
   }catch(e){
-    if(isUnsupportedWallet()){ await rejectUnsupportedWallet(); return; }
-    conStat("Connection failed or was cancelled.","err");
+    if(e&&e.code==="cancel") return;
+    const c=e&&typeof e==="object"&&"code"in e?Number(e.code):null;
+    conStat(c===4001||c===-31001?"Connection cancelled in wallet.":"Connection failed or was cancelled.","err");
   }
 }
 
