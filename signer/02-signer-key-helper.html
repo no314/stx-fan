@@ -73,7 +73,7 @@ pre{background:var(--surface-input);border:1px solid var(--border);border-radius
       <b style="color:var(--warn)">Mostly for testing.</b> This computes the <code>register-self</code> grant signature <b>in the browser</b>, so it needs the signer private key here. On a real signer you generate it on the node with <code>stacks-signer generate-staking-signature</code> and the key never leaves the host. It also works for mainnet, but you generally should not need it there.
     </div>
     <label>Network (sets the domain <code>chain-id</code>; the signature is network-specific)</label>
-    <select id="g-net"><option value="testnet" selected>PoX-5 Testnet (chain-id 0x80000005)</option><option value="mainnet">Mainnet (chain-id 0x00000001)</option></select>
+    <select id="g-net"><option value="testnet" selected>Hiro Testnet (chain-id 0x80000000)</option><option value="mainnet">Mainnet (chain-id 0x00000001)</option></select>
     <div id="g-mwarn" class="warnbox" style="display:none;background:rgba(182,35,36,.12);border-color:var(--bad)"><b style="color:var(--bad)">Mainnet:</b> you are handling a mainnet signer key in a browser. Only if you fully accept the risk.</div>
     <label>Signer private key (64 hex, or 66 hex with the <code>01</code> flag)</label>
     <input id="g-priv" placeholder="paste signer private key" spellcheck="false">
@@ -174,7 +174,7 @@ $("clear").addEventListener("click",()=>{
 //   domain = { name:"pox-5-signer", version:"1.0.0", chain-id:<net> }
 //   msg    = { topic:"grant-authorization", signer-manager:<principal>, auth-id:<uint> }
 const SIP018_PREFIX = Uint8Array.from([0x53,0x49,0x50,0x30,0x31,0x38]);
-const CHAIN_ID = { testnet: 2147483653n, mainnet: 1n };
+const CHAIN_ID = { testnet: 2147483648n, mainnet: 1n };
 const concatBytes=(...arr)=>{const n=arr.reduce((s,a)=>s+a.length,0);const o=new Uint8Array(n);let i=0;for(const a of arr){o.set(a,i);i+=a.length;}return o;};
 const sha256b=async b=>new Uint8Array(await crypto.subtle.digest("SHA-256",b));
 const serBytes=cv=>{const s=serializeCV(cv);return hexToBytes(typeof s==="string"?s:toHex(s));};

@@ -21,7 +21,7 @@
     <div class="nb-left">
       <span id="netlabel">TESTNET</span>
       <select id="network" aria-label="Network">
-        <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
+        <option value="testnet" selected>Hiro Testnet (primary)</option>
         <option value="mainnet">Mainnet</option>
       </select>
     </div>
@@ -75,7 +75,7 @@
 async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
 const { principalCV, bufferCV, uintCV, cvToHex, hexToCV, ClarityType } = await loadLib("https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0", "./js/transactions.js");
 const NETWORKS={
-  "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
+  "testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet.hiro.so",mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
   "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",mainnet:true,expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
 };
 const MIN_USTX=50_000_000_000n;
@@ -84,7 +84,7 @@ function net(){return NETWORKS[$("network").value];}
 function explorerTx(t){ t=String(t).replace(/^0x/i,"").toLowerCase(); const n=net(); return n.mainnet?`https://explorer.hiro.so/txid/0x${t}?chain=mainnet`:`https://explorer.hiro.so/txid/0x${t}?chain=testnet&api=${n.api}`; }
 // Reflect the selected network (and optional custom read node) in the URL, so a refresh keeps state
 // and a signer can point reads at their own node. api affects reads only.
-const CHAIN2KEY={testnet:"pox5-testnet",mainnet:"mainnet"}, KEY2CHAIN={"pox5-testnet":"testnet",mainnet:"mainnet"};
+const CHAIN2KEY={testnet:"testnet",mainnet:"mainnet"}, KEY2CHAIN={"testnet":"testnet",mainnet:"mainnet"};
 function applyUrlNet(){ const p=new URLSearchParams(location.search); const key=CHAIN2KEY[p.get("chain")]; if(key&&NETWORKS[key]) $("network").value=key; const api=p.get("api"); if(api&&/^https:\/\//i.test(api)) NETWORKS[$("network").value].api=api.replace(/\/+$/,""); }
 function writeUrlNet(){ const key=$("network").value; const p=new URLSearchParams(location.search); p.set("chain",KEY2CHAIN[key]); p.set("api",NETWORKS[key].api); history.replaceState(null,"",location.pathname+"?"+p.toString()); }
 function paintNet(){const n=net();document.body.classList.toggle("net-mainnet",n.mainnet);document.body.classList.toggle("net-testnet",!n.mainnet);$("netlabel").textContent=n.label;$("exppox").textContent=n.expectedPox;}

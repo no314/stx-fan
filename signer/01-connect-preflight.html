@@ -12,7 +12,7 @@
     <div class="nb-left">
       <span id="netlabel">TESTNET</span>
       <select id="network" aria-label="Network">
-        <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
+        <option value="testnet" selected>Hiro Testnet (primary)</option>
         <option value="mainnet">Mainnet</option>
       </select>
     </div>
@@ -61,12 +61,13 @@
 // connect has no working esm.sh URL (its v6/v7 split breaks every ?deps pin), so it is local-only.
 async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
 const TX_CDN="https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0";
-const { connect, disconnect } = await loadLib(null, "./js/connect.js");
+const { disconnect } = await loadLib(null, "./js/connect.js");
+const { pickAndConnect } = await loadLib(null, "./js/wallet-select.js");
 const { principalCV, uintCV, cvToHex, hexToCV, ClarityType } = await loadLib(TX_CDN, "./js/transactions.js"); // BNS-V2 wallet-name lookup
 
 const NETWORKS = {
-  // caip = CAIP-2 network id (stacks:<decimal chain id>). pox5-testnet chain 0x80000005 = 2147483653.
-  "pox5-testnet": { label:"TESTNET", tier:"TIER 1", chainId:0x80000005, caip:"stacks:2147483653", api:"https://api.testnet-pox5.hiro.so", stxPrefix:/^S[TN]/, mainnet:false, expectedPox:"ST000000000000000000002AMW42H.pox-5" },
+  // caip = CAIP-2 network id (stacks:<decimal chain id>). Primary testnet chain 0x80000000 = 2147483648.
+  "testnet": { label:"TESTNET", tier:"TIER 1", chainId:0x80000000, caip:"stacks:2147483648", api:"https://api.testnet.hiro.so", stxPrefix:/^S[TN]/, mainnet:false, expectedPox:"ST000000000000000000002AMW42H.pox-5" },
   "mainnet":      { label:"MAINNET", tier:"TIER 2", chainId:0x00000001, caip:"stacks:1",          api:"https://api.hiro.so",            stxPrefix:/^S[PM]/, mainnet:true,  expectedPox:"SP000000000000000000002Q6VF78.pox-5" }
 };
 const MIN_USTX = 50_000_000_000n; // POX5_SIGNER_SET_MIN_USTX
@@ -76,7 +77,7 @@ let account = null, menuOpen = false, walletName = null;
 function net(){ return NETWORKS[$("network").value]; }
 // Reflect the selected network (and optional custom read node) in the URL, so a refresh keeps state
 // and a signer can point reads at their own node. api affects reads only, never what the wallet signs.
-const CHAIN2KEY={testnet:"pox5-testnet",mainnet:"mainnet"}, KEY2CHAIN={"pox5-testnet":"testnet",mainnet:"mainnet"};
+const CHAIN2KEY={testnet:"testnet",mainnet:"mainnet"}, KEY2CHAIN={"testnet":"testnet",mainnet:"mainnet"};
 function applyUrlNet(){ const p=new URLSearchParams(location.search); const key=CHAIN2KEY[p.get("chain")]; if(key&&NETWORKS[key]) $("network").value=key; const api=p.get("api"); if(api&&/^https:\/\//i.test(api)) NETWORKS[$("network").value].api=api.replace(/\/+$/,""); }
 function writeUrlNet(){ const key=$("network").value; const p=new URLSearchParams(location.search); p.set("chain",KEY2CHAIN[key]); p.set("api",NETWORKS[key].api); history.replaceState(null,"",location.pathname+"?"+p.toString()); }
 function paintNet(){
@@ -149,9 +150,9 @@ $("disconnect").addEventListener("click", async ()=>{ openMenu(false); try{ awai
 
 async function doConnect(){
   try{
-    // Pass the network explicitly on connect, or Leather defaults to mainnet. The value is the
-    // custom-network key configured in Leather ("pox5-testnet"); it must match exactly.
-    const res = await connect({ network: $("network").value, forceWalletSelect: true });
+    // Connect via our own wallet picker (js/wallet-select.js): the network name is passed through so
+    // the wallet uses the right network, and Xverse is shown "Not supported" (links to xverse.html).
+    const res = await pickAndConnect($("network").value);
     const entry = (res?.addresses||[]).find(a => typeof a.address==="string" && /^S/.test(a.address));
     if(!entry){ say("The wallet returned no STX address.","err"); return; }
     account = { address: entry.address.toUpperCase(), publicKey: entry.publicKey || "" };
@@ -160,7 +161,7 @@ async function doConnect(){
     paintWallet();
     resolveWalletName();
     await loadReads();
-  }catch(e){ say("Connection failed or was cancelled.","err"); }
+  }catch(e){ if(e&&e.code==="cancel") return; say("Connection failed or was cancelled.","err"); }
 }
 
 async function loadReads(){
@@ -190,7 +191,7 @@ function runChecks(pox, balance){
   const prefixOk = n.stxPrefix.test(account.address);
   add(prefixOk?"ok":"bad", prefixOk
     ? `Wallet is a ${n.label} address.`
-    : `Wallet is not a ${n.label} address. Switch the wallet network and reconnect.<span class="info" tabindex="0" role="button" aria-label="Network help" data-tip="On testnet, add a Leather custom network with key pox5-testnet and API https://api.testnet-pox5.hiro.so, then select the correct account.">i</span>`);
+    : `Wallet is not a ${n.label} address. Switch the wallet network and reconnect.<span class="info" tabindex="0" role="button" aria-label="Network help" data-tip="On testnet, select Leather's built-in Testnet network (the primary Hiro testnet, api.testnet.hiro.so) and the correct account, then reconnect.">i</span>`);
 
   // Distinguish a genuine wrong-network (different boot principal, e.g. SP vs ST) from PoX-5 simply not
   // being activated yet (same boot principal, node still reports pox-4 because Epoch 4.x is not live).

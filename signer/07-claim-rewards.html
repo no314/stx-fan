@@ -43,7 +43,7 @@ input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
     <div class="nb-left">
       <span id="netlabel">TESTNET</span>
       <select id="network" aria-label="Network">
-        <option value="pox5-testnet" selected>Hiro PoX-5 Testnet</option>
+        <option value="testnet" selected>Hiro Testnet (primary)</option>
         <option value="mainnet">Mainnet</option>
       </select>
     </div>
@@ -131,11 +131,12 @@ input[type=checkbox]{width:16px;height:16px;flex:0 0 16px}
 // connect has no working esm.sh URL (its v6/v7 split breaks every ?deps pin), so it is local-only.
 async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
 const TX_CDN="https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0";
-const { connect, request, disconnect } = await loadLib(null, "./js/connect.js");
+const { request, disconnect } = await loadLib(null, "./js/connect.js");
+const { pickAndConnect } = await loadLib(null, "./js/wallet-select.js");
 const { principalCV, uintCV, listCV, someCV, noneCV, cvToHex, hexToCV, ClarityType } = await loadLib(TX_CDN, "./js/transactions.js");
 
 const NETWORKS={
-  "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
+  "testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,expectedPox:"ST000000000000000000002AMW42H.pox-5"},
   "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,expectedPox:"SP000000000000000000002Q6VF78.pox-5"}
 };
 const $=id=>document.getElementById(id);
@@ -144,7 +145,7 @@ function net(){return NETWORKS[$("network").value];}
 function explorerTx(t){ t=String(t).replace(/^0x/i,"").toLowerCase(); const n=net(); return n.mainnet?`https://explorer.hiro.so/txid/0x${t}?chain=mainnet`:`https://explorer.hiro.so/txid/0x${t}?chain=testnet&api=${n.api}`; }
 // Reflect the selected network (and optional custom read node) in the URL, so a refresh keeps state
 // and a signer can point reads at their own node. api affects reads only, never what the wallet signs.
-const CHAIN2KEY={testnet:"pox5-testnet",mainnet:"mainnet"}, KEY2CHAIN={"pox5-testnet":"testnet",mainnet:"mainnet"};
+const CHAIN2KEY={testnet:"testnet",mainnet:"mainnet"}, KEY2CHAIN={"testnet":"testnet",mainnet:"mainnet"};
 function applyUrlNet(){ const p=new URLSearchParams(location.search); const key=CHAIN2KEY[p.get("chain")]; if(key&&NETWORKS[key]) $("network").value=key; const api=p.get("api"); if(api&&/^https:\/\//i.test(api)) NETWORKS[$("network").value].api=api.replace(/\/+$/,""); }
 function writeUrlNet(){ const key=$("network").value; const p=new URLSearchParams(location.search); p.set("chain",KEY2CHAIN[key]); p.set("api",NETWORKS[key].api); history.replaceState(null,"",location.pathname+"?"+p.toString()); }
 function shortAddr(a){ return a.slice(0,5)+"…"+a.slice(-4); }
@@ -247,14 +248,14 @@ $("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await d
 async function doConnect(){
   const n=net();
   try{
-    const res=await connect({network:$("network").value,forceWalletSelect:true});
+    const res=await pickAndConnect($("network").value);
     const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
     if(!e){say("The wallet returned no STX address.","err");return;}
     account=e.address.toUpperCase(); paintWallet(); resolveWalletName();
     if(!$("staker").value) $("staker").value=account;
     if(!n.stxPrefix.test(account)) say(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err");
     gate();
-  }catch(e){say("Connection failed or was cancelled.","err");}
+  }catch(e){ if(e&&e.code==="cancel") return; say("Connection failed or was cancelled.","err"); }
 }
 
 function cycleVal(){ return BigInt($("cycle").value.trim()); }
