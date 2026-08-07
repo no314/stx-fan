@@ -33,6 +33,7 @@
 
   <h1>Deploy signer-manager</h1>
   <p class="sub">Deploy the reviewed <code>signer-manager</code> contract. The deploying address becomes the manager admin, so deploy from a wallet you control, then move admin to a cold key below.<span class="info" tabindex="0" role="button" aria-label="About the source" data-tip="This tool deploys exactly the source you paste and shows its hash. Source and name come from your reviewed render, in line with your organisation's process.">i</span></p>
+  <p class="sub" style="margin-top:-8px;font-size:var(--fs-xs)"><strong>Leather only.</strong> Xverse isn't supported — it can't enforce the post-conditions these calls rely on. <a href="xverse.html" target="_blank" rel="noopener">Why? →</a></p>
   <div id="status" class="status"></div>
 
   <div class="card">
@@ -274,7 +275,11 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!$("xvmodal").hidd
 async function doConnect(){
   const n=net();
   try{
-    const res=await connect({network:$("network").value,forceWalletSelect:true});
+    // Restrict the selector to Leather. The vendored connect-ui only records the picked provider on a
+    // SUCCESSFUL request and fires the request inside the modal callback, so a wallet that hangs (Xverse
+    // sends only a Bitcoin provider for Stacks getAddresses) leaves connect() pending forever with no
+    // stored id — a post-hoc warning can't fire. Allow-listing Leather prevents the hang entirely.
+    const res=await connect({network:$("network").value,forceWalletSelect:true,approvedProviderIds:["LeatherProvider"]});
     if(isUnsupportedWallet()){ await rejectUnsupportedWallet(); return; }
     const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
     if(!e){conStat("The wallet returned no STX address.","err");return;}
