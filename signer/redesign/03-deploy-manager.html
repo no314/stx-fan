@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Deploy signer-manager · Signer Sidekick</title>
 <link rel="stylesheet" href="stacks.css?v=4">
+<style>
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal-overlay[hidden]{display:none}
+.modal-box{background:var(--surface);border:1px solid var(--warn);border-radius:var(--radius-lg);padding:22px 24px;max-width:460px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.modal-box h3{margin:0 0 10px;color:var(--warn)}
+.modal-box p{margin:0 0 14px}
+</style>
 </head>
 <body class="net-testnet">
 <div class="wrap">
@@ -41,7 +48,8 @@
     <label>Clarity source</label>
     <textarea id="src" placeholder=";; signer-manager source for this network" spellcheck="false"></textarea>
     <div class="kv" style="margin-top:12px"><span>Raw source SHA-256</span><span class="v" id="hash">…</span></div>
-    <div class="kv"><span>Canonical SHA-256<span class="info" tabindex="0" role="button" aria-label="About the hash" data-tip="The canonical hash ignores comments and whitespace, so it is the reliable identity check. A raw mismatch with a canonical match just means reformatted whitespace.">i</span></span><span class="v" id="chash">…</span></div>
+    <div class="kv"><span>Canonical SHA-256<span class="info" tabindex="0" role="button" aria-label="About the hash" data-tip="The canonical hash strips comments and collapses whitespace runs, but is still sensitive to spacing around parentheses, so a formatter (e.g. clarinet format) can change it.">i</span></span><span class="v" id="chash">…</span></div>
+    <div class="kv"><span>Structure SHA-256<span class="info" tabindex="0" role="button" aria-label="About the structure hash" data-tip="Formatting-independent identity: it tokenises the Clarity (parentheses, braces, atoms, string literals) and ignores ALL whitespace, comments, and commas. If this matches the reference, the code is identical even after clarinet format or any re-indentation. It does not cover comment text.">i</span></span><span class="v" id="shash">…</span></div>
     <div class="kv"><span>Reference match</span><span class="v" id="match"><span class="badge b-idle">…</span></span></div>
     <div class="kv"><span>Embedded PoX-5 principal</span><span class="v" id="embpox">…</span></div>
     <div class="kv"><span>Deploys as</span><span class="v" id="principal">…</span></div>
@@ -98,23 +106,32 @@
   <p class="foot">Keys stay in the wallet. Testnet uses the violet accent, mainnet the Stacks orange. Signer Sidekick is interim tooling: verify the source hash and every on-chain result yourself.</p>
 </div>
 
+<div class="modal-overlay" id="xvmodal" hidden role="dialog" aria-modal="true" aria-labelledby="xvtitle">
+  <div class="modal-box">
+    <h3 id="xvtitle"><span id="xvname">This wallet</span> isn't supported</h3>
+    <p><span id="xvname2">This wallet</span> can't be used with these apps yet. They pass the network on connect and attach post-conditions to every contract call and deploy — safety guarantees this wallet's SIP-030 implementation doesn't currently support, so signing through it would drop those protections.</p>
+    <p>Please connect with <strong>Leather</strong>. <a href="xverse.html" target="_blank" rel="noopener">Read the full explanation →</a></p>
+    <div class="row"><button id="xvclose">Got it</button></div>
+  </div>
+</div>
+
 <script type="module">
 // Robust loader: pinned esm.sh CDN primary, vendored ./js/ local fallback on any failure.
 // connect has no working esm.sh URL (its v6/v7 split breaks every ?deps pin), so it is local-only.
 async function loadLib(cdn, local){ if(cdn){ try{ return await import(cdn); }catch(e){ console.warn("[libload] CDN failed, using local fallback:", local, e&&e.message); } } return await import(local); }
 const TX_CDN="https://esm.sh/@stacks/transactions@7.5.0?deps=@stacks/common@7.5.0,@stacks/network@7.5.0";
-const { connect, request, disconnect } = await loadLib(null, "./js/connect.js");
+const { connect, request, disconnect, getSelectedProviderId } = await loadLib(null, "./js/connect.js");
 const { principalCV, trueCV, falseCV, uintCV, cvToHex, hexToCV, ClarityType } = await loadLib(TX_CDN, "./js/transactions.js");
 
 const NETWORKS = {
   "pox5-testnet":{label:"TESTNET",tier:"TIER 1",api:"https://api.testnet-pox5.hiro.so",stxPrefix:/^S[TN]/,mainnet:false,pox5:"ST000000000000000000002AMW42H.pox-5",
     reference:{ label:"pox5-testnet signer-manager (no314/stx-fan PR #2, commit efe2640)", link:"https://github.com/no314/stx-fan/blob/efe2640a629ce6a25270f82bfe13d710fe07b699/signer/contract/signer-manager",
-      sourceSha256:"b9c49ce03453a734fed8cf0d9202adb807d53d585108cdf4839be86728693e76", canonicalSha256:"97e003554c90ff8cefe0a17ee7f52e47fd42464a464ff02f666b117740e84214",
+      sourceSha256:"b9c49ce03453a734fed8cf0d9202adb807d53d585108cdf4839be86728693e76", canonicalSha256:"97e003554c90ff8cefe0a17ee7f52e47fd42464a464ff02f666b117740e84214", structureSha256:"75c4f191cdce1372b0869cb4b068232c740288f769edf9b60a2416059ada9183",
       note:"Use this source on pox5-testnet. The sidekick devnet artifact embeds sBTC contracts that do not exist here; this version points token, registry, and withdrawal at SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1." }},
   "mainnet":{label:"MAINNET",tier:"TIER 2",api:"https://api.hiro.so",stxPrefix:/^S[PM]/,mainnet:true,pox5:"SP000000000000000000002Q6VF78.pox-5",
     reference:{ label:"mainnet reference manager (signer-sidekick PR #9, commit 214c67e)", link:"https://github.com/stx-labs/signer-sidekick/blob/214c67eae2f1ce1c3c818ab6528ce4f2e1bdc22a/contracts/reference-manager/generated/mainnet/signer-manager.clar",
-      sourceSha256:"48d22cf832f2b61118327265b6b7f303c911a98bdb5af2a54a931a1cf432e316", canonicalSha256:"004da6bde5f91b9cdf555a020494cab73d29cc75733ad0c05e4f4b32a94e251b",
-      note:"Generated mainnet reference (SP-boot, mainnet sBTC contracts). Confirm the mainnet sBTC contracts exist before relying on the sBTC paths." }}
+      sourceSha256:"48d22cf832f2b61118327265b6b7f303c911a98bdb5af2a54a931a1cf432e316", canonicalSha256:"004da6bde5f91b9cdf555a020494cab73d29cc75733ad0c05e4f4b32a94e251b", structureSha256:"10fa8f7bfc6e41213b82682310aa0c7479214a87fd92d378892a74ffbe2b4357",
+      note:"" }}
 };
 const $=id=>document.getElementById(id);
 let account=null, menuOpen=false, walletName=null;
@@ -169,8 +186,9 @@ function paintNet(){
   $("ref").innerHTML =
     `<div class="kv"><span>${r.label}</span><span class="v"><a href="${r.link}" target="_blank" rel="noopener">View source</a></span></div>`+
     `<div class="kv"><span>Expected raw SHA-256</span><span class="v">${r.sourceSha256}</span></div>`+
-    `<div class="kv" style="border:none"><span>Expected canonical SHA-256</span><span class="v">${r.canonicalSha256}</span></div>`+
-    `<div style="color:var(--text-tertiary);margin-top:8px">${r.note}</div>`;
+    `<div class="kv"><span>Expected canonical SHA-256</span><span class="v">${r.canonicalSha256}</span></div>`+
+    `<div class="kv" style="border:none"><span>Expected structure SHA-256</span><span class="v">${r.structureSha256}</span></div>`+
+    (r.note ? `<div style="color:var(--text-tertiary);margin-top:8px">${r.note}</div>` : "");
   refreshHash();
 }
 function say(m,k="info"){const s=$("dstatus");s.textContent=m;s.className="status show "+k;}
@@ -191,17 +209,37 @@ function canonicalizeClaritySource(source){
   if(inString) throw new Error("unterminated string");
   return result.trim();
 }
+// Structure canonicalization: tokenise the Clarity and drop ALL whitespace, comments, and commas.
+// ( ) { } : are each their own token; string literals are kept whole. The result is invariant to
+// any reformatting (indentation, spacing around delimiters, clarinet format), so its hash identifies
+// the code itself, not its layout. It intentionally ignores comment text.
+function structureCanonical(source){
+  const t=[]; let a=""; const flush=()=>{ if(a){t.push(a);a="";} };
+  for(let i=0;i<source.length;i++){ const c=source[i];
+    if(c===";"&&source[i+1]===";"){ flush(); i+=2; while(i<source.length&&source[i]!=="\n")i++; continue; }
+    if(c==='"'){ flush(); let s=c; i++; for(;i<source.length;i++){ const d=source[i]; s+=d; if(d==="\\"){ i++; s+=source[i]||""; continue; } if(d==='"') break; } t.push(s); continue; }
+    if(/\s/.test(c)){ flush(); continue; }
+    if(c===","){ flush(); continue; }
+    if(c==="("||c===")"||c==="{"||c==="}"||c===":"){ flush(); t.push(c); continue; }
+    a+=c; }
+  flush(); return t.join("\n");
+}
 function updatePayload(){ $("payload").textContent = $("force06").checked ? "Clarity 6 versioned (0x06), forced" : "omitted, network defaults to Clarity 6 (epoch 4)"; }
 async function refreshHash(){
   const n=net(); const src=$("src").value;
-  if(!src.length){ $("hash").textContent="…"; $("chash").textContent="…"; $("match").innerHTML=badge("b-idle","…"); $("embpox").textContent="…"; updatePrincipal(); gate(); return; }
+  if(!src.length){ $("hash").textContent="…"; $("chash").textContent="…"; $("shash").textContent="…"; $("match").innerHTML=badge("b-idle","…"); $("embpox").textContent="…"; updatePrincipal(); gate(); return; }
   const raw=await sha256hex(src);
   let canon="…"; try{ canon=await sha256hex(canonicalizeClaritySource(src)); }catch{ canon="unterminated string"; }
-  $("hash").textContent=raw; $("chash").textContent=canon;
+  let struct="…"; try{ struct=await sha256hex(structureCanonical(src)); }catch{ struct="unterminated string"; }
+  $("hash").textContent=raw; $("chash").textContent=canon; $("shash").textContent=struct;
   const m=src.match(/'(S[A-Z0-9]+\.pox-5)/); const emb=m?m[1]:null;
   $("embpox").innerHTML = emb ? (emb===n.pox5?`${emb} ${badge("b-ok","matches "+n.label)}`:`${emb} ${badge("b-bad","not "+n.pox5)}`) : badge("b-warn","no pox-5 reference found");
-  const ref=n.reference; const ok = raw===ref.sourceSha256 || canon===ref.canonicalSha256;
-  $("match").innerHTML = ok ? badge("b-ok","matches "+n.label+" reference") : badge("b-warn","no match, verify against your source");
+  const ref=n.reference;
+  const exact = raw===ref.sourceSha256 || canon===ref.canonicalSha256;
+  const structOk = ref.structureSha256 && struct===ref.structureSha256;
+  $("match").innerHTML = exact ? badge("b-ok","matches "+n.label+" reference")
+    : structOk ? badge("b-ok","structure match — same code as "+n.label+" reference, reformatted")
+    : badge("b-warn","no match, verify against your source");
   updatePrincipal(); gate();
 }
 function updatePrincipal(){ const name=$("cname").value.trim(); $("principal").textContent = (account && name) ? `${account}.${name}` : (name?`your-address.${name}`:"…"); }
@@ -215,16 +253,38 @@ $("menu").addEventListener("click",e=>e.stopPropagation());
 document.addEventListener("click",()=>{ if(menuOpen) openMenu(false); });
 $("disconnect").addEventListener("click",async()=>{ openMenu(false); try{await disconnect();}catch{} account=null; walletName=null; paintWallet(); updatePrincipal(); gate(); rotateGate(); feeGate(); });
 
+// Only Leather is supported: its SIP-030 implementation honours the network on connect and
+// post-conditions on stx_callContract/stx_deployContract, which this app's safety model requires.
+// getSelectedProviderId() reflects the wallet the user picked in the modal (stored even if the
+// connect request then fails), so we can catch an unsupported pick in both the success and error paths.
+function selectedWalletId(){ try{ return String(getSelectedProviderId()||""); }catch{ return ""; } }
+function isUnsupportedWallet(){ const id=selectedWalletId(); return !!id && !/leather/i.test(id); }
+async function rejectUnsupportedWallet(){
+  const id=selectedWalletId();
+  try{ await disconnect(); }catch{}
+  account=null; walletName=null; paintWallet(); updatePrincipal(); gate(); rotateGate(); feeGate();
+  const nm = /xverse/i.test(id) ? "Xverse" : "This wallet";
+  $("xvname").textContent=nm; $("xvname2").textContent=nm; $("xvmodal").hidden=false;
+}
+function hideXv(){ $("xvmodal").hidden=true; }
+$("xvclose").addEventListener("click",hideXv);
+$("xvmodal").addEventListener("click",e=>{ if(e.target===$("xvmodal")) hideXv(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!$("xvmodal").hidden) hideXv(); });
+
 async function doConnect(){
   const n=net();
   try{
     const res=await connect({network:$("network").value,forceWalletSelect:true});
+    if(isUnsupportedWallet()){ await rejectUnsupportedWallet(); return; }
     const e=(res?.addresses||[]).find(a=>/^S/.test(a.address||""));
     if(!e){conStat("The wallet returned no STX address.","err");return;}
     account=e.address.toUpperCase(); paintWallet(); resolveWalletName();
     if(!n.stxPrefix.test(account)) conStat(`Connected ${account} is not a ${n.label} address. Switch the wallet network and reconnect.`,"err");
     updatePrincipal(); gate(); rotateGate(); feeGate();
-  }catch(e){conStat("Connection failed or was cancelled.","err");}
+  }catch(e){
+    if(isUnsupportedWallet()){ await rejectUnsupportedWallet(); return; }
+    conStat("Connection failed or was cancelled.","err");
+  }
 }
 
 $("deploy").addEventListener("click",async()=>{
