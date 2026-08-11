@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1200">
+<title>Why Xverse isn't supported · Zero To Signing Sidekick</title>
+<link rel="icon" type="image/png" href="./favicon.png">
+  <script type="module" crossorigin src="./assets/app-D21lGa6g.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/app-D5s_WkuU.css">
+  <link rel="stylesheet" crossorigin href="./assets/xverse-DIIFavh0.css">
+</head>
+<body>
+<div class="wrap xv">
+  <h1 class="heading-sm" style="margin:40px 0 8px">Why Xverse isn't supported (yet)</h1>
+  <p class="xv-lead">This app currently works with <strong>Leather</strong> only. Xverse can't be used yet: not a preference, a safety limit. Here is exactly why, and what would change it.</p>
+
+  <div class="xv-card">
+    <h2 class="heading-xs">What this app needs from a wallet</h2>
+    <p>Two capabilities are non-negotiable, because they are what keep your funds safe when you sign:</p>
+    <div class="xv-need"><span class="k">network on connect</span><span>The app passes the target network to <code>connect()</code> so the wallet connects to the network you intend. Without it, a wallet can silently default to mainnet when its active account differs from the one you are connecting: a dangerous mismatch when real STX is involved.</span></div>
+    <div class="xv-need"><span class="k">post-conditions on every call</span><span>Every asset-touching action (<code>stake</code>, <code>register-self</code>, admin calls, and the contract <code>deploy</code>) is sent in <strong>deny mode with explicit post-conditions</strong> on <code>stx_callContract</code> / <code>stx_deployContract</code>. Post-conditions are declared by the app, shown by the wallet, and enforced by the protocol; they are the primary defense against a buggy or malicious contract moving more than intended.</span></div>
+  </div>
+
+  <div class="xv-card">
+    <h2 class="heading-xs">Where Xverse falls short today</h2>
+    <p>Per the official <a href="https://github.com/stx-labs/connect/blob/main/packages/connect/README.md" target="_blank" rel="noopener">@stacks/connect compatibility table</a>:</p>
+    <p><strong class="bad">No post-conditions on contract calls or deploys.</strong> Xverse-like wallets are listed as supporting <code>stx_callContract</code> / <code>stx_deployContract</code> with <em>"hex-encoded Clarity values &amp; post-conditions only, no support for <code>postConditions</code>."</em> That means the safety limits above cannot be enforced when signing through Xverse. This app will not sign these calls without post-conditions, so it blocks Xverse rather than quietly dropping your protection.</p>
+    <p><strong class="bad">Connect itself is unreliable here.</strong> Xverse does not implement <code>stx_getAddresses</code> natively (it relies on <code>wallet_connect</code>); the connect library maps around this, but in testing Xverse failed to connect on <strong>both mainnet and the testnet</strong>, so it never even reaches the signing step.</p>
+  </div>
+
+  <div class="xv-card">
+    <h2 class="heading-xs">What Xverse needs for full SIP-030 compliance</h2>
+    <p><a href="https://github.com/stacksgov/sips/blob/main/sips/sip-030/sip-030-wallet-interface.md" target="_blank" rel="noopener">SIP-030</a> defines <code>stx_callContract</code> and <code>stx_deployContract</code> with <code>postConditions</code> and <code>postConditionMode</code> parameters, and a standard address/connection path. To be fully usable by apps like this one, Xverse would need to:</p>
+    <p>1. <strong>Honor <code>postConditions</code> and <code>postConditionMode</code></strong> (including deny mode with explicit conditions) on <code>stx_callContract</code> and <code>stx_deployContract</code>, as the standard specifies.<br>
+    2. <strong>Support the standard connect path</strong>: implement <code>stx_getAddresses</code> (or make the <code>wallet_connect</code> mapping reliable) and accept the <code>network</code> parameter on connect.</p>
+    <p>Once those land, enabling Xverse here is a small change on this side.</p>
+  </div>
+
+  <div class="xv-card">
+    <h2 class="heading-xs">Why this matters beyond this app</h2>
+    <p>Leather and Xverse are the two most-used Stacks wallets. When one implements only part of SIP-030, especially post-conditions, which are the main protection for user funds, every builder faces the same bad choice: drop safety to reach both wallets, or support only one and lose half the users. A single, fully-implemented standard is precisely what lets one app run <em>safely</em> in every wallet. That is the whole point of SIP-030, and it only works if wallets implement all of it.</p>
+  </div>
+
+  <p class="xv-foot">For now, connect with <strong>Leather</strong> to use this app. <a href="./index.html">Back to Zero to Signing</a></p>
+</div>
+</body>
+</html>
