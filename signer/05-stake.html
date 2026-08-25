@@ -137,7 +137,7 @@ label.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0;
       <input id="su-maxfee" placeholder="3000" spellcheck="false">
     </div>
 
-    <label style="margin-top:12px">Post-condition mode <span class="info" tabindex="0" role="button" aria-label="About the stake-update post-condition" data-tip="stake-update performs a PoX action and locks any STX you add, so Deny mode uses a pox-postcondition (will-perform) plus a staking-postcondition for the added amount. Without the pox-postcondition the call aborts with 'performed a PoX action but it was not checked'. Allow mode sends no post-conditions — testing only.">i</span></label>
+    <label style="margin-top:12px">Post-condition mode <span class="info" tabindex="0" role="button" aria-label="About the stake-update post-condition" data-tip="stake-update is a staking action (SIP-045 §3.4.3), so Deny mode uses a staking-postcondition bounding the total amount staked (existing locked STX plus any increase). A pox-postcondition does NOT cover stake-update and makes the node roll the transaction back. Allow mode sends no post-conditions — testing only.">i</span></label>
     <select id="su-pcmode">
       <option value="deny" selected>Deny with pox + staking post-conditions (recommended)</option>
       <option value="allow">Allow, no post-conditions (testing only)</option>
@@ -204,7 +204,7 @@ const NETWORKS = {
 };
 const MIN_USTX=50_000_000_000n;
 const $=id=>document.getElementById(id);
-let account=null, poxInfo=null, menuOpen=false, walletName=null;
+let account=null, poxInfo=null, menuOpen=false, walletName=null, lockedU=0n;
 function net(){return NETWORKS[$("network").value];}
 function explorerTx(t){ t=String(t).replace(/^0x/i,"").toLowerCase(); const n=net(); return n.mainnet?`https://explorer.hiro.so/txid/0x${t}?chain=mainnet`:`https://explorer.hiro.so/txid/0x${t}?chain=testnet&api=${n.api}`; }
 // Reflect the selected network (and optional custom read node) in the URL, so a refresh keeps state
@@ -284,7 +284,8 @@ function gateUn(){ const b=$("un-go"); if(!b)return; if(!account){ b.textContent
 function updateSuPc(){
   if($("su-pcmode") && $("su-pcmode").value==="allow"){ $("su-pcdesc").textContent="allow, no post-conditions (testing only)"; return; }
   const s=$("su-increase").value.trim()||"0"; const u=s==="0"?0n:stxToU(s);
-  $("su-pcdesc").textContent = (u&&u>0n) ? `deny, pox-postcondition (will-perform) + staking-postcondition (locks the added ${fmtStx(u)})` : "deny, pox-postcondition (will-perform)";
+  const total=lockedU+(u&&u>0n?u:0n);
+  $("su-pcdesc").textContent = total>0n ? `deny, staking-postcondition (lte total staked ${fmtStx(total)})` : "deny, staking-postcondition (total staked; refresh reads to bound it)";
 }
 function updateUnPc(){ if(!$("un-pcmode"))return; $("un-pcdesc").textContent = $("un-pcmode").value==="allow" ? "allow, no post-conditions (testing only)" : "deny, pox-postcondition (will-perform; your account performs a PoX action)"; }
 ["manager","amount","cycles"].forEach(id=>$(id).addEventListener("input",gate));
@@ -328,6 +329,7 @@ async function loadReads(){
     if(account){
       const bal=await fetch(`${n.api}/extended/v1/address/${account}/balances`).then(r=>r.json());
       const locked=BigInt(bal?.stx?.locked??"0");
+      lockedU=locked;
       const unlocked=BigInt(bal?.stx?.balance??"0")-locked;
       $("bal").textContent=`${fmtStx(bal?.stx?.balance??"0")} (unlocked ${fmtStx(unlocked<0n?0n:unlocked)})`;
       $("un-staked").innerHTML = locked>0n ? `<span>This wallet has <span class="amt">${fmtStx(locked)}</span> locked. Unstaking exits your full stake with the named signer-manager.</span>` : `<span>No locked STX detected in this wallet.</span>`;
@@ -455,15 +457,19 @@ $("su-go").addEventListener("click",async()=>{
     const poxId=poxInfo.contract_id;
     const args=[ cvToHex(principalCV(newMgr)), cvToHex(principalCV(oldMgr)), cvToHex(uintCV(BigInt(ext))), cvToHex(uintCV(incU)), cd.hex ];
     say("Building the stake-update request. Review it carefully in your wallet before signing.");
-    // stake-update PERFORMS a PoX action (it modifies the stack), so deny mode needs a pox-postcondition
-    // (will-perform) or it aborts with "performed a PoX action but it was not checked". Any STX you ADD
-    // is newly locked, so include a staking-postcondition for amount-increase when it is non-zero.
-    // connect 8.2.6 whitelists only stx/ft/nft objects, so pre-serialize both to wire hex.
+    // stake-update is a STAKING action under SIP-045 §3.4.3 (staking post-condition 0x03, alongside
+    // stake and register-for-bond) — NOT a PoX action. It must carry a staking-postcondition for the
+    // TOTAL amount staked (existing locked + any increase), never a pox-postcondition. A pox-postcondition
+    // here is uncovered by the staking action and the node rolls the tx back during post-condition
+    // enforcement (real mainnet failure: successful contract exec, then abort, fee burned).
+    // Bound with less-equal (lte) so the tx cannot lock more than the intended total.
+    // connect 8.2.6 whitelists only stx/ft/nft objects, so pre-serialize to wire hex.
     const suMode=$("su-pcmode").value;
     let postConditions=[];
     if(suMode==="deny"){
-      postConditions.push(postConditionToHex({ type:"pox-postcondition", address:account, condition:"will-perform" }));
-      if(incU>0n) postConditions.push(postConditionToHex({ type:"staking-postcondition", address:account, condition:"eq", amount:incU.toString() }));
+      const totalStaked=lockedU+incU;
+      if(totalStaked===0n){ say("Could not read your current staked amount. Click Refresh reads and retry (needed to bound the staking post-condition).","err"); return; }
+      postConditions.push(postConditionToHex({ type:"staking-postcondition", address:account, condition:"lte", amount:totalStaked.toString() }));
     }
     const params={ contract:poxId, functionName:"stake-update", functionArgs:args, network:$("network").value, address:account, sponsored:false, postConditionMode:suMode, postConditions };
     const res=await request("stx_callContract",params);
