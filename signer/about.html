@@ -9,7 +9,7 @@
 .mdblock{background:var(--surface-raised);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;overflow:auto;font-family:var(--font-mono);font-size:var(--fs-xs);line-height:1.5;white-space:pre-wrap;word-break:break-word;color:var(--text-secondary);max-height:560px;margin-top:10px}
 .filetag{font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--text-tertiary)}
 .back{font-size:var(--fs-sm);font-weight:700}
-.tabs{display:flex;gap:6px;margin-top:12px}
+.tabs{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
 .tab{background:var(--surface-input);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 12px;font-size:var(--fs-xs);font-weight:600;cursor:pointer;min-height:auto;font-family:var(--font-body,inherit)}
 .tab.active{background:var(--accent-bg);color:var(--accent-hi);border-color:var(--accent)}
 .mdblock[hidden]{display:none}
@@ -20,20 +20,112 @@
 <div class="wrap">
   <p style="margin:0 0 14px"><a class="back" href="index.html">← Signer Sidekick</a></p>
   <h1>How these apps were built</h1>
-  <p class="sub">Why these are composable, standalone browser apps, and the skills and tiers behind them.</p>
+  <p class="sub">Why these are composable, standalone browser apps, and the skills, versions, and PRD workflow behind them.</p>
 
   <div class="card">
-    <p>Signer Sidekick is a set of standalone, single-file browser apps. Each page is plain HTML, CSS, and JavaScript that talks directly to the user's wallet and to public Stacks APIs; there is no backend of our own. That is a deliberate choice, guided by the two skills included verbatim below.</p>
-    <p>The first, static-first architecture, picks the least operationally expensive option that meets the real requirements: pre-rendered static assets by default, escalating to a server only for a named, concrete need. The second, Stacks dApp architecture, adds an axis generic web tools do not have: a security tier. A dApp can move real value, and much of the user-protecting logic (post-conditions, pinned contract identity, keys that stay in the wallet) lives in the frontend, not a backend. So the safeguards that never relax are applied from the first line of code, even on a throwaway testnet toy, so a promoted demo is not born insecure.</p>
-    <p>That is why these apps separate testnet from mainnet so deliberately. Testnet is a learning tier: faucet tokens, no real value. Mainnet moves real assets and forces the full set of safeguards. The network switch on every page is that boundary, made explicit, which is how the tier is judged here.</p>
+    <p>Signer Sidekick is a set of standalone, single-file browser apps. Each page is plain HTML, CSS, and JavaScript that talks directly to the user's wallet and to public Stacks APIs; there is no backend of our own. That is a deliberate choice, guided by the skills included verbatim below and refined across several apps built the same way.</p>
+    <p>The first, static-first architecture, picks the least operationally expensive option that meets the real requirements: pre-rendered static assets by default, escalating to a server only for a named, concrete need. The second, Stacks dApp architecture, adds an axis generic web tools do not have: a security tier, plus wallet SIP-030 capability as part of that model. A dApp can move real value, and much of the user-protecting logic (post-conditions, pinned contract source, keys that stay in the wallet) lives in the frontend, not a backend. So the safeguards that never relax are applied from the first line of code, even on a throwaway testnet toy, so a promoted demo is not born insecure.</p>
+    <p>The third skill, added after these apps, is the Stacks Labs design system: the step-flow layout, the network accent swap, the surface system, and house voice, extracted from the production Zero to Signing app. It owns how an app looks and reads; the two architecture skills own how it is built and secured. What none of them supply is product behaviour: that comes from a one-page per-app PRD, and each new app is scaffolded from the previous one. That workflow is the fourth section.</p>
+    <p>Each architecture skill is shown across its versions: the Original as first written, the Revised pass after building Signer Sidekick, and <strong>zero_to v1</strong>, the currently installed generation that emerged from building these flows.</p>
+    <p>That layered discipline is also why these apps separate testnet from mainnet so deliberately. Testnet is a learning tier: faucet tokens, no real value. Mainnet moves real assets and forces the full set of safeguards. The network switch on every page is that boundary, made explicit, which is how the tier is judged here.</p>
   </div>
 
   <div class="card">
     <h2>Static-first architecture</h2>
     <p class="filetag">skill: static-first-architecture</p>
-    <div class="tabs" role="tablist"><button class="tab active" data-t="sf-revised" role="tab">Revised</button><button class="tab" data-t="sf-original" role="tab">Original</button></div>
-    <p class="revtag">Revised after building Signer Sidekick — adds "dependencies are part of the artifact" (vendor + pin, CDN-primary with local fallback), URL-as-state, and "verify by executing the artifact, not resolving the graph."</p>
-    <pre class="mdblock" id="sf-revised">---
+    <div class="tabs" role="tablist"><button class="tab active" data-t="sf-zero" role="tab">zero_to v1</button><button class="tab" data-t="sf-revised" role="tab">Revised</button><button class="tab" data-t="sf-original" role="tab">Original</button></div>
+    <p class="revtag">zero_to v1 — the currently installed skill. Its body carried forward unchanged from Revised (byte-identical; only the frontmatter quoting differs), so the static-first lessons stabilised a version earlier than the dApp ones.</p>
+    <pre class="mdblock" id="sf-zero">---
+name: "static-first-architecture"
+description: "Choose the least operationally expensive architecture for prototypes, dashboards, data explorers, reports, and read-heavy internal tools. Use when selecting an architecture or hosting model, building a prototype/dashboard, replacing an API or container, deciding whether a backend is needed at all, or vendoring and pinning a static app's runtime dependencies. Prefer pre-rendered static assets; escalate to browser-side compute, then WASM-backed libraries, then serverless, then an always-on server — only for named, concrete requirements. Ship a self-contained artifact: vendor and pin runtime dependencies (with a local fallback if a CDN is used), and verify by executing the built artifact, not by resolving the dependency graph."
+---
+
+# Static-First Architecture
+
+Choose the least operationally expensive architecture that satisfies the real requirements. A static site on object storage/CDN/Pages is the default. Everything else is an escalation that must be justified by a named requirement. WASM is not an architecture: it is a compilation target used by some libraries (in-browser SQLite/DuckDB, ffmpeg, etc.). It appears in a project as a dependency pulled in at rung 3 of the ladder, never as a goal in itself. Do not instruct agents or teammates to "use WASM"; state the actual requirement (no backend, static deploy, local querying) and let wasm-backed libraries appear only where a dependency demands them.
+
+## Apply the architecture ladder
+
+Evaluate options in this order, and stop at the first rung that satisfies the requirements:
+
+1. **Pre-render.** Build UI and bounded results into static HTML, JavaScript, JSON, CSV, Parquet, or other immutable assets at build time. This includes SPAs: a React/Preact/Vue app built with Vite is static output and belongs on this rung.
+2. **Browser-side JavaScript.** Perform filtering, sorting, aggregation, visualization, and local persistence (IndexedDB) in plain JS over data shipped as static assets.
+3. **WASM-backed local querying.** Lazily load a wasm-based library (sql.js, wa-sqlite, DuckDB-WASM) for arbitrary local queries or compute that static snapshots and plain JS cannot answer economically. Prefer a static SQLite/DuckDB-style dataset over a hosted database for read-only prototypes. Use pre-compiled library binaries; never compile application code to WASM for this purpose.
+4. **Narrow serverless.** Add a small edge/serverless endpoint only for the irreducible secret, write, authorization, or freshness boundary.
+5. **Always-on server.** Introduce an API/database service only after naming the requirement that makes every previous rung insufficient.
+
+Do not ask the user to choose a hosting provider before inspecting the repository and requirements. Make the static-first choice by default and explain any escalation. Exception: if the sensitivity of the data is unclear and rungs 1–3 would ship the dataset to every visitor, ask before deploying.
+
+## Dependencies are part of the artifact
+
+A static site is only as robust as what it loads at runtime. A single-file page that imports its libraries from a CDN is *deploy-static* but not *self-contained* and not offline — it is hostage to that CDN's live resolution, and a broken upstream publish or an outage takes it down with nothing wrong in your code or your host.
+
+- **Vendor and pin what you ship.** Treat runtime libraries like any other built asset: vendor them into the deployment and pin **exact versions, including transitive ones, not just top-level.** Floating version ranges resolve to whatever the registry serves at load time, which is exactly how a broken upstream release becomes your outage. (A real case: a CDN floated a transitive dependency to a just-published, broken version and every page that imported the top-level library failed at load.)
+- **CDN-primary + local fallback, if you use a CDN at all.** Prefer a pinned local copy. If you load from a CDN for convenience or freshness, fall back to the vendored copy on any failure. Note that chasing "latest" is itself the risk vector — a bad publish is *reachable*, not merely an outage — so a pinned known-good version is safer than latest, and you re-vendor deliberately when you choose to upgrade.
+- **Content-address or version the bundles.** Same rule as packaged datasets: version deployed assets so a deploy can't mix stale and fresh copies, and so a shared stylesheet or script isn't served stale from cache (a `?v=` query bump on a shared asset is enough).
+- **WASM libraries are just vendored dependencies here.** The same pin-and-vendor rule applies; nothing about the format is special.
+
+## State without a backend
+
+For a backendless app, the URL is the session substitute. Put user-selectable state — filters, the selected dataset, a network or read-endpoint override — in the URL query so a refresh preserves it and links are shareable. Never put secrets or personal data in the URL.
+
+## Separate the data tiers
+
+For dashboards with both hot and arbitrary reads, use three tiers:
+
+- **Snapshot hot paths:** precompute initial pages and common reports as versioned JSON. Do not boot WASM for these views.
+- **Static bounded datasets:** ship complete, reasonably sized tables and implement sort/filter/page operations locally in JS.
+- **WASM long tail:** query a packaged database only for arbitrary drill-downs that cannot be enumerated safely at build time.
+
+Avoid using WASM for answers that can be precomputed cheaply. Lazy-load it on the first genuine tail query, not at page load.
+
+## Package WASM data for remote reads
+
+When querying a static database over HTTP:
+
+- Prune unused tables and columns from the deployed copy.
+- Add indexes for every interactive lookup and run planner statistics generation after indexing.
+- Bound high-fan-out graph expansions and result sets.
+- Batch lookups instead of issuing one query per rendered item.
+- Materialize compact serving projections when wide or scattered source tables cause excessive page reads.
+- Match remote request chunks to the database page size and verify host range-request behavior.
+- Content-address database files and snapshot generations to prevent mixed or stale deployments.
+- Test with production-scale data; small fixtures validate correctness, not remote-I/O performance.
+
+Measure actual response bodies and range `GET` requests. Do not count a bodyless `HEAD` response's advertised full-file `Content-Length` as transferred bytes.
+
+## Escalate only for concrete constraints
+
+Use server-side infrastructure when one or more of these requirements are real:
+
+- Secrets or privileged credentials must be used at request time.
+- Authoritative writes, transactions, server-enforced authorization, or multi-user coordination are required.
+- Data must not be downloadable by every authorized static-site visitor.
+- Freshness cannot be met by periodic artifact rebuilds or narrow serverless refreshes.
+- The working set is too large for target devices or economical ranged reads.
+- Compute is long-running, memory-heavy, unsupported in browsers, or must be trusted.
+- True realtime push or collaborative state is required.
+
+Keep the exception narrow. A write endpoint does not imply that reads, filtering, rendering, or analytics also belong on the server.
+
+## Protect security boundaries
+
+Treat every shipped static asset — including any WASM binary and packaged database — as downloadable by every visitor who can load the page. WASM provides no confidentiality, obfuscation, or sandboxing benefit over JavaScript; it runs in the same browser sandbox with the same origin and network access. Never embed secrets, API keys, or credentials in any client-side bundle regardless of format.
+
+Use platform-level access control (private Pages, authenticated CDN) only when downloading the complete deployed dataset is acceptable for each authorized viewer. Verify the platform actually enforces the access control assumed — for example, private GitHub Pages publishing requires GitHub Enterprise Cloud; on other plans the site is publicly reachable. If per-viewer restriction of rows or fields is required, keep the sensitive data behind an authenticated server boundary (rung 4 or 5).
+
+## Implement and verify
+
+1. Identify reads, writes, secrets, authorization, freshness, data size, and target devices.
+2. State the selected rung of the architecture ladder and the evidence for any escalation.
+3. Build a reproducible static artifact with its dependencies vendored and pinned, and keep deployment host-agnostic where practical.
+4. **Confirm the built artifact actually runs — do not confirm only that the dependency tree resolves.** A green `install` and a resolvable graph prove nothing about runtime: load the page (or import the bundle) and assert the exact exports, symbols, and behavior you depend on. Runtime failures (a missing named export, a version-skewed API) are invisible to dependency resolution.
+5. Verify correctness against the source implementation or database with parity tests.
+6. Gate representative scenarios on transferred bytes, request count, WASM boot, and usable-content latency.
+7. Test the exact production-sized artifact on a range-capable local server before claiming performance.
+
+Prefer a deployable artifact over infrastructure scaffolding. Do not add Docker, a hosted database, queues, or an API process merely because they are conventional.
+</pre><pre class="mdblock" id="sf-revised" hidden>---
 name: static-first-architecture
 description: Choose the least operationally expensive architecture for prototypes, dashboards, data explorers, reports, and read-heavy internal tools. Use when selecting an architecture or hosting model, building a prototype/dashboard, replacing an API or container, deciding whether a backend is needed at all, or vendoring and pinning a static app's runtime dependencies. Prefer pre-rendered static assets; escalate to browser-side compute, then WASM-backed libraries, then serverless, then an always-on server — only for named, concrete requirements. Ship a self-contained artifact: vendor and pin runtime dependencies (with a local fallback if a CDN is used), and verify by executing the built artifact, not by resolving the dependency graph.
 ---
@@ -122,8 +214,8 @@ Use platform-level access control (private Pages, authenticated CDN) only when d
 6. Gate representative scenarios on transferred bytes, request count, WASM boot, and usable-content latency.
 7. Test the exact production-sized artifact on a range-capable local server before claiming performance.
 
-Prefer a deployable artifact over infrastructure scaffolding. Do not add Docker, a hosted database, queues, or an API process merely because they are conventional.</pre>
-    <pre class="mdblock" id="sf-original" hidden>---
+Prefer a deployable artifact over infrastructure scaffolding. Do not add Docker, a hosted database, queues, or an API process merely because they are conventional.
+</pre><pre class="mdblock" id="sf-original" hidden>---
 name: static-first-architecture
 description: Choose the least operationally expensive architecture for prototypes, dashboards, data explorers, reports, and read-heavy internal tools. Use when selecting an architecture or hosting model, building a prototype/dashboard, replacing an API or container, or deciding whether a backend is needed at all. Prefer pre-rendered static assets; escalate to browser-side compute, then WASM-backed libraries, then serverless, then an always-on server — only for named, concrete requirements.
 ---
@@ -204,9 +296,145 @@ Prefer a deployable artifact over infrastructure scaffolding. Do not add Docker,
   <div class="card">
     <h2>Stacks dApp architecture</h2>
     <p class="filetag">skill: stacks-dapp-architecture</p>
-    <div class="tabs" role="tablist"><button class="tab active" data-t="dapp-revised" role="tab">Revised</button><button class="tab" data-t="dapp-original" role="tab">Original</button></div>
-    <p class="revtag" id="dapp-note">Revised after building Signer Sidekick — adds wallet SIP-030 capability, source verification, read-resilience, and network/chain-id handling.</p>
-    <pre class="mdblock" id="dapp-revised">---
+    <div class="tabs" role="tablist"><button class="tab active" data-t="dapp-zero" role="tab">zero_to v1</button><button class="tab" data-t="dapp-revised" role="tab">Revised</button><button class="tab" data-t="dapp-original" role="tab">Original</button></div>
+    <p class="revtag">zero_to v1 — the currently installed skill. Adds the three-tier wallet selector (verified / offered-untested / blocked, with install links and provider-id pinning), "inherited constants are not pinned constants" (a ported connectValue signed every transaction with a retired network's chain-id 0x80000005), and a "transaction validity windows" section (the prepare-phase guard).</p>
+    <pre class="mdblock" id="dapp-zero">---
+name: stacks-dapp-architecture
+description: "Choose the architecture, deployment, security posture, and wallet support for a Stacks (or similar wallet-and-chain) decentralized application: playgrounds, single-feature demos, testnet experiments, and production value-moving dApps such as swaps, DEXs, lending, and token sales. Use when building or deploying a dApp frontend, deciding whether it needs a backend, wiring wallet connection and contract calls, pinning contract identity, choosing which wallets to support, or moving something from a demo to real value. Governs the security tier separately from the deployment cost, treats wallet SIP-030 capability as part of the security model, and enforces a hard boundary between throwaway demos and anything that moves real assets."
+---
+
+## Scope and relationship to static-first
+
+This skill governs dApps. It sits alongside `static-first-architecture`, which governs generic prototype deployment. Read both. A dApp frontend is still a static build in the ordinary case (see below), so the deployment ladder from that skill applies — including its rule that a page which fetches its libraries from a CDN at load is *deployable-static but not self-contained*, so pin and vendor dependencies with a local fallback. What this skill adds is a **second, independent axis: security tier**, and a **third input: wallet capability.** Cheap deployment, relaxed security, and "whatever wallet the user has" are three separate choices; the dangerous mistake is carrying a playground's relaxed security — or an unverified wallet — into something that moves real value.
+
+Do not treat a dApp as "just a quick thing you show colleagues." A dApp can be that — a playground or a single-feature testnet demo — but the same code shape also underlies swaps and token sales, and the frontend, not a backend, is where much of the user-protecting security lives. Establish the tier explicitly before writing code.
+
+## Why a dApp usually needs no backend of its own
+
+A Stacks dApp is close to the ideal static-first case, because the concerns that normally force a server are handled by infrastructure that is neither yours nor a server you run:
+
+- **Keys and signing: the wallet.** Leather, Xverse, and other SIP-030 wallets hold the seed and sign. The frontend talks to them over the injected provider / `@stacks/connect` (8.x is SIP-030 JSON-RPC; 7.x was JWT-based). Keys never touch your frontend or any server. See "Wallet capability" below — support is not uniform across wallets.
+- **Writes: the wallet.** `stx_callContract` / `stx_transferStx` build, the wallet signs, the wallet broadcasts. There is no write endpoint of yours to host.
+- **Auth: wallet connect + signature.** Connection plus SIP-018 structured-message signing replaces credential servers. No session backend.
+- **Reads: the public node / Hiro API.** Balances, contract state, and tx status come from public chain infrastructure over HTTPS. That is a public read, not your secret backend — but it is not a *reliable* boundary; see "Reads."
+
+Consequence for the escalation logic in `static-first-architecture`: the triggers "secrets used at request time," "authoritative writes," and "server-enforced authorization" are, for a dApp, **satisfied by the wallet and the chain and therefore do NOT justify a backend of your own.** Do not stand up a server just because a dApp signs, writes, or authenticates.
+
+A dApp does have its own genuine backend triggers, distinct from the generic list:
+
+- Data the public API cannot serve at the needed shape or freshness (a custom indexer + database).
+- A transaction relayer or sponsored-transaction service.
+- Off-chain order matching or an order book.
+- Private per-user data that must not be world-readable.
+
+Escalate only for those, and keep the exception narrow.
+
+## Reads: what can and cannot be snapshotted, and the public API is not a solved boundary
+
+Live chain state — current balances, mempool, latest block, current pool reserves — is the "constantly changing" case and cannot be served from a static snapshot. A static SQLite/JSON snapshot is stale the moment a block lands. Read live state from the node/Hiro API.
+
+Immutable historical or indexed data (past events, closed epochs) can be shipped as a static dataset and queried client-side per the `static-first-architecture` data ladder. That is an optimization to avoid running your own indexer; it is never the source of truth for anything a user acts on. Never snapshot state that a user will make a value decision against.
+
+The public API is a dependency, not a given. Design for its failure modes:
+
+- **Rate limits and CORS.** Unauthenticated public endpoints rate-limit; a rate-limited response can arrive header-less and surface in the browser as a *CORS error* rather than a 429, which misleads debugging. Throttle your own calls, back off, and degrade gracefully rather than hammering.
+- **Fallback providers.** Have a second read path (an alternate public API, or the app degrading to "couldn't load" without breaking the page) rather than a single hard dependency.
+- **Let advanced users point reads at their own node.** A read-node override (e.g. a URL parameter) lets signers/operators verify on-chain data against infrastructure they trust; scope it to reads only, never to what the wallet signs. Make the override discoverable: keep the parameter visible in the URL at its current value (default or overridden) rather than only materializing it when set — an invisible override is a feature no operator finds, and the URL is the app's shareable state anyway.
+- **Know when you actually need an indexer.** Endpoints that enumerate large event sets time out at scale; that is a real, narrow backend trigger (a custom indexer), not a reason to serverize the whole app.
+
+## WASM in a dApp
+
+Same rule as `static-first-architecture`: do not compile the project to WASM. Use precompiled WASM libraries only where they earn it — secp256k1 signing/hashing helpers, a local Clarity VM, or a `clarinet format` build used for source verification (see "Verify the source"). Note that `clar2wasm` is primarily the node-runtime compiler; the browser-usable Clarity path is the Clarinet / Clarity-VM WASM simnet used by web IDEs and the JS test SDK. That simnet is a **playground and testing** tool (run and inspect contract calls with no network), not a per-dApp production runtime. Verify maturity before depending on it.
+
+## Wallet capability is part of the security model
+
+Wallet SIP-030 support is **not uniform**, and the gaps are exactly where the security lives. Before you support a wallet, verify — against the wallet's actual behavior, not the spec — that it implements the methods your safety model depends on. In practice this means:
+
+- **Post-conditions on contract calls and deploys.** A wallet that ignores or rejects `postConditions` / `postConditionMode` on `stx_callContract` / `stx_deployContract` cannot enforce the primary user-fund protection. Real example: some popular wallets accept the call but drop post-conditions entirely. **A wallet that cannot enforce post-conditions is unusable for asset-moving calls — detect it and refuse, with a clear explanation, rather than silently signing without protection.** Signing unprotected to "support more wallets" is the wrong trade.
+- **The connect / address path.** Wallets differ on `stx_getAddresses` vs `getAddresses` vs `wallet_connect`; a wallet may register only a Bitcoin provider for what your library treats as the Stacks connect call, causing connect to hang with no error. Confirm connect actually returns a usable Stacks address for each supported wallet.
+- **Post-condition and payload types the wallet/library will serialize.** Connect libraries often whitelist only `stx`/`ft`/`nft` post-conditions; newer condition types (e.g. Stacks `staking-postcondition`, `pox-postcondition`) must be pre-serialized to wire hex or the library rejects them. Hardware wallets add another gate: a given Ledger app version may not sign certain post-condition types or certain contract-payload versions (e.g. a newer Clarity deploy). Design the flow around the real capability matrix — including a fallback path (deploy from a software wallet, then rotate admin to the hardware key) when hardware can't sign a payload yet.
+
+Practical consequence: if the wallet-selection UI you get from a library can't represent "this wallet is not supported," build your own small selector so unsupported wallets are shown as blocked (linking to an explanation) instead of silently failing. Treat "which wallets we support, and why the others are blocked" as a documented, deliberate decision.
+
+A selector that works in practice has three tiers, not two, and shows the full known-wallet catalog rather than only what is installed:
+
+- **Verified**: wallets whose post-condition enforcement you have actually observed (connect and sign a real deny-mode call and see the conditions rendered). These get a Connect action.
+- **Offered untested**: wallets the connect library's compatibility table lists as supporting `postConditions` but that you have not verified (e.g. multisig or institutional wallets). Offer them so operators can try, and say in code and docs that the first real transaction must be approved only after checking the wallet's own signing screen displays the post-conditions. Deny mode is a parameter the wallet must honor when it builds the transaction; an ignoring wallet strips the protection silently.
+- **Blocked**: wallets known to drop post-conditions. Shown, inert, with a "why" link. Ship the explanation as a page inside the app (styled with the app's own design system) rather than an external link that can rot; it doubles as the public statement of the policy.
+
+Known-but-not-installed wallets get install links, so the selector is also the answer to "which wallets can I even use." Mechanically, pin the chosen provider id before calling `connect()` (the library persists a selected-provider id) so the library's own modal never re-offers a blocked wallet, and detect installed wallets from the provider registry (`wbip_providers` plus legacy globals), matching by id pattern rather than exact string since ids vary by wallet version.
+
+## Security tiers (the second axis)
+
+Set the tier before building. The tier fixes both the financial exposure and — critically — which safeguards are allowed to be absent.
+
+**Tier 0 — Playground / learning.** Local Clarity simnet (Clarinet WASM) or a scratch testnet contract. No real value, often no network. Purpose: learn the tech, try an idea. Deployment can be a private static build (org-only Pages is fine). Financial safeguards: not applicable, nothing is at stake.
+
+**Tier 1 — Single-feature testnet demo.** One flow, on testnet, faucet tokens, shown to colleagues. No real value. Deployment: private static build. Financial safeguards: still not applicable.
+
+**Tier 2 — Single-feature mainnet demo.** Real network, real (if small) value, limited scope. The moment real value is involved, full user-protecting safeguards apply regardless of how small the feature looks. There is no "it's only a demo" discount once mainnet assets can move.
+
+**Tier 3 — Production value-moving dApp (swap, DEX, lending, sale, treasury).** Real value, adversarial environment, multiple users. Maximum posture, plus contract-level concerns (audit, oracle trust, front-running/MEV, governance) that are out of scope for a frontend but must be named and owned by someone.
+
+### The invariants that never relax
+
+These are structural, not financial. They cost nothing on testnet and they are the habits that get carried forward. Apply them at **every** tier, including playgrounds, so that a promoted demo is not born insecure:
+
+- **Post-conditions that mirror the real asset flow, in Deny mode.** Always Deny mode. The *conditions* must match what the call actually does: an **explicit-amount** condition for a transfer out; the **correct protocol-specific condition** for a call that performs a protocol action but moves nothing to another principal (on Stacks pox-5, a `pox-postcondition` with `will-perform` for actions like unstake / stake-update); and **zero conditions** under Deny for a call that moves no assets to another principal at all (a deploy, a config/admin call, or a lock-in-place like `stake` — a spurious "amount sent" post-condition there fails with `SentEq 0`). Wrong here in either direction: a missing condition leaves funds unprotected; a mismatched condition aborts a correct call. Allow mode and missing-where-needed post-conditions are the default failure and must not appear even in a testnet toy. Verify the wallet and the library actually support and serialize the condition type you use (see "Wallet capability").
+- **Never trust client-side validation for correctness.** Frontend checks are UX, not security. The contract and the post-conditions are the enforcement. Likewise, any user-facing claim about what a call does (what locks, when funds unlock, fee units, irreversibility) must be derived from the *verified contract source*, not assumed — wrong copy misleads a value decision as surely as a missing guard.
+- **Pin and verify contract identity — the source, not just the address.** Hardcode the exact contract principal, and verify the deployed *source* matches the reviewed reference. Address-pinning alone is insufficient. See "Verify the source."
+- **Scope token approvals/allowances tightly.** Prefer exact amounts over unlimited approvals.
+- **Keys stay in the wallet.** Never handle a seed or private key in frontend code or config, not even a throwaway one, because the pattern propagates.
+
+### Verify the source, robustly
+
+Verifying a contract means comparing its source to a reviewed reference. Naive hashing misleads:
+
+- A **raw byte hash** changes with any whitespace, newline, or line-ending difference.
+- A **light canonical hash** (strip comments, collapse whitespace runs) still changes when a formatter (e.g. `clarinet format`) adjusts spacing *around* delimiters — so a formatted-but-identical contract reads as "unverified."
+- A **structure/token hash** (tokenize the source; drop all whitespace, comments, and separators; hash the token stream) is formatting-independent and is the reliable "same code" check. It ignores comment text by design.
+- Clarity's own `contract-hash?` is **`SHA-512/256` over the deployed source bytes** — a *different algorithm and normalization* than an app's `SHA-256`, so it will never equal your SHA-256 values; don't compare across them. The emerging ecosystem convention (draft SIP-043) pins the canonical form as `clarinet format` output hashed with `SHA-512/256`, which is what matches `contract-hash?`.
+
+Offer a formatting-robust comparison (structure hash, or the SIP-043 convention if you can run `clarinet format`), and treat the pinned reference as an immutable, commit-addressed source, not a moving branch.
+
+### What scales with the tier
+
+- **Financial safeguards** (slippage bounds tuned to pool depth, sanity checks on displayed prices, confirmation friction, rate limits): irrelevant at Tier 0–1, mandatory from Tier 2 up.
+- **Slippage tolerance** for any swap is a frontend-set parameter and a top cause of real-world losses when misconfigured — too loose invites sandwich/front-running, too tight wastes fees on failed txs. Owned by the frontend at Tier 2+.
+- **Front-running / MEV awareness:** mempool visibility means a value-moving swap's intent is public before it lands. This is largely a contract/UX concern; name it and assign it at Tier 3.
+- **Frontend integrity and anti-phishing:** for a public Tier 3 dApp the frontend must be publicly reachable, so "org-only access control" is not a security control here — interface phishing (fake URLs mimicking the real dApp) is a leading incident category. Integrity and authenticity of the served frontend matter more than restricting who can load it.
+
+## Network identity: pin it, and prefer the primary testnet
+
+Pin, per network, the **network name** the wallet expects, the **chain-id**, the **boot/system-contract principals**, and the **read API**. By default target two networks: the **primary public testnet** and **mainnet**. Custom/experimental testnets exist — usually spun up around consensus-breaking upgrades — and purely local networks (regtest/mocknet) exist for solo development, but neither invites sharing code with others, so prefer the primary testnet: it resets the least often.
+
+**Testnets are volatile — expect resets, but understand what a reset changes.** A reset of the primary testnet keeps the **same chain-id and network identity**; what it wipes is chainstate — contracts you deployed, grants/signatures you produced, balances. So never rely on anything you built there before a reset: redeploy and re-derive, but you do not need to re-key the network.
+
+**A *different* network is what changes the chain-id** — mainnet vs testnet, or a custom/experimental testnet vs the primary one. That is where chain-id mismatches bite. Anything that signs **offline** — a SIP-018 structured message such as a signer/authorization grant — bakes the domain **chain-id** into the signature, so using the wrong one (for example a retired custom network's) makes signatures silently fail to verify on the target network. Do not default the network silently: pass it explicitly on connect (some wallets otherwise fall back to mainnet when the active account differs).
+
+When you preflight the live network, distinguish a genuine *wrong network* (different boot principal, e.g. SP- vs ST-prefixed) from a protocol *not yet activated* (same boot principal, node still reports the older contract) — they need different messages and different user actions.
+
+**Inherited constants are not pinned constants.** The dangerous chain-id mismatch rarely comes from a choice you made; it comes from a network block carried over from a prototype, a reference implementation, or an older app that once targeted a custom testnet. "Keep identical call semantics" does not mean "keep the network identifiers." Whenever code is ported, re-verify every network identifier against the live primary networks before the first signing test: the network name passed to the wallet, the chain-id it implies, the read-API host, and the boot principals. A real failure mode: a ported `connectValue` naming a retired experimental testnet made wallets with a leftover profile sign every transaction with that network's chain-id (0x80000005), and the primary testnet node rejected them all with a SignatureValidation mismatch — while the wallet UI showed the correct network throughout.
+
+## Transaction validity windows
+
+Post-conditions govern what a call may move; validity windows govern *when* an otherwise-correct call is allowed to land. Some protocol actions fail during defined block ranges regardless of arguments — on Stacks pox-5, staking and stake-update transactions broadcast during a cycle's prepare phase fail. For every transaction the app can send, know its blocked windows and design for them:
+
+- **Show position explicitly.** If an action is window-bound, render where the chain currently is (a cycle progress bar with current block, window boundaries, and a marker for the blocked phase), not just an error after the fact.
+- **Guard the submit path on a fresh read.** UI state is stale by definition; re-fetch the chain position inside the submit handler and refuse to hand the wallet a doomed transaction. Cached "not in the window" from thirty seconds ago is not a guard.
+- **Block with an explanation, not a failure.** A warning ("not possible during the prepare phase; wait for the next cycle") before signing beats a rejected transaction after fees and confusion.
+
+## The playground-to-production guard
+
+The core risk: someone builds a Tier 0/1 demo, it works, and it silently becomes a Tier 3 dApp while keeping the demo's relaxed security and cheap deployment. Prevent it structurally.
+
+- **Mainnet + real value forces Tier 2+ automatically.** There is no path where a mainnet asset can move under playground rules. If the target is mainnet, apply Tier 2 safeguards from the first line of code.
+- **The invariants above are enforced even at Tier 0**, so a promoted demo starts from correct patterns rather than teaching post-condition-free, allow-mode, unpinned-contract, or unverified-wallet habits that then ship to mainnet.
+- **Crossing from Tier 1 to Tier 2+ is an explicit promotion, not a config flip.** Require, and surface to the user, a checklist: switch network to mainnet deliberately (and update chain-id everywhere, including offline signers); confirm post-conditions are Deny mode with conditions that match each call's real asset flow; verify the pinned contract *source* on mainnet with a formatting-robust hash; confirm every supported wallet actually enforces those post-conditions; add slippage bounds and price sanity checks; vendor and pin the exact dependency bundles served; remove every testnet shortcut (faucet assumptions, disabled checks, hardcoded values, allow-mode fallbacks); and for Tier 3, confirm the contract has been audited and that oracle, front-running, and governance risks have an owner. Do not let a demo reach real users by quietly repointing an RPC URL.
+- **State the tier in the output** — to the builder and the promotion checklist. Do not necessarily stamp the internal tier taxonomy onto the end-user UI; end users need "testnet vs mainnet" and clear safety cues, not your internal tier labels.
+
+Be conservative about the tier. When unsure whether something is a demo or the seed of a production dApp, treat it as the higher tier. The cost of over-securing a playground is a few unnecessary post-conditions. The cost of under-securing a swap is user funds.
+</pre><pre class="mdblock" id="dapp-revised" hidden>---
 name: stacks-dapp-architecture
 description: "Choose the architecture, deployment, security posture, and wallet support for a Stacks (or similar wallet-and-chain) decentralized application: playgrounds, single-feature demos, testnet experiments, and production value-moving dApps such as swaps, DEXs, lending, and token sales. Use when building or deploying a dApp frontend, deciding whether it needs a backend, wiring wallet connection and contract calls, pinning contract identity, choosing which wallets to support, or moving something from a demo to real value. Governs the security tier separately from the deployment cost, treats wallet SIP-030 capability as part of the security model, and enforces a hard boundary between throwaway demos and anything that moves real assets."
 ---
@@ -323,8 +551,8 @@ The core risk: someone builds a Tier 0/1 demo, it works, and it silently becomes
 - **Crossing from Tier 1 to Tier 2+ is an explicit promotion, not a config flip.** Require, and surface to the user, a checklist: switch network to mainnet deliberately (and update chain-id everywhere, including offline signers); confirm post-conditions are Deny mode with conditions that match each call's real asset flow; verify the pinned contract *source* on mainnet with a formatting-robust hash; confirm every supported wallet actually enforces those post-conditions; add slippage bounds and price sanity checks; vendor and pin the exact dependency bundles served; remove every testnet shortcut (faucet assumptions, disabled checks, hardcoded values, allow-mode fallbacks); and for Tier 3, confirm the contract has been audited and that oracle, front-running, and governance risks have an owner. Do not let a demo reach real users by quietly repointing an RPC URL.
 - **State the tier in the output** — to the builder and the promotion checklist. Do not necessarily stamp the internal tier taxonomy onto the end-user UI; end users need "testnet vs mainnet" and clear safety cues, not your internal tier labels.
 
-Be conservative about the tier. When unsure whether something is a demo or the seed of a production dApp, treat it as the higher tier. The cost of over-securing a playground is a few unnecessary post-conditions. The cost of under-securing a swap is user funds.</pre>
-    <pre class="mdblock" id="dapp-original" hidden>---
+Be conservative about the tier. When unsure whether something is a demo or the seed of a production dApp, treat it as the higher tier. The cost of over-securing a playground is a few unnecessary post-conditions. The cost of under-securing a swap is user funds.
+</pre><pre class="mdblock" id="dapp-original" hidden>---
 name: stacks-dapp-architecture
 description: "Choose the architecture, deployment, and security posture for a Stacks (or similar wallet-and-chain) decentralized application: playgrounds, single-feature demos, testnet experiments, and production value-moving dApps such as swaps, DEXs, lending, and token sales. Use when building or deploying a dApp frontend, deciding whether it needs a backend, wiring wallet connection and contract calls, or moving something from a demo to real value. Governs the security tier separately from the deployment cost, and enforces a hard boundary between throwaway demos and anything that moves real assets."
 ---
@@ -408,19 +636,159 @@ Be conservative about the tier. When unsure whether something is a demo or the s
 
   <div class="card">
     <h2>Design and tone of voice</h2>
-    <p class="filetag">skill: reserved</p>
-    <p>Reserved for a design and tone-of-voice skill, to be added here later.</p>
-    <p>For now these apps share one stylesheet, <code>stacks.css</code>, vendored from the Stacks Labs design tokens: dark-only, self-hosted OFL fonts, no external CSS or CDN, and an accent that flips per network (violet on testnet, Stacks orange on mainnet). The rules that keep each page standalone: one self-contained file per app, no build step, no framework, and only <code>esm.sh</code> module imports for the Stacks libraries.</p>
+    <p class="filetag">skill: stacks-labs-dapp-design</p>
+    <p class="revtag">zero_to v1 — added after Signer Sidekick. The design system, layout pattern, and voice extracted from the production Zero to Signing app: the step-flow layout, the mandatory network accent swap, the closed surface system, per-network state and persistence conventions, and house voice (no em dashes). Pairs with the two architecture skills, which own security and deployment; this one owns how the app looks, lays out, and reads. Its bundled assets (tokens.css, app.css, fonts) and component recipes ship with the skill.</p>
+    <pre class="mdblock" id="design-zero">---
+name: stacks-labs-dapp-design
+description: Design system, layout pattern, and voice for Stacks Labs standalone dApps, extracted from the production Zero to Signing app. Use whenever building, styling, restyling, or writing copy for any Stacks Labs product UI, any "Zero to X" guided flow, any standalone single-page dApp or step wizard (up to 8 steps), or any screen that should look like Stacks Labs work, even if the user never says "design". Also use when reviewing such a UI for consistency. Pair it with the static-first-architecture and stacks-dapp-architecture skills, which own deployment and wallet/chain security; this skill owns how the app looks, lays out, and reads.
+---
+
+# Stacks Labs Standalone dApp Design
+
+Binding visual style, layout pattern, and voice for standalone Stacks Labs dApps. The canonical product shape is a **single-page guided flow**: a horizontal step rail across the top, one active panel below it, explanatory copy below that. Everything here was extracted from the shipped Zero to Signing app and refined through its design review; treat it as decided, not as a starting point for taste.
+
+Never invent colors, type sizes, spacing, radii, or shadows. Everything comes from `assets/tokens.css` (design tokens + semantic type classes) and `assets/app.css` (component recipes). Copy both stylesheets and `assets/fonts/` into the project and load tokens.css before app.css. All fonts are self-hosted; no remote font fetches.
+
+## Division of labor
+
+This skill owns look, layout, and voice. Load it together with:
+
+- **static-first-architecture**: static build, vendored and pinned dependencies, verify the built artifact.
+- **stacks-dapp-architecture**: security tier, wallet capability, post-conditions, network identity pinning.
+
+Product behavior (which steps exist, which contract calls they make, state fields, acceptance criteria) comes from a per-app PRD, not from any skill. Do not start building a new flow without one; a single page suffices. `references/scaffold.md` describes the project skeleton and the per-app PRD template.
+
+## Foundations
+
+- **Type**: `--font-display` (Open Sauce Sans) for headings only; `--font-body` (Instrument Sans) for all body/UI text; `--font-mono` (JetBrains Mono) ONLY for numbers, hashes, principals, txids, block heights, code, CLI commands, timestamps. Never mono for prose. Headings in product chrome stay 20-26px.
+- **Color**: warm Sand neutral scale + accent. Semantic tokens only (`--surface-*`, `--text-*`, `--border-*`); never raw hex in components.
+- **Spacing**: 4-pt scale (`--space-*`). Product surfaces are dense: 4/8/12/16/24.
+- **Radius**: controls `--radius-md` (8px), cards/panels `--radius-lg` (12px). Nothing larger in chrome.
+- **Borders carry structure, not shadows.** Shadows only on floating surfaces (menus, modals) and the primary button glow.
+- **Mixed-size text aligns on baselines, not centers.** Whenever two text sizes sit on one line (step number + title, page title + subtitle, big value + unit), align their text baselines; center or box alignment reads as uneven and will draw a correction. Every alignment complaint in the source app resolved to this rule.
+- **Licensing**: every bundled font is freely licensed (Instrument Sans and JetBrains Mono under SIL OFL, Open Sauce Sans free), so any deploy target is fine. The system originally used Matter / Matter Mono (commercial, Displaay Type Foundry, licensed to Stacks Labs); they were deliberately removed so deployments outside the Stacks Labs license are safe. Do not reintroduce Matter without confirming the license covers the host.
+
+## Network accent swap (mandatory)
+
+Testnet replaces the accent entirely (violet vs mainnet orange) so environment confusion is impossible. `body` defines `--accent`, `--accent-hover`, `--accent-soft`, `--accent-shadow`; `body.net-testnet` overrides all four. Every accent use (primary buttons, focus rings, links, radio/checkbox accent-color, spinners, progress fills) goes through these variables; never `--stacks-500` directly in components. Progress/meter fills use the accent at 50% opacity via `color-mix(in srgb, var(--accent) 50%, transparent)`.
+
+## Surface system (closed set)
+
+- The shell (page, header, everything outside cards) is one continuous `--surface-tertiary` tone, separated by 1px `--border-secondary` rules. Never differentiate shell regions by fill.
+- The step panel is a **standout card**: `--surface-primary`, no border, radius 12px. Any container holding form controls must be this form.
+- Nested groups inside the panel (sub-stage cells, picker rows) are `--surface-secondary`, no border, radius 8px.
+- Inputs sit on `--surface-fourth` with a 1px `--border-secondary` frame. Read-only inputs drop to `--surface-secondary` with `--text-secondary`.
+- Cards are never white, never gradient, never left-border-accented.
+
+## The step-flow layout pattern
+
+The canonical page, top to bottom: header (64px), step rail, active panel, info section. One flow per page, 2 to 8 steps, numbered from 0. Number from 0 when step 0 is a no-interaction prerequisites checklist, from 1 otherwise.
+
+- **Rail**: one entry per step, states locked / active / complete / skipped. The active step renders as a tab (`.rail-tab`) that merges seamlessly into the panel. Locked steps are not clickable; completed steps open read-only views; steps the PRD marks re-enterable stay writable after completion.
+- **Rail geometry is load-bearing**: every step number and the active step title share one TEXT BASELINE. The rail is a baseline-aligned flex row, the tab's internal row is baseline-aligned, and each inactive item's first line is its number, so flexbox lines everything up on the tab number's baseline with the small labels hanging below. The tab keeps a fixed 80px box and, as the deepest item, stays flush with the panel it merges into; keep the inactive items' below-baseline extent (descent + gap + label) smaller than the tab's or the tab detaches. Verify baseline alignment programmatically after any rail change. The active number is `--text-primary` at weight 500, not accent-colored.
+- **Panel**: only the current step's controls exist in the DOM. `.panel` is a flex column with `min-height:380px`; the step content wraps in `.body-wrap` (flex:1, column) holding `.body` (flex:1) and `.foot`, which is what pins the footer to the panel bottom even on short read-only views. Footer: Back (tertiary, pulled left by its own padding so the label aligns with the content edge) left, primary action right, spacer between.
+- **Info section**: below the panel, uppercase 12px kicker ("About this step"), 14px `--text-secondary` prose, max 72ch, scoped to the current step, doc links as external-link anchors.
+- **Sub-stages** live inside the panel as `.cell` blocks with a mono ordinal; the rail reflects the parent step only.
+- Desktop only unless the PRD says otherwise (`&lt;meta name="viewport" content="width=1200"&gt;`).
+
+Component recipes with class names and JSX shapes are in `references/components.md`; read it before building any screen. It includes the chain-timing widgets (cycle progress bar, prepare-phase guard) that recur in staking-adjacent flows.
+
+## State and persistence conventions
+
+These conventions came out of real bugs; follow them unless the PRD contradicts.
+
+- Namespace all flow state per network; no value ever crosses a network boundary. localStorage keys: `&lt;app-prefix&gt;:&lt;network&gt;:&lt;record-id&gt;`. Mirror the active record and network as `?id=` and `?chain=` URL params so reloads and shared links resume correctly.
+- The read-API node is part of the URL contract too: an `?api=` parameter, always visible at its current value (default or overridden), ordered chain, then id when a record exists, then api. Per network, session only, reads and explorer links only, never what the wallet signs. An override that only appears when set is a feature nobody finds.
+- Persist nothing before the flow's first on-chain anchor (e.g. deploy confirmation); keep pre-anchor state in memory per network for the session, and say so in one sentence of copy on the step where it matters.
+- On load: URL id wins; else a single existing record auto-restores; multiple records open a picker; none starts at the first step. Resume at the furthest reached step.
+- Wallet disconnect keeps records and makes the flow read-only. Reconnecting as a different account asks which step to resume (remember the last connected account across disconnects, or the dialog is unreachable).
+
+## Voice and copy
+
+- Pragmatic, observational, impersonal, declarative. No exclamation marks, no persuasion, no filler.
+- **No em dashes anywhere**: not in UI text, not in code comments. Use a colon, comma, or parentheses instead, and a plain hyphen as the empty-value glyph. This is house style; verify it mechanically (the scaffold's check asserts the rendered UI contains none).
+- Max 3 sentences of explanation per step; deeper reading goes in the info section as doc links.
+- Every claim about chain behavior (what locks, when funds unlock, when earning starts, fee units, irreversibility) must come from the PRD or linked docs, and must be precise about timing: "the lock takes effect once this transaction is confirmed on chain; the STX starts earning when the next reward cycle starts" is correct where "takes effect the next cycle" was not. Invented parameters, limits, or CLI flags are defects.
+- Title Case for buttons and page titles; sentence case elsewhere. Lowercase token/contract names.
+- Numbers, amounts, hashes, principals, txids always in mono; amounts show both units where conversion happens; txids shortened `0x1a2b…` and linked to the explorer.
+- Define an app glossary in the PRD (the canonical term for each domain object) and use it exactly, in UI copy, code identifiers, and state fields alike. No synonyms.
+- When copy quotes a number the user can edit (a default cycle count, an amount), bind the copy to the field so it adapts live rather than stating a stale constant.
+- Errors: inline `.status err` under the content they relate to, specific and actionable, never blocking dialogs. Blocking modals are reserved for actions that would fail or lose funds if allowed to proceed (e.g. staking during the prepare phase).
+
+## Iconography
+
+Phosphor Icons (regular weight) only, self-hosted or bundled, never CDN-loaded at runtime. No emoji, no Unicode glyphs as icons, no hand-drawn SVG icons.
+
+## Hard don'ts
+
+No gradients, no emoji, no em dashes, no backdrop blur, no hero illustrations or stock imagery, no dark-blue generic accents, no new colors or type scales, no shadows on resting cards, no mono for prose, no runtime CDN dependencies, no mobile layout unless the PRD asks.
+
+## Building a new flow
+
+1. Get or write the one-page PRD (steps, chain calls, state fields, glossary, acceptance criteria). Template in `references/scaffold.md`.
+2. Load static-first-architecture and stacks-dapp-architecture; fix the security tier and network identities before writing code.
+3. Scaffold per `references/scaffold.md` (Vite static build, pinned deps, this skill's assets, entry import order).
+4. Build screens from `references/components.md` recipes only.
+5. Verify the built artifact in a real browser: the scaffold reference describes the reusable check harness (state restore, network isolation, rail geometry, footer pinning, no em dashes, no runtime CDN fetches).
+6. Run a visual pass before showing anyone: screenshot every step in every state (active, read-only, skipped, error, empty) and inspect the images against an optical checklist: shared baselines wherever text sizes mix, footer pinned to the panel bottom on short views, Back label on the content edge, tab flush with the panel, spacing rhythm. Functional assertions do not see design; in the source app the harness passed 80+ checks while every layout defect was caught by a human looking at screenshots. Deliver the screenshots with the build.
+</pre>
   </div>
 
-  <p class="foot">Signer Sidekick is interim tooling. The skills above are included verbatim.</p>
+  <div class="card">
+    <h2>PRD and scaffolding</h2>
+    <p class="filetag">skill: stacks-labs-dapp-design / references/scaffold.md</p>
+    <p class="revtag">How additional apps get built. Product behaviour (which steps exist, which contract calls they make, the state fields, the glossary, the acceptance criteria) comes from a one-page per-app PRD, not from any skill. Each new flow is scaffolded from the previous app rather than re-derived: the same project skeleton, network block, state model, and verification harness carried forward from the Zero to Signing repo. About three and a half apps have been built this way so far. Below: the reused project layout and the per-app PRD template, verbatim from the design skill's scaffold reference.</p>
+    <pre class="mdblock" id="prd-tpl">## Project layout
+
+```
+&lt;app-name&gt;/
+├── index.html              Vite entry: &lt;div id="root"&gt; + /src/main.jsx, viewport width=1200
+├── package.json            exact-pinned versions only (no ^ or ~), lockfile committed
+├── vite.config.js          base:'./', @vitejs/plugin-react, target es2020
+├── scripts/
+│   ├── verify-app.mjs      browser check harness (below)
+│   └── verify-hashes.mjs   only if the app pins contract identity by structure hash
+└── src/
+    ├── main.jsx            entry; import order matters (below)
+    ├── app.jsx             shell: header, network switch, wallet connect/BNS, restore, modals
+    ├── core.jsx            NETWORKS, state model, persistence, chain reads, UI atoms, Rail
+    ├── steps.jsx           step panels + per-step info copy
+    ├── lib.js              wallet/chain bridge over the vendored bundles
+    ├── vendor/             pinned runtime bundles (see below)
+    └── styles/             tokens.css, app.css, fonts/  (copied from this skill's assets/)
+```
+
+Entry import order in main.jsx: tokens.css, phosphor icons CSS (`@phosphor-icons/web/regular`), app.css, then vendor side-effect scripts (bundled data such as contract sources, then any hash/util globals), then lib.js, then the app. Tokens before app.css because app.css consumes the tokens; vendor scripts before the app because the app reads their globals at module scope.
+
+## Per-app PRD template
+
+One page. This is the layer no skill can supply.
+
+```
+# &lt;App name&gt;: single-page guided flow
+Objective: &lt;who&gt; goes from &lt;nothing&gt; to &lt;end state&gt;.
+Non-goals: &lt;explicitly excluded actions; link-outs instead&gt;
+Glossary: &lt;canonical term per domain object; used verbatim in copy, code, state&gt;
+Network: &lt;mainnet/testnet behavior, per-network state rule&gt;
+Flow: steps 0..N (max 8), for each: purpose, inputs, chain call or off-app action,
+  completion condition, skippable / re-enterable flags
+State: record fields, persistence anchor, resume rules
+Errors: the enumerated cases the UI must handle inline
+Copy rules: max 3 sentences per step; claims sourced from these docs: &lt;links&gt;
+Acceptance criteria: the checklist the verification harness asserts
+```</pre>
+  </div>
+
+  <p class="foot">Signer Sidekick is interim tooling. The skills above are included verbatim, at the versions noted.</p>
 </div>
 <script>
 const NOTES={
-  "dapp-revised":"Revised after building Signer Sidekick — adds wallet SIP-030 capability, source verification, read-resilience, and network/chain-id handling.",
-  "dapp-original":"The original skill, as first written — before those lessons.",
-  "sf-revised":"Revised after building Signer Sidekick — adds \"dependencies are part of the artifact\" (vendor + pin, CDN-primary with local fallback), URL-as-state, and \"verify by executing the artifact, not resolving the graph.\"",
-  "sf-original":"The original skill, as first written — before those lessons."
+  "sf-zero":"zero_to v1 \u2014 the currently installed skill. Its body carried forward unchanged from Revised (byte-identical; only the frontmatter quoting differs), so the static-first lessons stabilised a version earlier than the dApp ones.",
+  "sf-revised":"Revised after building Signer Sidekick \u2014 adds \"dependencies are part of the artifact\" (vendor + pin, CDN-primary with local fallback), URL-as-state, and \"verify by executing the artifact, not resolving the graph.\"",
+  "sf-original":"The original skill, as first written \u2014 before those lessons.",
+  "dapp-zero":"zero_to v1 \u2014 the currently installed skill. Adds the three-tier wallet selector (verified / offered-untested / blocked, with install links and provider-id pinning), \"inherited constants are not pinned constants\" (a ported connectValue signed every transaction with a retired network's chain-id 0x80000005), and a \"transaction validity windows\" section (the prepare-phase guard).",
+  "dapp-revised":"Revised after building Signer Sidekick \u2014 adds wallet SIP-030 capability, source verification, read-resilience, and network/chain-id handling.",
+  "dapp-original":"The original skill, as first written \u2014 before those lessons."
 };
 document.querySelectorAll(".tabs").forEach(bar=>{
   bar.addEventListener("click",e=>{
