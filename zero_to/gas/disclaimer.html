@@ -9,11 +9,9 @@
   <link rel="stylesheet" crossorigin href="./assets/app-tYLX_UJ8.css">
 </head>
 <body>
-<!-- Counsel review: this text was drafted by the build, not by a lawyer. Werner has counsel
-     review and approve it before launch; the governing-law clause in particular. -->
 <div class="wrap legal">
   <h1 class="heading-sm">Disclaimer</h1>
-  <p class="legal-lead">sBTC to Stacks gas, the sbtc-gas-swap-v1 contract, the SDK, and any relay that sponsors transactions for it are provided by Stacks Labs as is, without warranty of any kind. Read this page before swapping.</p>
+  <p class="legal-lead">sBTC to Stacks gas is published on stx.fan as open source software. It, the sbtc-gas-swap-v1 contract it calls, and any relay that sponsors transactions for it are provided as is, without warranty of any kind. Read this page before swapping. If you do not agree with it, do not use the app.</p>
 
   <div class="legal-card">
     <h2 class="heading-xs">No warranty</h2>
@@ -22,22 +20,22 @@
 
   <div class="legal-card">
     <h2 class="heading-xs">Your responsibility</h2>
-    <p>All responsibility for using this software rests with the user or the integrator. You decide the swap amount, the tier, and the slippage; you review the post-conditions in your wallet before signing; you accept that pool prices move between the quote and the mined transaction. Stacks Labs does not hold your assets at any point and cannot recover a swap you did not intend.</p>
+    <p>You use this software at your own risk. All responsibility for using it rests with the user or the integrator. You decide the swap amount, the tier, and the slippage; you review the post-conditions in your wallet before signing; you accept that pool prices move between the quote and the mined transaction. stx.fan does not hold your assets at any point and cannot recover a swap you did not intend.</p>
   </div>
 
   <div class="legal-card">
     <h2 class="heading-xs">Relays may refuse</h2>
-    <p>A relay operator may refuse any transaction for any reason, at any time, without notice: because the fee market moved, because a rate limit was reached, because the sponsor key is out of funds, or for no stated reason. A refusal costs you nothing; a refused transaction was never broadcast. Anyone may run a relay from the public source; Stacks Labs is responsible only for the relays it operates itself, and only to the extent stated here.</p>
+    <p>A relay operator may refuse any transaction for any reason, at any time, without notice: because the fee market moved, because a rate limit was reached, because the sponsor key is out of funds, or for no stated reason. A refusal costs you nothing; a refused transaction was never broadcast. Anyone may run a relay from the public source. Each relay is the responsibility of whoever operates it, and listing a relay in this app is not an endorsement of it.</p>
   </div>
 
   <div class="legal-card">
     <h2 class="heading-xs">The contract is immutable</h2>
-    <p>The swap contract is deployed on the Stacks mainnet and cannot be changed. Its fee rate and its list of pools are fixed. Once a swap is mined, Stacks Labs cannot reverse it, and no relay operator can reverse it, refund it, or alter its result. A swap that aborts on chain moves nothing.</p>
+    <p>The swap contract is deployed on the Stacks mainnet and cannot be changed. Its fee rate and its list of pools are fixed. Once a swap is mined, nobody can reverse it: not stx.fan, not a relay operator, not the contract owner. It cannot be refunded or its result altered. A swap that aborts on chain moves nothing.</p>
   </div>
 
   <div class="legal-card">
-    <h2 class="heading-xs">Governing law</h2>
-    <p>This disclaimer and any dispute arising from the use of this software are governed by the laws of the State of New Jersey, United States of America, without regard to its conflict-of-law rules. The state and federal courts located in New Jersey have exclusive jurisdiction over any such dispute.</p>
+    <h2 class="heading-xs">Fees</h2>
+    <p>Every swap pays three fees inside the transaction, all shown on the review screen before you sign: a network fee in STX to the sponsor who paid for the transaction, a default provider fee of 0.5 percent of the sBTC input, and an integrator fee of 1 percent of the sBTC input to the publisher of this page. The amounts are fixed by the contract call you sign and cannot change afterwards.</p>
   </div>
 
   <div class="legal-card">
@@ -45,7 +43,12 @@
     <p>Nothing in this app, its documentation, or its source code is legal, financial, investment, or tax advice. Swapping one digital asset for another may have tax consequences and carries the risk of loss. Consult your own advisers.</p>
   </div>
 
-  <p class="legal-foot">Contact: <a href="mailto:support@stackslabs.com">support@stackslabs.com</a>. <a href="./index.html">Back to sBTC to Stacks gas</a></p>
+  <div class="legal-card">
+    <h2 class="heading-xs">Limitation of liability</h2>
+    <p>To the fullest extent permitted by applicable law, the publisher of this page, the contract deployer, and any relay operator are not liable for any loss or damage arising from your use of this software, including loss of digital assets, lost profits, or consequential damages, however caused. Where a limitation of liability is not permitted, liability is limited to the smallest amount the applicable law allows.</p>
+  </div>
+
+  <p class="legal-foot"><a href="./index.html">Back to sBTC to Stacks gas</a></p>
 </div>
 </body>
 </html>
