@@ -1,0 +1,10 @@
+{
+  "updated": "2026-09-06",
+  "relays": [
+    {
+      "url": "https://sbtc-gas-relay.labs2.workers.dev",
+      "operator": "Stacks Labs (Werner)",
+      "since": "2026-09-06"
+    }
+  ]
+}
