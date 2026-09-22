@@ -1,0 +1,16 @@
+;; Mock of SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2 (identical transfer semantics).
+(define-constant ERR_NOT_AUTHORIZED_SIP_010 (err u4))
+(define-constant ERR_INVALID_PRINCIPAL_SIP_010 (err u5))
+(define-read-only (get-name) (ok "Stacks"))
+(define-read-only (get-symbol) (ok "STX"))
+(define-read-only (get-decimals) (ok u6))
+(define-read-only (get-total-supply) (ok stx-liquid-supply))
+(define-read-only (get-balance (address principal)) (ok (stx-get-balance address)))
+(define-read-only (get-token-uri) (ok (some u"")))
+(define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
+  (begin
+    (asserts! (is-eq tx-sender sender) ERR_NOT_AUTHORIZED_SIP_010)
+    (asserts! (is-standard sender) ERR_INVALID_PRINCIPAL_SIP_010)
+    (asserts! (is-standard recipient) ERR_INVALID_PRINCIPAL_SIP_010)
+    (try! (stx-transfer? amount sender recipient))
+    (ok true)))

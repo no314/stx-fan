@@ -1,0 +1,127 @@
+id: 0
+name: Simulated deployment, used as a default for `clarinet console`, `clarinet test` and `clarinet check`
+network: simnet
+genesis:
+  wallets:
+  - name: deployer
+    address: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+    balance: '100000000000000'
+    sbtc-balance: '1000000000'
+  - name: wallet_1
+    address: ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5
+    balance: '100000000000000'
+    sbtc-balance: '1000000000'
+  - name: wallet_2
+    address: ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG
+    balance: '100000000000000'
+    sbtc-balance: '1000000000'
+  - name: wallet_3
+    address: ST2JHG361ZXG51QTKY2NQCVBPPRRE2KZB1HR05NNC
+    balance: '100000000000000'
+    sbtc-balance: '1000000000'
+  - name: wallet_4
+    address: ST2NEB84ASENDXKYGJPQW86YXQCEFEX2ZQPG87ND
+    balance: '100000000000000'
+    sbtc-balance: '1000000000'
+  - name: wallet_5
+    address: ST2REHHS5J3CERCRBEPMGH7921Q6PYKAADT7JP2VB
+    balance: '100000000000000'
+    sbtc-balance: '1000000000'
+  - name: wallet_6
+    address: ST3AM1A56AK2C1XAFJ4115ZSV26EB49BVQ10MGCS0
+    balance: '100000000000000'
+    sbtc-balance: '1000000000'
+  - name: wallet_7
+    address: ST3PF13W7Z0RRM42A8VZRVFQ75SV1K26RXEP8YGKJ
+    balance: '100000000000000'
+    sbtc-balance: '1000000000'
+  - name: wallet_8
+    address: ST3NBRSFKX28FQ2ZJ1MAKX58HKHSDGNV5N7R21XCP
+    balance: '100000000000000'
+    sbtc-balance: '1000000000'
+  contracts:
+  - genesis
+  - lockup
+  - bns
+  - cost-voting
+  - costs
+  - pox
+  - costs-2
+  - pox-2
+  - costs-3
+  - pox-3
+  - pox-4
+  - signers
+  - signers-voting
+  - costs-4
+  - pox-5
+plan:
+  batches:
+  - id: 0
+    transactions:
+    - transaction-type: emulated-contract-publish
+      contract-name: sbtc-token
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/sbtc-token.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: dlmm-pool-stx-sbtc-v-1-bps-15
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/dlmm-pool-stx-sbtc-v-1-bps-15.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: dlmm-core-v-1-1
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/dlmm-core-v-1-1.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: pox-5
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/pox-5.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: sbtc-registry
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/sbtc-registry.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: sbtc-stx-0-jing-v2
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/sbtc-stx-0-jing-v2.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: sbtc-withdrawal
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/sbtc-withdrawal.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: univ2-fees-v1_0_0-0070
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/univ2-fees-v1_0_0-0070.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: univ2-math
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/univ2-math.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: univ2-pool-v1_0_0-0070
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/univ2-pool-v1_0_0-0070.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: signer-manager-stx-payout
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/sim/signer-manager-stx-payout.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: token-stx-v-1-2
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/token-stx-v-1-2.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: wstx
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/wstx.clar
+      clarity-version: 6
+    epoch: '4.0'

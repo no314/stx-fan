@@ -1,0 +1,87 @@
+[project]
+name = "stx-payout-signer-manager"
+authors = []
+telemetry = false
+cache_dir = "./.cache"
+requirements = []
+
+[repl.analysis]
+passes = ["check_checker"]
+[repl.analysis.check_checker]
+strict = false
+trusted_sender = false
+trusted_caller = false
+callee_filter = false
+
+[contracts.sbtc-token]
+path = "contracts/mocks/sbtc-token.clar"
+clarity_version = 6
+epoch = 4.0
+
+[contracts.sbtc-registry]
+path = "contracts/mocks/sbtc-registry.clar"
+clarity_version = 6
+epoch = 4.0
+depends_on = []
+
+[contracts.sbtc-withdrawal]
+path = "contracts/mocks/sbtc-withdrawal.clar"
+clarity_version = 6
+epoch = 4.0
+depends_on = ["sbtc-token", "sbtc-registry"]
+
+[contracts.pox-5]
+path = "contracts/mocks/pox-5.clar"
+clarity_version = 6
+epoch = 4.0
+depends_on = ["sbtc-token"]
+
+[contracts.token-stx-v-1-2]
+path = "contracts/mocks/token-stx-v-1-2.clar"
+clarity_version = 6
+epoch = 4.0
+
+[contracts.dlmm-pool-stx-sbtc-v-1-bps-15]
+path = "contracts/mocks/dlmm-pool-stx-sbtc-v-1-bps-15.clar"
+clarity_version = 6
+epoch = 4.0
+depends_on = ["sbtc-token", "token-stx-v-1-2"]
+
+[contracts.dlmm-core-v-1-1]
+path = "contracts/mocks/dlmm-core-v-1-1.clar"
+clarity_version = 6
+epoch = 4.0
+depends_on = ["dlmm-pool-stx-sbtc-v-1-bps-15", "sbtc-token", "token-stx-v-1-2"]
+
+[contracts.wstx]
+path = "contracts/mocks/wstx.clar"
+clarity_version = 6
+epoch = 4.0
+
+[contracts.univ2-math]
+path = "contracts/mocks/univ2-math.clar"
+clarity_version = 6
+epoch = 4.0
+
+[contracts.univ2-fees-v1_0_0-0070]
+path = "contracts/mocks/univ2-fees-v1_0_0-0070.clar"
+clarity_version = 6
+epoch = 4.0
+
+[contracts.univ2-pool-v1_0_0-0070]
+path = "contracts/mocks/univ2-pool-v1_0_0-0070.clar"
+clarity_version = 6
+epoch = 4.0
+depends_on = ["sbtc-token", "wstx", "univ2-math", "univ2-fees-v1_0_0-0070"]
+
+[contracts.sbtc-stx-0-jing-v2]
+path = "contracts/mocks/sbtc-stx-0-jing-v2.clar"
+clarity_version = 6
+epoch = 4.0
+depends_on = ["sbtc-token"]
+
+[contracts.signer-manager-stx-payout]
+path = "contracts/sim/signer-manager-stx-payout.clar"
+clarity_version = 6
+epoch = 4.0
+depends_on = ["pox-5", "sbtc-token", "sbtc-withdrawal", "sbtc-registry", "dlmm-core-v-1-1", "dlmm-pool-stx-sbtc-v-1-bps-15", "token-stx-v-1-2", "univ2-pool-v1_0_0-0070", "univ2-fees-v1_0_0-0070", "univ2-math", "wstx", "sbtc-stx-0-jing-v2"]

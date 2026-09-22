@@ -1,0 +1,21 @@
+;; Mock sBTC withdrawal: locks amount + max-fee from tx-sender and files a request.
+(define-constant ERR_DUST_LIMIT (err u502))
+(define-constant ERR_INVALID_ADDR (err u500))
+(define-constant DUST_LIMIT u546)
+(define-read-only (validate-recipient (recipient {version: (buff 1), hashbytes: (buff 32)}))
+  (let ((v (buff-to-uint-be (get version recipient))) (l (len (get hashbytes recipient))))
+    (asserts! (<= v u6) ERR_INVALID_ADDR)
+    (asserts! (if (<= v u4) (is-eq l u20) (is-eq l u32)) ERR_INVALID_ADDR)
+    (ok true)))
+(define-public (initiate-withdrawal-request (amount uint) (recipient {version: (buff 1), hashbytes: (buff 32)}) (max-fee uint))
+  (begin
+    (asserts! (> amount DUST_LIMIT) ERR_DUST_LIMIT)
+    (try! (validate-recipient recipient))
+    (try! (contract-call? .sbtc-token transfer (+ amount max-fee) tx-sender current-contract none))
+    (contract-call? .sbtc-registry create-request amount max-fee tx-sender recipient)))
+;; Test helper: return amount + max-fee to the requester (rejected case).
+(define-public (mock-reject (id uint) (requester principal))
+  (let ((r (unwrap-panic (contract-call? .sbtc-registry get-withdrawal-request id))))
+    (try! (contract-call? .sbtc-registry mock-set-status id (some false)))
+    (as-contract? ((with-ft .sbtc-token "sbtc-token" (+ (get amount r) (get max-fee r))))
+      (try! (contract-call? .sbtc-token transfer (+ (get amount r) (get max-fee r)) tx-sender requester none)))))
