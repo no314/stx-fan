@@ -1,0 +1,206 @@
+{
+  "id": "3aa0db3ecc36833828bd62703b829ee6",
+  "url": "https://stxer.xyz/simulations/mainnet/3aa0db3ecc36833828bd62703b829ee6",
+  "contract": "signer-manager-stx-payout",
+  "mode": "lifecycle",
+  "block": 9053602,
+  "burn": 968395,
+  "sourceUnmodified": true,
+  "checks": [
+    {
+      "label": "deploy unchanged mainnet source against real callees (trait live on mainnet)",
+      "passed": true,
+      "actual": "(ok true)"
+    },
+    {
+      "label": "real pox-5 reward cycle",
+      "passed": true,
+      "actual": "u143"
+    },
+    {
+      "label": "routes pinned to real principals",
+      "passed": true,
+      "actual": "(tuple (dlmm (tuple (core SP1PFR4V08H1RAZXREBGFFQ59WB739XM8VVGTFSEA.dlmm-core-v-1-1) (enabled true) (id u1) (max-bins u10) (pool SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-1-bps-15))) (velar (tuple (enabled true) (fees SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-fees-v1_0_0-0070) (id u2) (pool SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070))))"
+    },
+    {
+      "label": "quote-routes 100,000 sats on real pools",
+      "passed": true,
+      "actual": "(tuple (dlmm (some u270075189)) (dlmm-filled u100000) (velar (some u272444418)))"
+    },
+    {
+      "label": "quote-dlmm-raw 100,000 sats walks real bins",
+      "passed": true,
+      "actual": "(some (tuple (filled u100000) (out u270075189)))"
+    },
+    {
+      "label": "quote-velar 100,000 sats on real reserves",
+      "passed": true,
+      "actual": "(some u272444418)"
+    },
+    {
+      "label": "epochs start empty",
+      "passed": true,
+      "actual": "(tuple (convert-epoch u1) (convert-epoch-remaining u0) (open-epoch u1) (pending-conversion-sats u0) (progress-burn-height u0) (stranded false) (stranded-at-burn-height u4200))"
+    },
+    {
+      "label": "stranger cannot convert (u1002)",
+      "passed": true,
+      "actual": "(err u1002)"
+    },
+    {
+      "label": "stranger cannot set-converter (u1002)",
+      "passed": true,
+      "actual": "(err u1002)"
+    },
+    {
+      "label": "stranger cannot sweep-stx (u1002)",
+      "passed": true,
+      "actual": "(err u1002)"
+    },
+    {
+      "label": "nothing to convert yet (u1022)",
+      "passed": true,
+      "actual": "(err u1022)"
+    },
+    {
+      "label": "admin sets converter",
+      "passed": true,
+      "actual": "(ok true)"
+    },
+    {
+      "label": "converter with nothing pending (u1022)",
+      "passed": true,
+      "actual": "(err u1022)"
+    },
+    {
+      "label": "fund real pox-5 sBTC balance (fork only)",
+      "passed": true,
+      "actual": "(ok true)"
+    },
+    {
+      "label": "fixture: signer rewards, staker shares and unclaimed rewards",
+      "passed": true,
+      "actual": "(ok true)"
+    },
+    {
+      "label": "Bob elected STX through v3 calldata",
+      "passed": true,
+      "actual": "\"stx\""
+    },
+    {
+      "label": "Alice stays on sBTC",
+      "passed": true,
+      "actual": "\"sbtc\""
+    },
+    {
+      "label": "real pox-5 pull",
+      "passed": true,
+      "actual": "(ok (tuple (bond-rewards (list )) (bond-totals u0) (stx-rewards (tuple (earned u100000) (rewards-per-token u909456324512))) (total-rewards u100000)))"
+    },
+    {
+      "label": "Alice sBTC before",
+      "passed": true,
+      "actual": "(ok u0)"
+    },
+    {
+      "label": "settle-many: Alice (sBTC) and Bob (STX elector)",
+      "passed": true,
+      "actual": "(ok (tuple (err-count u0) (manager SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.signer-manager-stx-payout) (ok-count u2) (submitted u2) (topic \"settle-many\")))"
+    },
+    {
+      "label": "Alice paid in sBTC",
+      "passed": true,
+      "actual": "(ok (tuple (amount u25000) (withdrawal-request none)))"
+    },
+    {
+      "label": "Alice sBTC after",
+      "passed": true,
+      "actual": "(ok u25000)"
+    },
+    {
+      "label": "Bob's sats pending conversion",
+      "passed": true,
+      "actual": "(tuple (convert-epoch u1) (convert-epoch-remaining u75000) (open-epoch u1) (pending-conversion-sats u75000) (progress-burn-height u968395) (stranded false) (stranded-at-burn-height u972595))"
+    },
+    {
+      "label": "Bob cannot be paid before conversion (u1019)",
+      "passed": true,
+      "actual": "(err u1019)"
+    },
+    {
+      "label": "quote 25,000 sats",
+      "passed": true,
+      "actual": "(tuple (dlmm (some u67576003)) (dlmm-filled u25000) (velar (some u68180221)))"
+    },
+    {
+      "label": "convert 25,000 sats on the best real route",
+      "passed": true,
+      "actual": "(ok (tuple (conversion-id u1) (epoch u1) (epoch-closed false) (route u2) (sats-in u25000) (ustx-out u68180221)))"
+    },
+    {
+      "label": "conversion 1 booked",
+      "passed": true,
+      "actual": "(some (tuple (burn-height u968395) (caller SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM) (epoch u1) (quote-dlmm (some u67576003)) (quote-velar (some u68180221)) (route u2) (sats-in u25000) (stacks-height u9053603) (ustx-out u68180221)))"
+    },
+    {
+      "label": "remaining sats",
+      "passed": true,
+      "actual": "(tuple (convert-epoch u1) (convert-epoch-remaining u50000) (open-epoch u2) (pending-conversion-sats u50000) (progress-burn-height u968395) (stranded false) (stranded-at-burn-height u972595))"
+    },
+    {
+      "label": "convert the remaining 50,000 sats",
+      "passed": true,
+      "actual": "(ok (tuple (conversion-id u2) (epoch u1) (epoch-closed true) (route u2) (sats-in u50000) (ustx-out u136222057)))"
+    },
+    {
+      "label": "epoch 1 closed with blended rate",
+      "passed": true,
+      "actual": "(some (tuple (closed true) (progress-burn-height u968395) (sats-converted u75000) (sats-crystallized u0) (sats-refund u0) (sats-total u75000) (ustx-crystallized u0) (ustx-out u204402278)))"
+    },
+    {
+      "label": "Bob STX before",
+      "passed": true,
+      "actual": "u30475151"
+    },
+    {
+      "label": "Bob paid in STX",
+      "passed": true,
+      "actual": "(ok (tuple (amount u204402278) (withdrawal-request none)))"
+    },
+    {
+      "label": "Bob STX after",
+      "passed": true,
+      "actual": "u234877429"
+    },
+    {
+      "label": "Bob payout replay refused (u1016)",
+      "passed": true,
+      "actual": "(err u1016)"
+    },
+    {
+      "label": "STX liability back to zero",
+      "passed": true,
+      "actual": "u0"
+    },
+    {
+      "label": "sBTC reserve exact: unattributed-balance u0",
+      "passed": true,
+      "actual": "u0"
+    },
+    {
+      "label": "tranche 1 realized within 1 percent of the best quote",
+      "passed": true,
+      "actual": "68180221 vs quoted 68180221"
+    },
+    {
+      "label": "Alice received 25,000 sats",
+      "passed": true,
+      "actual": "25000"
+    },
+    {
+      "label": "Bob received the whole epoch output (sole STX elector)",
+      "passed": true,
+      "actual": "204402278 vs 204402278"
+    }
+  ]
+}

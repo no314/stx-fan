@@ -80,14 +80,14 @@ plan:
       path: contracts/mocks/pox-5.clar
       clarity-version: 6
     - transaction-type: emulated-contract-publish
+      contract-name: reward-claim-signer-manager-trait
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/reward-claim-signer-manager-trait.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
       contract-name: sbtc-registry
       emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
       path: contracts/mocks/sbtc-registry.clar
-      clarity-version: 6
-    - transaction-type: emulated-contract-publish
-      contract-name: sbtc-stx-0-jing-v2
-      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-      path: contracts/mocks/sbtc-stx-0-jing-v2.clar
       clarity-version: 6
     - transaction-type: emulated-contract-publish
       contract-name: sbtc-withdrawal
@@ -113,6 +113,26 @@ plan:
       contract-name: signer-manager-stx-payout
       emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
       path: contracts/sim/signer-manager-stx-payout.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: external-batcher
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/external-batcher.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: markets-sbtc-stx-jing-v6
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/markets-sbtc-stx-jing-v6.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: reward-claim-trait-check
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/mocks/reward-claim-trait-check.clar
+      clarity-version: 6
+    - transaction-type: emulated-contract-publish
+      contract-name: signer-manager-stx-payout-jing
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/sim/signer-manager-stx-payout-jing.clar
       clarity-version: 6
     - transaction-type: emulated-contract-publish
       contract-name: token-stx-v-1-2

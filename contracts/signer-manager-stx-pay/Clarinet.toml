@@ -74,14 +74,36 @@ clarity_version = 6
 epoch = 4.0
 depends_on = ["sbtc-token", "wstx", "univ2-math", "univ2-fees-v1_0_0-0070"]
 
-[contracts.sbtc-stx-0-jing-v2]
-path = "contracts/mocks/sbtc-stx-0-jing-v2.clar"
+[contracts.markets-sbtc-stx-jing-v6]
+path = "contracts/mocks/markets-sbtc-stx-jing-v6.clar"
 clarity_version = 6
 epoch = 4.0
 depends_on = ["sbtc-token"]
+
+[contracts.reward-claim-signer-manager-trait]
+path = "contracts/reward-claim-signer-manager-trait.clar"
+clarity_version = 6
+epoch = 4.0
 
 [contracts.signer-manager-stx-payout]
 path = "contracts/sim/signer-manager-stx-payout.clar"
 clarity_version = 6
 epoch = 4.0
-depends_on = ["pox-5", "sbtc-token", "sbtc-withdrawal", "sbtc-registry", "dlmm-core-v-1-1", "dlmm-pool-stx-sbtc-v-1-bps-15", "token-stx-v-1-2", "univ2-pool-v1_0_0-0070", "univ2-fees-v1_0_0-0070", "univ2-math", "wstx", "sbtc-stx-0-jing-v2"]
+depends_on = ["reward-claim-signer-manager-trait", "pox-5", "sbtc-token", "sbtc-withdrawal", "sbtc-registry", "dlmm-core-v-1-1", "dlmm-pool-stx-sbtc-v-1-bps-15", "token-stx-v-1-2", "univ2-pool-v1_0_0-0070", "univ2-fees-v1_0_0-0070", "univ2-math", "wstx"]
+
+[contracts.signer-manager-stx-payout-jing]
+path = "contracts/sim/signer-manager-stx-payout-jing.clar"
+clarity_version = 6
+epoch = 4.0
+depends_on = ["reward-claim-signer-manager-trait", "pox-5", "sbtc-token", "sbtc-withdrawal", "sbtc-registry", "dlmm-core-v-1-1", "dlmm-pool-stx-sbtc-v-1-bps-15", "token-stx-v-1-2", "univ2-pool-v1_0_0-0070", "univ2-fees-v1_0_0-0070", "univ2-math", "wstx", "markets-sbtc-stx-jing-v6"]
+
+[contracts.reward-claim-trait-check]
+path = "contracts/mocks/reward-claim-trait-check.clar"
+clarity_version = 6
+epoch = 4.0
+
+[contracts.external-batcher]
+path = "contracts/mocks/external-batcher.clar"
+clarity_version = 6
+epoch = 4.0
+depends_on = ["signer-manager-stx-payout"]

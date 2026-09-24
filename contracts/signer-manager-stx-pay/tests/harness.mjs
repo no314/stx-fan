@@ -3,7 +3,8 @@
 import { initSimnet } from "@stacks/clarinet-sdk";
 import { Cl, cvToJSON, serializeCV } from "@stacks/transactions";
 
-export const MANAGER = "signer-manager-stx-payout";
+// MANAGER=signer-manager-stx-payout-jing selects the Jing build.
+export const MANAGER = process.env.MANAGER || "signer-manager-stx-payout";
 export const D = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM";
 export const MANAGER_ID = `${D}.${MANAGER}`;
 

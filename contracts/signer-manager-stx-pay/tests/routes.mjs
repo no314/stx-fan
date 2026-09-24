@@ -52,5 +52,36 @@ for (const sats of [500_000n, 2_000_000n, 7_500_000n, 20_000_000n]) {
   const r3 = m("convert", [Cl.uint(sats), Cl.uint(1)], w5);
   check("remainder via velar", isOk(r3) && Cl.prettyPrint(r3.result).includes("route: u2"), Cl.prettyPrint(r3.result));
 }
+// fallback bound (audit M-2): DLMM quotes best but its swap fails; Velar sits ~13 percent under
+// the DLMM quote, so the fallback is refused with u1021 even at floor u1. Disabling DLMM makes
+// Velar the best quote and the same tranche converts.
+{
+  const sats = 500_000n; const cy = 301;
+  seedDlmm(); // the fill-or-fail block above drained the bins
+  fundRewards(cy, Number(sats), [[w1, Number(sats)]]);
+  m("claim-rewards", [Cl.list([]), Cl.uint(cy)], w5);
+  m("settle-staker-rewards", [P(w1), Cl.uint(cy), Cl.none()], w5);
+  const q = j(mro("quote-routes", [Cl.uint(sats)]).result).value;
+  const qd = BigInt(q.dlmm.value.value), qv = BigInt(q.velar.value.value);
+  check("DLMM quotes more than 3 percent above Velar in this fixture", qd * 9700n > qv * 10000n, `${qd} ${qv}`);
+  call("dlmm-core-v-1-1", "mock-set-swap-fail", [Cl.bool(true)]);
+  eq("fallback more than 3 percent under the best quote refused u1021", errCode(m("convert", [Cl.uint(sats), Cl.uint(1)], w5)), 1021n);
+  eq("epoch untouched", num(j(mro("get-pending-conversion", []).result).value["convert-epoch-remaining"]), sats);
+  m("set-route-enabled", [Cl.uint(1), Cl.bool(false)]);
+  const r = m("convert", [Cl.uint(sats), Cl.uint(1)], w5);
+  check("with DLMM disabled Velar is the best quote and converts", isOk(r) && Cl.prettyPrint(r.result).includes("route: u2"), Cl.prettyPrint(r.result));
+  m("set-route-enabled", [Cl.uint(1), Cl.bool(true)]);
+  call("dlmm-core-v-1-1", "mock-set-swap-fail", [Cl.bool(false)]);
+  check("w1 payout", isOk(m("payout", [P(w1)], w5)));
+}
+// fee exemption is mirrored by the quote (audit L-6)
+{
+  const qq = () => BigInt(j(mro("quote-dlmm", [Cl.uint(100_000)]).result).value.value);
+  const before = qq();
+  call("dlmm-core-v-1-1", "mock-set-fee-exempt", [P(MANAGER_ID), Cl.uint(6), Cl.bool(true)]);
+  const after = qq();
+  check("exempt quote is higher (no fee)", after > before, `${before} -> ${after}`);
+  call("dlmm-core-v-1-1", "mock-set-fee-exempt", [P(MANAGER_ID), Cl.uint(6), Cl.bool(false)]);
+}
 console.log("routes:", Cl.prettyPrint(mro("get-routes", []).result));
 summary();

@@ -1,0 +1,12 @@
+node_modules/
+package-lock.json
+.clarinet/
+.*.mjs
+.commit*.json
+.doc-*.md
+.contract-doc.md
+history.txt
+Clarinet.probe.toml
+.DS_Store
+_to_delete/
+_private/
