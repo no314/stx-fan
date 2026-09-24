@@ -15,6 +15,9 @@
 
 (define-data-var pool-status bool true)
 (define-public (mock-set-status (s bool)) (begin (asserts! true (err u1)) (ok (var-set pool-status s))))
+;; Make every swap fail while the pool still reports status true (quote passes, walk fails).
+(define-data-var swap-fail bool false)
+(define-public (mock-set-swap-fail (f bool)) (begin (asserts! true (err u1)) (ok (var-set swap-fail f))))
 
 ;; Real core: (ok (map-get? pools id)) -> (response (optional pool) ...)
 (define-read-only (get-pool-by-id (id uint))
@@ -30,6 +33,7 @@
 
 (define-public (swap-y-for-x (pool principal) (x-token principal) (y-token principal) (bin-id int) (y-amount uint))
   (let (
+      (fail-check (asserts! (not (var-get swap-fail)) ERR_POOL_DISABLED))
       (caller tx-sender)
       (pool-data (unwrap! (contract-call? .dlmm-pool-stx-sbtc-v-1-bps-15 get-pool-for-swap false) ERR_NO_POOL_DATA))
       (active-bin-id (get active-bin-id pool-data))
@@ -70,3 +74,9 @@
       false)
     (print {action: "swap-y-for-x", caller: caller, data: {bin-id: bin-id, y-amount: y-amount, in: updated-y-amount, out: dx, updated-active-bin-id: updated-active-bin-id}})
     (ok {in: updated-y-amount, out: dx})))
+
+(define-map swap-fee-exemptions {address: principal, id: uint} bool)
+(define-read-only (get-swap-fee-exemption-by-id (address principal) (id uint))
+  (ok (default-to false (map-get? swap-fee-exemptions {address: address, id: id}))))
+(define-public (mock-set-fee-exempt (address principal) (id uint) (exempt bool))
+  (begin (asserts! true (err u1)) (ok (map-set swap-fee-exemptions {address: address, id: id} exempt))))

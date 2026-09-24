@@ -1,0 +1,76 @@
+{
+  "id": "303a64baa3b7dee7d9280a1081082e74",
+  "url": "https://stxer.xyz/simulations/mainnet/303a64baa3b7dee7d9280a1081082e74",
+  "contract": "signer-manager-stx-payout",
+  "mode": "guards",
+  "block": 9053565,
+  "burn": 968395,
+  "sourceUnmodified": true,
+  "checks": [
+    {
+      "label": "deploy unchanged mainnet source against real callees (trait live on mainnet)",
+      "passed": true,
+      "actual": "(ok true)"
+    },
+    {
+      "label": "real pox-5 reward cycle",
+      "passed": true,
+      "actual": "u143"
+    },
+    {
+      "label": "routes pinned to real principals",
+      "passed": true,
+      "actual": "(tuple (dlmm (tuple (core SP1PFR4V08H1RAZXREBGFFQ59WB739XM8VVGTFSEA.dlmm-core-v-1-1) (enabled true) (id u1) (max-bins u10) (pool SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-1-bps-15))) (velar (tuple (enabled true) (fees SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-fees-v1_0_0-0070) (id u2) (pool SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070))))"
+    },
+    {
+      "label": "quote-routes 100,000 sats on real pools",
+      "passed": true,
+      "actual": "(tuple (dlmm (some u272519953)) (dlmm-filled u100000) (velar (some u273631754)))"
+    },
+    {
+      "label": "quote-dlmm-raw 100,000 sats walks real bins",
+      "passed": true,
+      "actual": "(some (tuple (filled u100000) (out u272519953)))"
+    },
+    {
+      "label": "quote-velar 100,000 sats on real reserves",
+      "passed": true,
+      "actual": "(some u273631754)"
+    },
+    {
+      "label": "epochs start empty",
+      "passed": true,
+      "actual": "(tuple (convert-epoch u1) (convert-epoch-remaining u0) (open-epoch u1) (pending-conversion-sats u0) (progress-burn-height u0) (stranded false) (stranded-at-burn-height u4200))"
+    },
+    {
+      "label": "stranger cannot convert (u1002)",
+      "passed": true,
+      "actual": "(err u1002)"
+    },
+    {
+      "label": "stranger cannot set-converter (u1002)",
+      "passed": true,
+      "actual": "(err u1002)"
+    },
+    {
+      "label": "stranger cannot sweep-stx (u1002)",
+      "passed": true,
+      "actual": "(err u1002)"
+    },
+    {
+      "label": "nothing to convert yet (u1022)",
+      "passed": true,
+      "actual": "(err u1022)"
+    },
+    {
+      "label": "admin sets converter",
+      "passed": true,
+      "actual": "(ok true)"
+    },
+    {
+      "label": "converter with nothing pending (u1022)",
+      "passed": true,
+      "actual": "(err u1022)"
+    }
+  ]
+}

@@ -1,1 +1,1 @@
-{"name":"stx-payout-signer-manager","version":"0.1.0","private":true,"type":"module","scripts":{"test":"vitest run"},"devDependencies":{"@stacks/clarinet-sdk":"^3.24.0","@stacks/transactions":"^7.6.0","vitest":"^4.1.11","vitest-environment-clarinet":"^3.0.2"}}
+{"name":"stx-payout-signer-manager","version":"0.1.0","private":true,"type":"module","scripts":{"test":"vitest run"},"devDependencies":{"@stacks/clarinet-sdk":"^3.24.0","@stacks/transactions":"^7.6.0","vitest":"^4.1.11","vitest-environment-clarinet":"^3.0.2"},"dependencies":{"stxer":"^0.12.0"}}

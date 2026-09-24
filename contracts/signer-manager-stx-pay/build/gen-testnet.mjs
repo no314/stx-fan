@@ -18,16 +18,20 @@ const map = {
   "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY": DEPLOYER,
   "SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1": DEPLOYER,
   "SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22": DEPLOYER,
+  "SP3TB3AJ0XMZ9S6CGY2CQ6R06H1Z6DJQ1SH15ZP2H": DEPLOYER,
 };
-let out = readFileSync("contracts/signer-manager-stx-payout.clar", "utf8");
-for (const [a, b] of Object.entries(map)) out = out.split("'" + a + ".").join("'" + b + ".");
 mkdirSync("contracts/testnet", { recursive: true });
-writeFileSync("contracts/testnet/signer-manager-stx-payout.clar", out);
+for (const name of ["signer-manager-stx-payout", "signer-manager-stx-payout-jing"]) {
+  let out = readFileSync(`contracts/${name}.clar`, "utf8");
+  for (const [a, b] of Object.entries(map)) out = out.split("'" + a + ".").join("'" + b + ".");
+  writeFileSync(`contracts/testnet/${name}.clar`, out);
+}
 // mocks: point .sbtc-token at the real testnet sBTC, keep the rest relative
-const mocks = ["token-stx-v-1-2", "dlmm-pool-stx-sbtc-v-1-bps-15", "dlmm-core-v-1-1", "wstx", "univ2-math", "univ2-fees-v1_0_0-0070", "univ2-pool-v1_0_0-0070", "sbtc-stx-0-jing-v2"];
+const mocks = ["token-stx-v-1-2", "dlmm-pool-stx-sbtc-v-1-bps-15", "dlmm-core-v-1-1", "wstx", "univ2-math", "univ2-fees-v1_0_0-0070", "univ2-pool-v1_0_0-0070", "markets-sbtc-stx-jing-v6"];
 for (const m of mocks) {
   let s = readFileSync(`contracts/mocks/${m}.clar`, "utf8");
   s = s.split(".sbtc-token").join(`'${SBTC_TESTNET}.sbtc-token`).split(`''${SBTC_TESTNET}`).join(`'${SBTC_TESTNET}`);
   writeFileSync(`contracts/testnet/${m}.clar`, s);
 }
-console.log("wrote contracts/testnet/* for deployer", DEPLOYER, "; deploy order:", mocks.join(", "), ", then signer-manager-stx-payout");
+writeFileSync("contracts/testnet/reward-claim-signer-manager-trait.clar", readFileSync("contracts/reward-claim-signer-manager-trait.clar", "utf8"));
+console.log("wrote contracts/testnet/* for deployer", DEPLOYER, "; deploy order: reward-claim-signer-manager-trait,", mocks.join(", "), ", then signer-manager-stx-payout (no Jing) or signer-manager-stx-payout-jing");

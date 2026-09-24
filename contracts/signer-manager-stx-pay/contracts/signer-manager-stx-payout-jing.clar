@@ -1,5 +1,10 @@
+;; @jing-begin
 ;; Signer-manager that supports STX payouts: based on Fastpool's Max500 with
-;; claim-many functions built in (Version A.0)
+;; claim-many functions built in and an additional swap route compared to A.0
+;; through Jing Swap (Version B.0)
+;; @jing-end
+;; @nojing ;; Signer-manager that supports STX payouts: based on Fastpool's Max500 with
+;; @nojing ;; claim-many functions built in (Version A.0)
 ;;
 ;; Version scheme: the letter is the build (A without Jing, B with Jing), the
 ;; number counts mainnet deployments. Iterations before a deployment keep the
@@ -156,10 +161,32 @@
 ;;     `validate-stake` with the resulting payout currency so the change is
 ;;     visible on chain.
 ;;
-;; 12. No Jing route in this build. The sibling contract
-;;     signer-manager-stx-payout-jing adds Jing as route C; this one
-;;     converts on the two DEX routes and falls back to `abandon-epoch`.
-;;     Route id u3 is reserved for it and refused here.
+;; @jing-begin
+;; 12. Route C: Jing (2026-09-23, v3 generation market). Two paths beside
+;;     `convert`, admin or converter only, one resting order at a time on the
+;;     convert epoch. MAKER: `jing-deposit` rests sats on the Jing book at a
+;;     limit (STX per BTC times 1e8); `jing-reconcile` books what filled;
+;;     `jing-set-limit` re-prices; `jing-cancel` pulls the rest. TAKER:
+;;     `jing-swap` sells a tranche against resting STX bids at once, fill or
+;;     fail at Jing, with the caller's rate floor as in `convert`.
+;;     Fill sensing is bounded by the order: the remainder is read from Jing
+;;     (deposit under the current cycle plus parked), the STX Jing pushed is
+;;     what this contract holds above `ustx-liability`, the sBTC Jing
+;;     refunded is what it holds above its reserve. A stray transfer can only
+;;     move value toward stakers. No reconcile window: Jing rolls the
+;;     remainder forward on every settlement and the read is always current.
+;;     Every market call forwards a signed Pyth Lazer update the converter
+;;     fetched off chain; this contract reads no oracle. Jing's own error
+;;     codes surface offset by JING_ERR_OFFSET (u2000), so Jing u1017 (partial
+;;     taker fill) reads as u3017 and never collides with this contract.
+;;     Pinned: markets-sbtc-stx-jing-v6 today; the deploy repoints to
+;;     markets-sbtc-stx-jing-v6-3 once it exists (same API). A later Jing
+;;     generation means a redeploy, and restaking is a deliberate act.
+;; @jing-end
+;; @nojing ;; 12. No Jing route in this build. The sibling contract
+;; @nojing ;;     signer-manager-stx-payout-jing adds Jing as route C; this one
+;; @nojing ;;     converts on the two DEX routes and falls back to `abandon-epoch`.
+;; @nojing ;;     Route id u3 is reserved for it and refused here.
 ;;
 ;; 13. Re-settling. pox-5 distributes twice per 2100-block cycle, so a second
 ;;    settle of the same (staker, cycle, bond-index) is legitimate when new
@@ -285,7 +312,13 @@
 ;; The route moved fewer sats than the tranche. Conversions are fill or fail:
 ;; the whole transaction rolls back and nothing changed.
 (define-constant ERR_PARTIAL_FILL (err u1031))
-;; u1032 and u1033 belong to the Jing build.
+;; @jing-begin
+;; A Jing order is already open; reconcile or cancel it first.
+(define-constant ERR_JING_ORDER_OPEN (err u1032))
+;; No Jing order is open.
+(define-constant ERR_NO_JING_ORDER (err u1033))
+;; @jing-end
+;; @nojing ;; u1032 and u1033 belong to the Jing build.
 ;; A non-admin may abandon the convert epoch only once it is stranded: no
 ;; progress for STRANDED_EPOCH_BURN_BLOCKS burn blocks (design decision 14).
 (define-constant ERR_EPOCH_NOT_STRANDED (err u1034))
@@ -304,6 +337,9 @@
 ;; Route ids.
 (define-constant ROUTE_DLMM u1)
 (define-constant ROUTE_VELAR u2)
+;; @jing-begin
+(define-constant ROUTE_JING u3)
+;; @jing-end
 ;; Bins walked per `convert` on the DLMM route; DLMM_STEPS drives both the
 ;; swap walk and the quote walk.
 (define-constant DLMM_MAX_BINS u10)
@@ -482,6 +518,21 @@
 )
 (map-set routes-enabled ROUTE_DLMM true)
 (map-set routes-enabled ROUTE_VELAR true)
+(map-set routes-enabled ROUTE_JING true) ;; @jing
+
+;; @jing-begin
+;; Route C state. One resting order at a time, on the convert epoch.
+;; `deposited` is the sBTC this contract still attributes to its Jing order;
+;; `limit` is its minimum price (STX per BTC times 1e8).
+(define-data-var jing-order (optional {
+  epoch: uint,
+  deposited: uint,
+  limit: uint,
+}) none)
+;; sBTC that left this contract's balance into Jing and is still owed to the
+;; epoch (subtracted from the reserve since it is not in the balance).
+(define-data-var sats-in-jing uint u0)
+;; @jing-end
 
 ;; ============================================================ pox-5 callback
 ;; Callback from a pox-5 `stake` or `stake-update` transaction. Calldata:
@@ -1203,6 +1254,7 @@
       (remaining (- (get sats-total e) (get sats-converted e)))
     )
     (try! (authorize-admin-or-stranded))
+    (asserts! (is-none (var-get jing-order)) ERR_JING_ORDER_OPEN) ;; @jing
     (asserts! (> remaining u0) ERR_NOTHING_TO_CONVERT)
     (if (is-eq epoch (var-get open-epoch))
       (var-set open-epoch (+ epoch u1))
@@ -1269,6 +1321,7 @@
     )
     (try! (authorize-converter))
     (asserts! (is-eq (var-get total-deficit) u0) ERR_UNFUNDED_SETTLEMENT)
+    (asserts! (is-none (var-get jing-order)) ERR_JING_ORDER_OPEN) ;; @jing
     (asserts! (> remaining u0) ERR_NOTHING_TO_CONVERT)
     (asserts! (> amount u0) ERR_INVALID_AMOUNT)
     (asserts! (or a-full (is-some quote-b)) ERR_NO_ROUTE)
@@ -1662,6 +1715,428 @@
   )
 )
 
+;; @jing-begin
+;; ============================================================ route C: Jing
+;; Jing v3 generation market SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6
+;; (token-x = sBTC, token-y = STX). A resting book with takers: a maker
+;; deposits token-x at a limit price (STX per BTC times 1e8); any taker `swap`
+;; or any `settle-with-refresh` clears the book pro rata at the Pyth Lazer
+;; price, pushes STX to the makers, rolls each maker's remainder into the next
+;; cycle (refunds it when it is below the market minimum), and advances the
+;; cycle. A maker crowded out of the 50 seats is PARKED, not refunded, and
+;; can be readmitted. Every market call takes a signed Lazer update (buff
+;; 8192) that the caller fetches from Jing's public backend; the market
+;; ignores it when nothing needs a fresh price. This contract reads no oracle
+;; itself. Fee 10 bps per side; takers pay a 20 bps rebate that comes back
+;; when unused.
+;;
+;; Two paths, both admin or converter (`authorize-converter`), one order at a
+;; time on the convert epoch:
+;;
+;;   Maker (slow): `jing-deposit` rests sats at a limit; `jing-reconcile`
+;;   books what has filled since; `jing-set-limit` re-prices; `jing-cancel`
+;;   pulls the rest back. The remainder is always visible in Jing as the
+;;   deposit under the current cycle plus the parked amount (`jing-holding`),
+;;   so filled = deposited - holding - refunded. The STX Jing pushed is what
+;;   this contract holds above `ustx-liability`; the sBTC Jing refunded is
+;;   what it holds above its reserve. Both sensors are bounded by the order
+;;   and can only move value toward stakers, never away.
+;;
+;;   Taker (instant): `jing-swap` sells a tranche against resting STX bids at
+;;   once. Jing itself is fill or fail here (ERR_PARTIAL_FILL u1017, seen as
+;;   u3017): a leftover below the market minimum is refunded, anything larger
+;;   fails the call. Realized amounts are the contract's own balance deltas
+;;   inside the transaction; the caller's rate floor applies as in `convert`.
+;;
+;; `convert`, `sweep-stx` and `abandon-epoch` wait while a maker order is
+;; open (ERR_JING_ORDER_OPEN). Jing's own error codes surface offset by
+;; JING_ERR_OFFSET (u2000).
+
+(define-constant JING_ERR_OFFSET u2000)
+
+;; -- market calls, each inside as-contract? with the exact allowance
+
+(define-private (jing-call-deposit
+    (amount uint)
+    (limit uint)
+    (update (buff 8192))
+  )
+  (as-contract?
+    ((with-ft 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token "sbtc-token" amount))
+    (try! (contract-call? 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6
+      deposit-token-x amount limit none update
+      'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token "sbtc-token"
+    ))
+  )
+)
+
+(define-private (jing-call-cancel)
+  (as-contract?
+    ()
+    (try! (contract-call? 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6
+      cancel-token-x-deposit 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token "sbtc-token"
+    ))
+  )
+)
+
+(define-private (jing-call-set-limit
+    (limit uint)
+    (update (buff 8192))
+  )
+  (as-contract?
+    ()
+    (try! (contract-call? 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6
+      set-token-x-limit limit none update
+    ))
+  )
+)
+
+(define-private (jing-call-swap
+    (amount uint)
+    (limit uint)
+    (update (buff 8192))
+  )
+  (as-contract?
+    ((with-ft 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token "sbtc-token" amount))
+    (try! (contract-call? 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6
+      swap amount limit update
+      'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token "sbtc-token"
+      'SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2 "wstx"
+      true
+    ))
+  )
+)
+
+;; Offset a market call's error code by JING_ERR_OFFSET. A `try!` inside an
+;; `as-contract?` body returns the callee's code from the helper unchanged, so
+;; the remap happens at the call site. An allowance violation (this contract's
+;; own bug) is offset as well.
+(define-private (remap-uint (r (response uint uint)))
+  (match r
+    v (ok v)
+    code (err (+ JING_ERR_OFFSET code))
+  )
+)
+
+(define-private (remap-bool (r (response bool uint)))
+  (match r
+    v (ok v)
+    code (err (+ JING_ERR_OFFSET code))
+  )
+)
+
+(define-private (remap-swap (r (response {
+  token-x-received: uint,
+  token-y-rolled: uint,
+  token-y-received: uint,
+  token-x-rolled: uint,
+  rebate-refunded: uint,
+} uint)))
+  (match r
+    v (ok v)
+    code (err (+ JING_ERR_OFFSET code))
+  )
+)
+
+;; -- market reads
+
+(define-read-only (jing-current-cycle)
+  (contract-call? 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6
+    get-current-cycle
+  )
+)
+
+;; Sats of this contract's order still inside Jing: resting under the current
+;; cycle (Jing rolls a remainder forward on every settlement) plus parked.
+(define-read-only (jing-holding)
+  (+
+    (contract-call? 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6
+      get-token-x-deposit (jing-current-cycle) current-contract
+    )
+    (contract-call? 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6
+      get-token-x-parked current-contract
+    )
+  )
+)
+
+(define-read-only (sbtc-balance-here)
+  (unwrap-panic (contract-call? 'SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token
+    get-balance current-contract
+  ))
+)
+
+;; Implied Jing price of a fill, STX per BTC times 1e8, for the event.
+(define-private (implied-price
+    (ustx uint)
+    (sats uint)
+  )
+  (if (> sats u0)
+    (/ (* ustx u10000000000) sats)
+    u0
+  )
+)
+
+;; -- maker path
+
+;; Rest `amount-sats` of the convert epoch on the Jing book at `limit`
+;; (minimum STX per BTC times 1e8; Jing refuses u0). Freezes the epoch like
+;; `convert`. The sats leave this balance but stay reserved through
+;; `sats-in-jing`.
+(define-public (jing-deposit
+    (amount-sats uint)
+    (limit uint)
+    (update (buff 8192))
+  )
+  (let (
+      (epoch (var-get convert-epoch))
+      (e (get-epoch-or-empty epoch))
+      (remaining (- (get sats-total e) (get sats-converted e)))
+      (amount (if (< amount-sats remaining) amount-sats remaining))
+    )
+    (try! (authorize-converter))
+    (asserts! (route-enabled ROUTE_JING) ERR_NO_ROUTE)
+    (asserts! (is-eq (var-get total-deficit) u0) ERR_UNFUNDED_SETTLEMENT)
+    (asserts! (is-none (var-get jing-order)) ERR_JING_ORDER_OPEN)
+    (asserts! (> remaining u0) ERR_NOTHING_TO_CONVERT)
+    (asserts! (> amount u0) ERR_INVALID_AMOUNT)
+    (asserts! (> limit u0) ERR_INVALID_AMOUNT)
+    (if (is-eq epoch (var-get open-epoch))
+      (var-set open-epoch (+ epoch u1))
+      true
+    )
+    (try! (remap-uint (jing-call-deposit amount limit update)))
+    (map-set epochs epoch (merge e { progress-burn-height: burn-block-height }))
+    (var-set jing-order (some {
+      epoch: epoch,
+      deposited: amount,
+      limit: limit,
+    }))
+    (var-set sats-in-jing (+ (var-get sats-in-jing) amount))
+    (print {
+      topic: "jing-deposit",
+      epoch: epoch,
+      amount-sats: amount,
+      limit: limit,
+      jing-cycle: (jing-current-cycle),
+    })
+    (ok {
+      epoch: epoch,
+      amount-sats: amount,
+    })
+  )
+)
+
+;; Book whatever Jing has filled or refunded since the order was placed or
+;; last reconciled. Idempotent: with nothing new it books nothing. Closes the
+;; order when nothing is left in Jing.
+(define-public (jing-reconcile)
+  (begin
+    (try! (authorize-converter-or-stranded))
+    (jing-reconcile-core "reconcile")
+  )
+)
+
+(define-private (jing-reconcile-core (reason (string-ascii 9)))
+  (let (
+      (order (unwrap! (var-get jing-order) ERR_NO_JING_ORDER))
+      (deposited (get deposited order))
+      (holding (jing-holding))
+      (gone (- deposited (if (< holding deposited) holding deposited)))
+      ;; sBTC back in this balance above the reserve is Jing's refund of
+      ;; part of the order (a remainder below the market minimum, or a
+      ;; cancel); capped by what left the order.
+      (excess (unattributed-balance))
+      (refunded (if (< excess gone) excess gone))
+      (filled (- gone refunded))
+      ;; STX above the liability is what Jing pushed for the fill.
+      (ustx (if (> filled u0) (unattributed-stx-balance) u0))
+      (price (implied-price ustx filled))
+      (left (if (< holding deposited) holding deposited))
+    )
+    (jing-book-fill (get epoch order) filled ustx price)
+    (var-set sats-in-jing (- (var-get sats-in-jing) gone))
+    (var-set jing-order (if (> left u0)
+      (some (merge order { deposited: left }))
+      none
+    ))
+    (print {
+      topic: "jing-reconcile",
+      epoch: (get epoch order),
+      jing-cycle: (jing-current-cycle),
+      filled-sats: filled,
+      stx-received: ustx,
+      refunded-sats: refunded,
+      remainder-sats: left,
+      jing-price: price,
+      order-open: (> left u0),
+      reason: reason,
+    })
+    (ok {
+      jing-cycle: (jing-current-cycle),
+      filled-sats: filled,
+      stx-received: ustx,
+      refunded-sats: refunded,
+      remainder-sats: left,
+      order-open: (> left u0),
+      reason: reason,
+    })
+  )
+)
+
+;; Re-price the resting order. Jing refuses a limit that would cross the
+;; book (ERR_MUST_USE_SWAP, seen as u3016): use `jing-swap` for that.
+(define-public (jing-set-limit
+    (limit uint)
+    (update (buff 8192))
+  )
+  (let ((order (unwrap! (var-get jing-order) ERR_NO_JING_ORDER)))
+    (try! (authorize-converter))
+    (asserts! (> limit u0) ERR_INVALID_AMOUNT)
+    (try! (remap-bool (jing-call-set-limit limit update)))
+    (map-set epochs (get epoch order) (merge (get-epoch-or-empty (get epoch order)) { progress-burn-height: burn-block-height }))
+    (var-set jing-order (some (merge order { limit: limit })))
+    (print {
+      topic: "jing-set-limit",
+      epoch: (get epoch order),
+      limit: limit,
+    })
+    (ok limit)
+  )
+)
+
+;; Pull the order back. Jing refunds the resting amount, or the parked amount
+;; when nothing rests; with both, call twice. Books fills and the refund in
+;; the same transaction. Open to anyone once the convert epoch is stranded
+;; (design 14), so a vanished operator cannot leave sats resting in Jing: the
+;; refund lands in this contract and `abandon-epoch` then pays it back.
+(define-public (jing-cancel)
+  (begin
+    (try! (authorize-converter-or-stranded))
+    (unwrap! (var-get jing-order) ERR_NO_JING_ORDER)
+    (try! (remap-uint (jing-call-cancel)))
+    (jing-reconcile-core "cancel")
+  )
+)
+
+;; -- taker path
+
+;; Sell `amount-sats` of the convert epoch against resting STX bids at once,
+;; no worse than `limit` (STX per BTC times 1e8) and no worse than
+;; `min-ustx-per-sat-x8` on the realized rate. Fill or fail at Jing (a
+;; leftover below the market minimum comes back and stays pending). The
+;; realized amounts are this contract's balance deltas within the call.
+(define-public (jing-swap
+    (amount-sats uint)
+    (limit uint)
+    (min-ustx-per-sat-x8 uint)
+    (update (buff 8192))
+  )
+  (let (
+      (epoch (var-get convert-epoch))
+      (e (get-epoch-or-empty epoch))
+      (remaining (- (get sats-total e) (get sats-converted e)))
+      (amount (if (< amount-sats remaining) amount-sats remaining))
+      (sats-before (sbtc-balance-here))
+      (ustx-before (stx-get-balance current-contract))
+    )
+    (try! (authorize-converter))
+    (asserts! (route-enabled ROUTE_JING) ERR_NO_ROUTE)
+    (asserts! (is-eq (var-get total-deficit) u0) ERR_UNFUNDED_SETTLEMENT)
+    (asserts! (is-none (var-get jing-order)) ERR_JING_ORDER_OPEN)
+    (asserts! (> remaining u0) ERR_NOTHING_TO_CONVERT)
+    (asserts! (> amount u0) ERR_INVALID_AMOUNT)
+    (asserts! (> limit u0) ERR_INVALID_AMOUNT)
+    (if (is-eq epoch (var-get open-epoch))
+      (var-set open-epoch (+ epoch u1))
+      true
+    )
+    (let (
+        (result (try! (remap-swap (jing-call-swap amount limit update))))
+        (sats-in (- sats-before (sbtc-balance-here)))
+        (ustx-out (- (stx-get-balance current-contract) ustx-before))
+      )
+      (asserts! (> sats-in u0) ERR_NO_ROUTE)
+      (asserts! (> ustx-out u0) ERR_SLIPPAGE)
+      (asserts! (>= (* ustx-out RATE_SCALE) (* min-ustx-per-sat-x8 sats-in)) ERR_SLIPPAGE)
+      (jing-book-fill epoch sats-in ustx-out (implied-price ustx-out sats-in))
+      (print {
+        topic: "jing-swap",
+        epoch: epoch,
+        requested-sats: amount,
+        sats-in: sats-in,
+        ustx-out: ustx-out,
+        limit: limit,
+        jing-cycle: (jing-current-cycle),
+      })
+      (ok {
+        epoch: epoch,
+        sats-in: sats-in,
+        ustx-out: ustx-out,
+      })
+    )
+  )
+)
+
+(define-private (jing-book-fill
+    (epoch uint)
+    (filled uint)
+    (ustx-out uint)
+    (price uint)
+  )
+  (if (is-eq filled u0)
+    true
+    (let (
+        (e (get-epoch-or-empty epoch))
+        (converted (+ (get sats-converted e) filled))
+        (closed (is-eq converted (get sats-total e)))
+        (id (+ (var-get last-conversion-id) u1))
+      )
+      (map-set epochs epoch (merge e {
+        sats-converted: converted,
+        ustx-out: (+ (get ustx-out e) ustx-out),
+        closed: closed,
+        progress-burn-height: burn-block-height,
+      }))
+      (if closed
+        (var-set convert-epoch (+ epoch u1))
+        true
+      )
+      (var-set pending-conversion-sats (- (var-get pending-conversion-sats) filled))
+      (var-set ustx-liability (+ (var-get ustx-liability) ustx-out))
+      (var-set last-conversion-id id)
+      (map-set conversions id {
+        epoch: epoch,
+        route: ROUTE_JING,
+        sats-in: filled,
+        ustx-out: ustx-out,
+        quote-dlmm: none,
+        quote-velar: none,
+        burn-height: burn-block-height,
+        stacks-height: stacks-block-height,
+        caller: tx-sender,
+      })
+      (print {
+        topic: "convert",
+        conversion-id: id,
+        epoch: epoch,
+        route: ROUTE_JING,
+        sats-in: filled,
+        ustx-out: ustx-out,
+        quote-dlmm: none,
+        quote-dlmm-filled: u0,
+        quote-velar: none,
+        jing-price: price,
+        epoch-closed: closed,
+        epoch-sats-total: (get sats-total e),
+        epoch-sats-converted: converted,
+      })
+      true
+    )
+  )
+)
+
+;; @jing-end
+
 ;; =========================================================== withdrawals
 ;; Max 500 logic unchanged. Return is `(ok true)` instead of Max 500's
 ;; `(ok refund)`: adopting the spox trait unchanged was judged more important
@@ -1876,6 +2351,7 @@
 (define-public (sweep-stx (recipient principal))
   (let ((sweepable (unattributed-stx-balance)))
     (try! (authorize-admin))
+    (asserts! (is-none (var-get jing-order)) ERR_JING_ORDER_OPEN) ;; @jing
     (asserts! (> sweepable u0) ERR_NO_STX_TO_SWEEP)
     (print {
       topic: "sweep-stx",
@@ -1915,6 +2391,7 @@
   (begin
     (try! (authorize-admin))
     (asserts! (or (is-eq route ROUTE_DLMM) (is-eq route ROUTE_VELAR)
+        (is-eq route ROUTE_JING) ;; @jing
       )
       ERR_UNKNOWN_ROUTE
     )
@@ -1969,6 +2446,15 @@
     ERR_EPOCH_NOT_STRANDED
   ))
 )
+
+;; @jing-begin
+;; Admin or converter at any time, anyone once the convert epoch is stranded.
+(define-private (authorize-converter-or-stranded)
+  (ok (asserts! (or (is-ok (authorize-converter)) (is-convert-epoch-stranded))
+    ERR_EPOCH_NOT_STRANDED
+  ))
+)
+;; @jing-end
 
 (define-private (authorize-pox-5)
   (ok (asserts! (is-eq contract-caller 'SP000000000000000000002Q6VF78.pox-5)
@@ -2148,7 +2634,12 @@
         (var-get total-unclaimed-rewards) (var-get credited-refunds)
         (var-get total-pending-payouts) (var-get pending-conversion-sats)
       ))
-      (reserved reserved-all)
+      ;; @jing-begin
+      ;; `pending-conversion-sats` includes sats that are in Jing rather than
+      ;; in this balance; those are held by Jing on the epoch's behalf.
+      (reserved (- reserved-all (var-get sats-in-jing)))
+      ;; @jing-end
+      ;; @nojing (reserved reserved-all)
     )
     (if (>= balance reserved)
       (- balance reserved)
@@ -2360,6 +2851,37 @@
   (default-to false (map-get? routes-enabled route))
 )
 
+;; @jing-begin
+(define-read-only (get-jing-order)
+  (var-get jing-order)
+)
+
+(define-read-only (get-sats-in-jing)
+  (var-get sats-in-jing)
+)
+
+;; Jing's current state as seen from here. There is no price quote; Jing
+;; clears at the Pyth Lazer price carried by the caller's update.
+(define-read-only (get-jing-state)
+  (let ((cycle (jing-current-cycle)))
+    {
+      enabled: (route-enabled ROUTE_JING),
+      market: 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6,
+      jing-cycle: cycle,
+      totals: (contract-call? 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6
+        get-cycle-totals cycle
+      ),
+      min-deposits: (contract-call? 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6
+        get-min-deposits
+      ),
+      holding: (jing-holding),
+      order: (var-get jing-order),
+      sats-in-jing: (var-get sats-in-jing),
+    }
+  )
+)
+;; @jing-end
+
 (define-read-only (get-routes)
   {
     dlmm: {
@@ -2375,6 +2897,13 @@
       pool: 'SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070,
       fees: 'SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-fees-v1_0_0-0070,
     },
+    ;; @jing-begin
+    jing: {
+      id: ROUTE_JING,
+      enabled: (route-enabled ROUTE_JING),
+      market: 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.markets-sbtc-stx-jing-v6,
+    },
+    ;; @jing-end
   }
 )
 

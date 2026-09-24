@@ -1,6 +1,6 @@
 # Route C: JingSwap (Jing v2 sBTC/STX batch auction)
 
-Date 2026-09-20, built 2026-09-22. Design note for adding Jing as a third conversion route to `signer-manager-stx-payout`. Sections 1 to 5 are the note as written before the build. Section 6 lists where the built contract departs from it. Chain facts read from deployed source on 2026-09-20.
+Date 2026-09-20, built 2026-09-22 on Jing v2, replaced 2026-09-23 by a route on the v3 generation market (`markets-sbtc-stx-jing-v6`) in contract B after the chain showed `sbtc-stx-0-jing-v2` idle and paused since 2026-05-08. Sections 1 to 6 describe the v2 route as history; the v6 route is documented in the handoff, section 10. Design note for adding Jing as a third conversion route to `signer-manager-stx-payout`. Sections 1 to 5 are the note as written before the build. Section 6 lists where the built contract departs from it. Chain facts read from deployed source on 2026-09-20.
 
 ## 1. What Jing is on chain
 

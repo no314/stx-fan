@@ -1,6 +1,6 @@
 // Invariant and behaviour tests for signer-manager-stx-payout (simnet).
 import { Cl } from "@stacks/transactions";
-import { boot, check, eq, summary, num, isOk, errCode, okVal, hexBuff, events, MANAGER_ID, D } from "./harness.mjs";
+import { boot, check, eq, summary, num, isOk, errCode, okVal, hexBuff, events, MANAGER_ID, D, MANAGER } from "./harness.mjs";
 
 const t = await boot();
 const { w, call, ro, m, mro, P, fundRewards, seedDlmm, seedVelar, sbtcBalance, stxBalance, simnet } = t;
@@ -98,7 +98,7 @@ const CYCLE = 100;
   eq("earned-fees 8,000", num(mro("get-earned-fees", []).result), 8_000n);
   const pend = Cl.prettyPrint(mro("get-stx-pending", [P(w1)]).result);
   check("w1 stx-pending in epoch 1", pend.includes("epoch: u1") && pend.includes("sats: u392000"), pend);
-  eq("pending-conversion-sats 392,000", num(simnet.getDataVar("signer-manager-stx-payout", "pending-conversion-sats")), 392_000n);
+  eq("pending-conversion-sats 392,000", num(simnet.getDataVar(MANAGER, "pending-conversion-sats")), 392_000n);
   eq("w1 has no sBTC pending payout", num(mro("get-pending-payout", [P(w1)]).result), 0n);
   // re-settle with nothing new: distinct code
   r = m("settle-staker-rewards", [P(w1), Cl.uint(CYCLE), Cl.none()], w5);
@@ -164,7 +164,7 @@ const CYCLE = 100;
   eq("epoch 1 closed", Cl.prettyPrint(mro("get-epoch", [Cl.uint(1)]).result).includes("closed: true"), true);
   eq("open epoch advanced to 2", num(mro("get-open-epoch", []).result), 2n);
   eq("convert epoch advanced to 2", num(mro("get-convert-epoch", []).result), 2n);
-  eq("pending-conversion-sats back to 0", num(simnet.getDataVar("signer-manager-stx-payout", "pending-conversion-sats")), 0n);
+  eq("pending-conversion-sats back to 0", num(simnet.getDataVar(MANAGER, "pending-conversion-sats")), 0n);
   eq("ustx-liability = out", num(mro("get-ustx-liability", []).result), out);
   eq("conversion logged", num(mro("get-last-conversion-id", []).result), 1n);
   check("convert event", events(r, "convert").length === 1);
@@ -206,8 +206,26 @@ const CYCLE = 100;
   const b4 = sbtcBalance(w4);
   r = m("reclaim-failed-withdrawal", [Cl.uint(1)], w5);
   check("reclaim ok", isOk(r), Cl.prettyPrint(r.result));
+  check("reclaim returns (ok true), the spox trait type (design decision 15)", Cl.prettyPrint(r.result) === "(ok true)", Cl.prettyPrint(r.result));
+  check("reclaim event carries the refund", r.events.some((e) => e.event === "print_event" && Cl.prettyPrint(e.data.value).includes('topic: "reclaim-failed-withdrawal"') && Cl.prettyPrint(e.data.value).includes("amount-sats: u98000")), "no matching print event");
   eq("w4 refunded 98,000 sBTC", sbtcBalance(w4) - b4, 98_000n);
   eq("withdrawal liability back to 0", num(mro("get-withdrawal-liability", []).result), 0n);
+  // accept and settle: the sBTC protocol pays L1 and mints the unused fee back here
+  fundRewards(CYCLE + 3, 60_000, [[w4, 60_000]]);
+  m("claim-rewards", [Cl.list([]), Cl.uint(CYCLE + 3)], w5);
+  eq("w4 settled 58,800 net of the 2 percent fee", num(m("settle-staker-rewards", [P(w4), Cl.uint(CYCLE + 3), Cl.none()], w5).result), 58_800n);
+  r = m("payout", [P(w4)], w4);
+  check("second BTC payout created request u2", Cl.prettyPrint(r.result).includes("withdrawal-request: (some u2)"), Cl.prettyPrint(r.result));
+  eq("withdrawal liability 58,800", num(mro("get-withdrawal-liability", []).result), 58_800n);
+  eq("settle before acceptance refused u1011", errCode(m("settle-accepted-withdrawal", [Cl.uint(2)], w5)), 1011n);
+  call("sbtc-registry", "mock-set-status", [Cl.uint(2), Cl.some(Cl.bool(true))]);
+  call("sbtc-token", "mint", [Cl.uint(400), P(MANAGER_ID)]); // max-fee 1000, actual fee 600
+  r = m("settle-accepted-withdrawal", [Cl.uint(2)], w5);
+  check("settle returns (ok true), the spox trait type (design decision 15)", Cl.prettyPrint(r.result) === "(ok true)", Cl.prettyPrint(r.result));
+  check("settle event carries fee-refund u400", r.events.some((e) => e.event === "print_event" && Cl.prettyPrint(e.data.value).includes('topic: "settle-accepted-withdrawal"') && Cl.prettyPrint(e.data.value).includes("fee-refund: u400")), "no matching print event");
+  eq("w4 credited refund 400", num(mro("get-staker-refund", [P(w4)]).result), 400n);
+  eq("withdrawal liability back to 0 again", num(mro("get-withdrawal-liability", []).result), 0n);
+  eq("settle replay refused u1008", errCode(m("settle-accepted-withdrawal", [Cl.uint(2)], w5)), 1008n);
 }
 
 // ------------------------------------------------------------ batches
@@ -327,16 +345,23 @@ const CYCLE = 100;
   eq("bucket drained to 0", num(mro("get-unclaimed-rewards-for-cycle", [Cl.uint(CY), Cl.none()]).result), 0n);
   eq("payout gated u1029", errCode(m("payout", [P(w3)], w5)), 1029n);
   eq("convert gated u1029", errCode(m("convert", [Cl.uint(1), Cl.uint(1)], w5)), 1029n);
+  // claim-staker-rewards whose own settle opens a deficit keeps the settle (audit M-3)
+  call("pox-5", "mock-set-staker-earned", [P(MANAGER_ID), Cl.uint(CY), Cl.none(), P(w3), Cl.uint(2_000)]);
+  r = m("claim-staker-rewards", [P(w3), Cl.uint(CY), Cl.none()], w5);
+  check("claim-staker-rewards under a deficit returns ok with the settled sats", isOk(r) && Cl.prettyPrint(r.result).includes("earned: u1960") && Cl.prettyPrint(r.result).includes("withdrawal-request: none"), Cl.prettyPrint(r.result));
+  check("claim-unfunded event", events(r, "claim-unfunded").length === 1);
+  eq("deficit grew to 12,000", num(mro("get-cycle-deficit", [Cl.uint(CY), Cl.none()]).result), 12_000n);
+  eq("w3 pending payout 50,960", num(mro("get-pending-payout", [P(w3)]).result), 50_960n);
   // the accrual is pullable: pull funds the deficit first
-  call("sbtc-token", "mint", [Cl.uint(10_000), P(`${D}.pox-5`)]);
-  call("pox-5", "mock-set-signer-rewards", [P(MANAGER_ID), Cl.uint(CY), Cl.none(), Cl.uint(10_000)]);
+  call("sbtc-token", "mint", [Cl.uint(12_000), P(`${D}.pox-5`)]);
+  call("pox-5", "mock-set-signer-rewards", [P(MANAGER_ID), Cl.uint(CY), Cl.none(), Cl.uint(12_000)]);
   m("claim-rewards", [Cl.list([]), Cl.uint(CY)], w5);
   eq("deficit cleared", num(mro("get-total-deficit", []).result), 0n);
   eq("bucket still 0 (pull went to the deficit)", num(mro("get-unclaimed-rewards-for-cycle", [Cl.uint(CY), Cl.none()]).result), 0n);
   const b3 = sbtcBalance(w3);
   r = m("payout", [P(w3)], w5);
   check("payout after funding ok", isOk(r), Cl.prettyPrint(r.result));
-  eq("w3 paid 49,000", sbtcBalance(w3) - b3, 49_000n);
+  eq("w3 paid 50,960", sbtcBalance(w3) - b3, 50_960n);
   eq("reserve exact: sweep refused", errCode(m("sweep-fee-refunds", [P(w6)], w6)), 1010n);
 }
 
