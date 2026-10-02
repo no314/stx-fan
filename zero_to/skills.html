@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1200">
+<title>stx.fan · Zero to Home · Skills</title>
+<meta name="description" content="How the zero_to apps are built: the three skills, every version of each, the per-app PRD scaffold, and the hand-off process that updates them.">
+<link rel="icon" type="image/png" href="signing/favicon.png">
+<link rel="stylesheet" href="zt_tokens.css">
+<link rel="stylesheet" href="zt_app.css">
+<link rel="stylesheet" href="zt_home.css">
+</head>
+<body>
+
+<header class="hdr"><div class="wrap">
+  <div class="titles"><a class="wordmark" href="https://stx.fan/">stx.fan</a><h1>Skills</h1><a class="sub" href="./">Zero to Home</a></div>
+  <nav class="quick" id="quick" aria-label="Ecosystem quick links"></nav>
+</div></header>
+
+<main class="wrap">
+
+  <section class="intro" aria-label="How these apps are built">
+    <p>Every zero_to app is built by Claude with three skills and a one page PRD. The skills say how an app is deployed, secured, and designed; the PRD says what the app does: its steps, contract calls, state fields, glossary, and acceptance criteria. Nothing about product behaviour lives in a skill.</p>
+    <p>Each build ends with a dated hand-off file: only learnings actually lived in that build, each tagged with the skill it feeds, whether it is a rule, a default, or an example, and one line saying where it stops applying. A later merge session reads several hand-offs against the current skills and proposes the next version of each. The skills below are shown verbatim, newest version first, with every earlier version behind its tab.</p>
+  </section>
+
+  <div id="skills"></div>
+
+  <footer class="site-foot">
+    <a href="https://github.com/no314/stx-fan/tree/main/zero_to" target="_blank" rel="noopener">Github Repository</a>
+    <a href="./">Zero to Home</a>
+    <span class="spacer"></span>
+    <span class="rev" id="reviewed"></span>
+  </footer>
+
+</main>
+
+<script type="module" src="zt_skills.js"></script>
+</body>
+</html>

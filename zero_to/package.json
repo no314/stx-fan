@@ -1,0 +1,14 @@
+{
+  "name": "zero-to-home",
+  "private": true,
+  "description": "Static homepage for the zero_to apps on stx.fan. No build; the folder is the deployment.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test zt_test-cycle.mjs",
+    "verify": "node zt_verify-home.mjs",
+    "shot": "node zt_shots.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.62.1"
+  }
+}

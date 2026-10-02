@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1200">
+<title>stx.fan · Zero to Home</title>
+<meta name="description" content="The zero_to apps on stx.fan: one page per job, the wallet signs. Ecosystem quick links, docs search, and where mainnet is in the reward cycle.">
+<link rel="icon" type="image/png" href="signing/favicon.png">
+<link rel="stylesheet" href="zt_tokens.css">
+<link rel="stylesheet" href="zt_app.css">
+<link rel="stylesheet" href="zt_home.css">
+</head>
+<body>
+
+<header class="hdr"><div class="wrap">
+  <div class="titles"><a class="wordmark" href="https://stx.fan/">stx.fan</a><h1>Zero to Home</h1></div>
+  <nav class="quick" id="quick" aria-label="Ecosystem quick links"></nav>
+</div></header>
+
+<main class="wrap">
+
+  <section class="searches" aria-label="Documentation search">
+    <div class="field"><input id="q-stacks" class="in" aria-label="Search Stacks docs"><div class="hint"></div></div>
+    <div class="field"><input id="q-hiro" class="in" aria-label="Search Hiro API docs"><div class="hint"></div></div>
+    <div class="field"><input id="q-leather" class="in" aria-label="Search Leather developer docs"><div class="hint"></div></div>
+  </section>
+
+  <section class="cycle" aria-label="Mainnet reward cycle">
+    <div class="cyclebar" id="cycle"></div>
+  </section>
+
+  <div class="section-head"><h4>Apps</h4></div>
+  <section class="tiles" id="tiles" aria-label="zero_to apps"></section>
+
+  <div class="section-head"><h4>Built with</h4></div>
+  <section class="built" id="built" aria-label="Skills used"></section>
+
+  <footer class="site-foot">
+    <a href="https://github.com/no314/stx-fan/tree/main/zero_to" target="_blank" rel="noopener">Github Repository</a>
+    <span class="spacer"></span>
+    <span class="rev" id="reviewed"></span>
+  </footer>
+
+</main>
+
+<script type="module" src="zt_home.js"></script>
+</body>
+</html>

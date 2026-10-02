@@ -1,0 +1,69 @@
+/* zero_to homepage and skills page: page recipes built from tokens only.
+   assets/tokens.css and assets/app.css are the design skill's shared files, unchanged. */
+
+/* header: wordmark, page title, quick links with split caret menus */
+.hdr .wordmark{font:500 20px/1.2 var(--font-display);letter-spacing:var(--ls-slight);color:var(--text-primary)}
+.hdr .wordmark:hover{text-decoration:none;color:var(--accent-hover)}
+.hdr .quick{margin-left:auto;display:flex;align-items:baseline;gap:20px}
+.hdr .quick a{font-size:var(--fs-sm);color:var(--text-secondary)}
+.hdr .quick a:hover{color:var(--accent-hover);text-decoration:none}
+.hdr .quick .item{position:relative;display:inline-flex;align-items:baseline}
+.hdr .quick .chev{background:none;border:none;padding:0 0 0 4px;cursor:pointer;color:var(--icon-secondary);display:inline-flex;align-self:center}
+.hdr .quick .chev svg{width:12px;height:12px;fill:currentColor}
+.hdr .quick .chev:hover{color:var(--accent-hover)}
+.hdr .quick .menu{position:absolute;right:0;top:calc(100% + 10px);background:var(--surface-primary);border-radius:var(--radius-md);box-shadow:var(--elevation-md);min-width:180px;padding:4px;z-index:50;display:flex;flex-direction:column}
+.hdr .quick .menu a{display:block;white-space:nowrap;padding:9px 12px;border-radius:var(--radius-sm);font-size:var(--fs-sm);color:var(--text-primary)}
+.hdr .quick .menu a:hover{background:var(--surface-secondary);color:var(--text-primary);text-decoration:none}
+.hdr .quick .sep{width:1px;height:14px;background:var(--border-secondary);align-self:center}
+
+main{padding-top:28px}
+
+/* docs search row: the label is the placeholder, the host is the mono hint */
+.searches{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.searches .field{margin:0}
+.searches .hint{margin-top:6px;font:400 12px var(--font-mono);color:var(--text-tertiary)}
+
+.section-head{display:flex;align-items:baseline;gap:16px;margin:36px 0 0}
+.section-head h4{font:500 12px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--text-tertiary)}
+
+/* cycle bar: corrections carried over from Zero to Signing src/steps.jsx; they supersede
+   app.css section 13 (marker as its own element, caret at the true position, prepare zone) */
+.cycle .cyclebar{margin-top:36px;min-height:86px}
+.cb-top{height:20px}
+.cb-marker{flex-direction:row;white-space:nowrap}
+.cb-marker::after{content:none}
+.cb-marker.pin-right,.cb-marker.pin-left{transform:none;display:inline-flex;align-items:center;gap:4px}
+.cb-lead{display:inline-block;width:10px;height:1px;background:var(--text-secondary)}
+.cb-caret{position:absolute;bottom:0;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--text-secondary)}
+.cb-prep{position:absolute;top:0;bottom:0;right:0;background:color-mix(in srgb,var(--text-tertiary) 10%,transparent);border-left:1px solid var(--text-tertiary)}
+.cb-prep-mark{margin-right:16px}
+
+/* app tiles: standout cards, name in the display face */
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:12px}
+.tile{display:flex;flex-direction:column;background:var(--surface-primary);border-radius:var(--radius-lg);padding:22px 24px 18px;color:var(--text-primary);min-height:190px}
+.tile:hover{text-decoration:none;color:var(--text-primary);background:var(--surface-fifth)}
+.tile h2{font:400 24px/1.15 var(--font-display);letter-spacing:var(--ls-slight)}
+.tile p{margin-top:10px;font-size:var(--fs-sm);line-height:1.5;color:var(--text-secondary);text-wrap:pretty;flex:1}
+.tile .meta{margin-top:16px;font:400 12px var(--font-mono);color:var(--text-tertiary)}
+
+/* built with: nested cells linking to skills.html */
+.built{margin-top:12px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.built .skill{background:var(--surface-secondary);border-radius:var(--radius-md);padding:14px 16px;display:flex;flex-direction:column;gap:4px;color:var(--text-primary)}
+.built .skill:hover{text-decoration:none;background:var(--surface-fifth)}
+.built .skill .n{font:400 13px var(--font-mono)}
+.built .skill .d{font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4}
+
+.site-foot .rev{font-family:var(--font-mono)}
+
+/* skills page: intro prose, one card per skill with version tabs and the text verbatim */
+.intro{max-width:72ch;margin-top:4px}
+.intro p{font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.55;margin-bottom:10px;text-wrap:pretty}
+.skill-card{background:var(--surface-primary);border-radius:var(--radius-lg);padding:24px 28px;margin-top:16px}
+.skill-card h2{font:400 24px/1.15 var(--font-display);letter-spacing:var(--ls-slight)}
+.skill-card .filetag{margin-top:6px;font:400 12px var(--font-mono);color:var(--text-tertiary)}
+.tabs{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}
+.tab{height:30px;padding:0 12px;border-radius:var(--radius-sm);border:1px solid var(--border-secondary);background:var(--surface-fourth);color:var(--text-secondary);font:500 12px var(--font-body);cursor:pointer}
+.tab:hover{color:var(--text-primary)}
+.tab.active{background:var(--accent-soft);color:var(--accent-hover);border-color:var(--accent)}
+.revtag{margin-top:12px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;max-width:72ch;text-wrap:pretty}
+.mdblock{margin-top:12px;background:var(--surface-fourth);border:1px solid var(--border-secondary);border-radius:var(--radius-md);padding:14px 16px;overflow:auto;min-height:200px;max-height:560px;font:400 12px/1.55 var(--font-mono);white-space:pre-wrap;word-break:break-word;color:var(--text-secondary)}
