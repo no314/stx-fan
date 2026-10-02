@@ -1,0 +1,46 @@
+{
+  "reviewed": "2026-10-02",
+  "quick": [
+    { "label": "Explorer", "url": "https://explorer.hiro.so/",
+      "more": [
+        { "label": "Hiro Explorer", "url": "https://explorer.hiro.so/" },
+        { "label": "STXER Explorer", "url": "https://explorer.stxer.xyz/" }
+      ] },
+    { "label": "STX-only staking", "url": "https://app.leather.io/staking" },
+    { "label": "Signers", "url": "https://explorer.hiro.so/signers?chain=mainnet" },
+    { "label": "Miners", "url": "https://hub.stx.pub/" },
+    { "label": "Bitcoin staking", "url": "https://staking.stacks.co/" },
+    { "label": "Staking tracker", "url": "https://www.stacking-tracker.com/" },
+    { "label": "Tax", "url": "https://fatstx.github.io/",
+      "more": [
+        { "label": "fatSTX", "url": "https://fatstx.github.io/" },
+        { "label": "Koinly", "url": "https://koinly.io/integrations/stacks/" },
+        { "label": "CoinLedger", "url": "https://coinledger.io/integrations/stacks" },
+        { "label": "Summ", "url": "https://summ.com/integrations/stacks" }
+      ] },
+    { "sep": true },
+    { "label": "API status", "url": "https://status.hiro.so/" }
+  ],
+  "search": [
+    { "id": "q-stacks", "placeholder": "Search Stacks docs: staking, sBTC, Clarity", "host": "docs.stacks.co", "go": "https://docs.stacks.co/?q=" },
+    { "id": "q-hiro", "placeholder": "Search Hiro API docs", "host": "docs.hiro.so", "go": "https://www.google.com/search?q=site%3Adocs.hiro.so+" },
+    { "id": "q-leather", "placeholder": "Search Leather developer docs", "host": "leather.gitbook.io/developers", "go": "https://leather.gitbook.io/developers?q=" }
+  ],
+  "apps": [
+    { "name": "Zero to Signing", "url": "signing/", "meta": "wallet signs, mainnet and testnet",
+      "description": "From nothing to a registered, staked, signing Stacks signer. Prefilled where possible, post-conditions on every transaction, and the URL is the state." },
+    { "name": "Zero to Claiming", "url": "claiming/", "meta": "wallet signs, mainnet and testnet",
+      "description": "Claim sBTC rewards for every staker in a signer-manager pool, or only for yourself. Amounts are read from the manager before anything is signed." },
+    { "name": "Zero to BNS", "url": "bns/", "meta": "wallet signs, mainnet and testnet",
+      "description": "Search, register, renew, transfer, list and buy BNSv2 names. Every price, window and default is read from the deployed contract." },
+    { "name": "sBTC to Stacks gas", "url": "gas/", "meta": "wallet signs, mainnet",
+      "description": "Swap a little sBTC for STX gas in one signature, starting from zero STX. The sponsor is repaid inside the same transaction." },
+    { "name": "sBTC Deposit Recovery", "url": "sbtc-deposit-recovery/", "meta": "no wallet, no keys, mainnet",
+      "description": "A confirmed BTC deposit that never minted sBTC. Paste the txid: the page proves the recipient and re-registers the deposit with the signers." }
+  ],
+  "skills": [
+    { "id": "static-first-architecture", "description": "Static build, vendored and pinned dependencies, offline harness against dist." },
+    { "id": "stacks-dapp-architecture", "description": "Security tier, wallet capability, post-conditions, pinned contract identity." },
+    { "id": "stacks-labs-dapp-design", "description": "Tokens, layout pattern and voice shared by every app on this page." }
+  ]
+}
