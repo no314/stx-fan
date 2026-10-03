@@ -24,7 +24,8 @@ function renderSkill(root, s) {
     for (const b of tabs.children) b.classList.toggle("active", b === btn);
     note.textContent = v.note;
     block.textContent = "";
-    block.textContent = await loadText(v.file);
+    try { block.textContent = await loadText(v.file); }
+    catch (e) { block.textContent = "Could not load " + v.file + " (" + e.message + ")."; }
   };
   let first;
   s.versions.forEach((v, i) => {

@@ -68,6 +68,9 @@ Read for inspiration, do not generalize: the skills page's version catalogue (`z
 
 ## Mistakes and dead ends
 
+- [static-first] [rule] [generalizes: any GitHub Pages site serving text files verbatim] [source: both]
+  GitHub Pages runs Jekyll unless a `.nojekyll` file exists at the repo root. Jekyll treats every markdown file with YAML front matter as a page: it converts it to `.html` and the `.md` URL answers 404. The skill texts all start with front matter, so the live skills page showed empty boxes while the two files without front matter loaded. The offline harness could not see it because the local server serves files verbatim; it now asserts `.nojekyll` exists. Add `.nojekyll` to any Pages repo that serves `.md`, `.yml`, or underscore-prefixed paths as data.
+
 - The first commit put the skill texts in `zero_to/skills/` and support files in `assets/`, `scripts/` and `screenshots/`. The owner wants only apps as subfolders of zero_to, so an app folder is never confused with page machinery. Everything moved flat into the root with a `zt_` prefix before the push. Ask about folder conventions before the first commit of a page that lives inside a directory of apps.
 
 - A first mock put a folder path in each tile's meta line. It wrapped at three different widths across five tiles and was dropped; the URL bar shows the folder anyway.

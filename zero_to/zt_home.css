@@ -46,13 +46,10 @@ main{padding-top:28px}
 .tile p{margin-top:10px;font-size:var(--fs-sm);line-height:1.5;color:var(--text-secondary);text-wrap:pretty;flex:1}
 .tile .meta{margin-top:16px;font:400 12px var(--font-mono);color:var(--text-tertiary)}
 
-/* built with: nested cells linking to skills.html */
-.built{margin-top:12px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-.built .skill{background:var(--surface-secondary);border-radius:var(--radius-md);padding:14px 16px;display:flex;flex-direction:column;gap:4px;color:var(--text-primary)}
-.built .skill:hover{text-decoration:none;background:var(--surface-fifth)}
-.built .skill .n{font:400 13px var(--font-mono)}
-.built .skill .d{font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4}
-
+/* footer: "Built with" and one quiet link per skill, same tone as the other footer links */
+.site-foot .built{display:inline-flex;gap:16px;margin-left:8px}
+.site-foot .built .lbl{color:var(--text-tertiary)}
+.site-foot .built a{font-family:var(--font-mono)}
 .site-foot .rev{font-family:var(--font-mono)}
 
 /* skills page: intro prose, one card per skill with version tabs and the text verbatim */

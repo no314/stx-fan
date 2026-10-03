@@ -48,7 +48,7 @@ check("menu lists the alternatives", (await page.$$eval(".quick .menu a", (a) =>
 await page.keyboard.press("Escape");
 check("Escape closes the menu", (await page.$(".quick .menu")) === null);
 await page.click(".quick .chev");
-await page.click("main");
+await page.click(".searches .hint");
 check("click-away closes the menu", (await page.$(".quick .menu")) === null);
 check("the word itself is a plain link, not a menu trigger", (await page.$$eval(".quick .item > a", (a) => a.every((x) => x.target === "_blank"))));
 
@@ -69,7 +69,8 @@ check("one tile per app", (await page.$$(".tile")).length === site.apps.length);
 check("tile names", (await page.$$eval(".tile h2", (h) => h.map((x) => x.textContent))).join() === site.apps.map((a) => a.name).join());
 check("tile hrefs are relative mainnet app links", (await page.$$eval(".tile", (t) => t.map((x) => x.getAttribute("href")))).join() === site.apps.map((a) => a.url).join());
 for (const a of site.apps) check("app folder exists: " + a.url, existsSync(join(ROOT, a.url, "index.html")));
-check("built-with links into skills.html", (await page.$$eval(".built .skill", (t) => t.map((x) => x.getAttribute("href")))).join() === site.skills.map((s) => "skills.html#" + s.id).join());
+check("footer skill links into skills.html", (await page.$$eval(".site-foot .built a", (t) => t.map((x) => x.getAttribute("href") + "|" + x.textContent))).join() === site.skills.map((s) => "skills.html#" + s.id + "|" + s.label).join());
+check("design skill is named only as such on the homepage", !(await page.evaluate(() => document.body.innerText)).includes("stacks-labs-dapp-design"));
 for (const s of site.skills) check("skill id known to skills page: " + s.id, SKILLS.some((k) => k.id === s.id));
 check("review date", (await page.textContent("#reviewed")) === "last reviewed " + site.reviewed);
 
@@ -149,6 +150,10 @@ check("anchor scrolled the target card into view", (await page.evaluate(() => do
 check("one card per entry", (await page.$$(".skill-card")).length === SKILLS.length);
 check("card ids match the footer anchors", (await page.$$eval(".skill-card", (c) => c.map((x) => x.id))).join() === SKILLS.map((s) => s.id).join());
 check("newest version active by default", (await page.$$eval(".skill-card .tab.active", (t) => t.map((x) => x.textContent))).join() === SKILLS.map((s) => s.versions[0].label).join());
+// GitHub Pages runs Jekyll unless .nojekyll exists at the repo root, and Jekyll turns any
+// markdown file with YAML front matter into an HTML page and stops serving the .md. The skill
+// texts all start with front matter, so the site must opt out (found live 2026-10-03).
+check(".nojekyll at the repo root", existsSync(join(ROOT, "..", ".nojekyll")));
 for (const s of SKILLS) for (const v of s.versions) {
   const r = await fetch(BASE + v.file);
   check("version file served: " + v.file, r.ok && (await r.text()).length > 500);

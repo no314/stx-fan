@@ -1,12 +1,12 @@
 # Zero to Home
 
-The homepage for the zero_to apps at `https://stx.fan/zero_to/`: ecosystem quick links with split caret menus, three docs searches, the mainnet reward cycle bar, one tile per app, and the skills the apps are built with. A second page, `skills.html`, shows every version of each skill verbatim.
+The homepage for the zero_to apps at `https://stx.fan/zero_to/`: ecosystem quick links with split caret menus, three docs searches, the mainnet reward cycle bar, one tile per app, and footer links to the skills the apps are built with. A second page, `skills.html`, shows every version of each skill verbatim.
 
 **How it was built.** Claude plus two skills (static-first-architecture and stacks-labs-dapp-design; the dApp architecture skill was not needed, the page signs nothing) and a one page PRD (`PRD.md`). No build step and no framework: this folder is the deployment. The only runtime dependency is the Hiro pox endpoint, read every minute while the tab is visible.
 
 **Layout.** Only apps are subfolders of zero_to. Every file of the homepage itself sits in the root with a `zt_` prefix (page code, the design tokens and fonts, scripts, screenshots, the skill texts), so an app folder is never mistaken for part of the page.
 
-**Editing.** Everything hand-maintained is in `zt_site.json`: quick links (an entry with `more` gets a caret and a menu), the search targets, the app tiles in display order, the skills footer, and the review date. Add an app by adding one object to `apps`; the harness fails if the folder it points at does not exist. Skill versions are the `zt_skill-*.md` files, catalogued in `zt_skills-data.js`.
+**Editing.** Everything hand-maintained is in `zt_site.json`: quick links (an entry with `more` gets a caret and a menu), the search targets, the app tiles in display order, the footer skill links (the design skill is labelled "design skill"), and the review date. Add an app by adding one object to `apps`; the harness fails if the folder it points at does not exist. Skill versions are the `zt_skill-*.md` files, catalogued in `zt_skills-data.js`.
 
 **Files.**
 

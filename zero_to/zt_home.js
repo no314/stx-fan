@@ -14,13 +14,10 @@ function renderTiles(root, apps) {
   }
 }
 
+// Footer line: "Built with" followed by one quiet link per skill into skills.html.
 function renderBuilt(root, skills) {
-  for (const s of skills) {
-    const a = link("skills.html#" + s.id, undefined, "skill");
-    a.appendChild(el("span", "n", s.id));
-    a.appendChild(el("span", "d", s.description));
-    root.appendChild(a);
-  }
+  root.appendChild(el("span", "lbl", "Built with:"));
+  for (const s of skills) root.appendChild(link("skills.html#" + s.id, s.label, "skill"));
 }
 
 // CycleBar from Zero to Signing, in DOM calls. The caret sits at the true position; within
