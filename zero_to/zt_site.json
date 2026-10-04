@@ -39,8 +39,8 @@
       "description": "A confirmed BTC deposit that never minted sBTC. Paste the txid: the page proves the recipient and re-registers the deposit with the signers." }
   ],
   "skills": [
-    { "id": "static-first-architecture", "description": "Static build, vendored and pinned dependencies, offline harness against dist." },
-    { "id": "stacks-dapp-architecture", "description": "Security tier, wallet capability, post-conditions, pinned contract identity." },
-    { "id": "stacks-labs-dapp-design", "description": "Tokens, layout pattern and voice shared by every app on this page." }
+    { "id": "static-first-architecture", "label": "static-first-architecture" },
+    { "id": "stacks-dapp-architecture", "label": "stacks-dapp-architecture" },
+    { "id": "stacks-labs-dapp-design", "label": "design skill" }
   ]
 }

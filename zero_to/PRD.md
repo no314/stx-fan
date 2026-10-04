@@ -25,8 +25,7 @@ app: one deployed zero_to subfolder with an `index.html`. quick link: an externa
 2. Docs search row: three `.field` inputs in a 3-column grid. Enter opens the target in a new tab. No label above the input: the label is the placeholder ("Search Stacks docs: staking, sBTC, Clarity"). Mono hint under each with the destination host.
 3. Cycle bar: the CycleBar alone, no kicker. The track label names the network: "Mainnet cycle #144, 39% done". No read stamp and no Refresh control; the page re-reads /v2/pox every 60 seconds (setInterval, cleared on page hide) and a reload is the manual refresh (decided 2026-09-30).
 4. App tiles: 3-column grid of standout cards (`--surface-primary`, radius 12, no border). Name in display face 24px, description 14px secondary (max 2 sentences), one mono meta line ("wallet signs, mainnet and testnet" or "no wallet, no keys, mainnet").
-5. Built with: kicker "Built with", three `--surface-secondary` cells naming the skills, no kicker-line caption, each linking to `skills.html#<skill-name>` (decided 2026-10-02).
-6. `.site-foot`: Github Repository left, spacer, "last reviewed YYYY-MM-DD" in mono right. Nothing else.
+5. `.site-foot`: Github Repository, then "Built with" and one quiet link per skill into `skills.html#<id>` (the two architecture skills by name, the design skill as "design skill"; decided 2026-10-03, replacing the earlier "Built with" cells), spacer, "last reviewed YYYY-MM-DD" in mono right.
 
 ## Quick links (verified 2026-09-30, all answer 200)
 
