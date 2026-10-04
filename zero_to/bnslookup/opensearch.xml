@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Lets a browser add this page as a search engine: the typed term lands in ?q=.
+     The template is the deploy URL, stx.fan/zero_to/bnslookup. -->
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+  <ShortName>BNS Lookup</ShortName>
+  <Description>Look up which BNS names a Stacks address holds, or which address holds a name.</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <Url type="text/html" method="get" template="https://stx.fan/zero_to/bnslookup/?q={searchTerms}"/>
+</OpenSearchDescription>

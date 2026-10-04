@@ -36,7 +36,9 @@
     { "name": "sBTC to Stacks gas", "url": "gas/", "meta": "wallet signs, mainnet",
       "description": "Swap a little sBTC for STX gas in one signature, starting from zero STX. The sponsor is repaid inside the same transaction." },
     { "name": "sBTC Deposit Recovery", "url": "sbtc-deposit-recovery/", "meta": "no wallet, no keys, mainnet",
-      "description": "A confirmed BTC deposit that never minted sBTC. Paste the txid: the page proves the recipient and re-registers the deposit with the signers." }
+      "description": "A confirmed BTC deposit that never minted sBTC. Paste the txid: the page proves the recipient and re-registers the deposit with the signers." },
+    { "name": "BNS Lookup", "url": "bnslookup/", "meta": "no wallet, no keys, mainnet and testnet",
+      "description": "Which names an address holds, or which address holds a name. Paste either one; every result is a link you can share." }
   ],
   "skills": [
     { "id": "static-first-architecture", "label": "static-first-architecture" },
