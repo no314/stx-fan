@@ -1,0 +1,77 @@
+{
+ "STX": {
+  "source": "FatStx table (CoinGecko, Binance)",
+  "first": 1572048000,
+  "last": 1791929756,
+  "rows": 2546,
+  "later": "Leather daily snapshot"
+ },
+ "BTC": {
+  "source": "FatStx table (CoinGecko)",
+  "first": 1572048000,
+  "last": 1791929756,
+  "rows": 2546,
+  "later": "Leather daily snapshot"
+ },
+ "DIKO": {
+  "source": "FatStx table (Arkadiko and ALEX swaps)",
+  "first": 1634781600,
+  "last": 1710543600,
+  "rows": 9664
+ },
+ "USDA": {
+  "source": "FatStx table (Arkadiko and ALEX swaps)",
+  "first": 1634803200,
+  "last": 1710543600,
+  "rows": 10798
+ },
+ "MIA": {
+  "source": "FatStx table (ALEX swaps)",
+  "first": 1629936000,
+  "last": 1672527600,
+  "rows": 5830
+ },
+ "MIAV2": {
+  "source": "FatStx table (ALEX swaps)",
+  "first": 1651708800,
+  "last": 1710525600,
+  "rows": 5995
+ },
+ "NYC": {
+  "source": "FatStx table (ALEX swaps)",
+  "first": 1643155200,
+  "last": 1679011200,
+  "rows": 416
+ },
+ "NYCV2": {
+  "source": "FatStx table (ALEX swaps)",
+  "first": 1651708800,
+  "last": 1710543600,
+  "rows": 5987
+ },
+ "ALEX": {
+  "source": "FatStx table (ALEX swaps)",
+  "first": 1643328000,
+  "last": 1734303600,
+  "rows": 22681
+ },
+ "BAN": {
+  "source": "FatStx table (ALEX swaps)",
+  "first": 1648425600,
+  "last": 1708646400,
+  "rows": 610
+ },
+ "SLIME": {
+  "source": "FatStx table (ALEX swaps)",
+  "first": 1650240000,
+  "last": 1708560000,
+  "rows": 567
+ },
+ "EUR": {
+  "source": "ECB reference rate (FatStx table)",
+  "first": 1609459200,
+  "last": 1791936000,
+  "rows": 1723,
+  "later": "ECB reference rate (Frankfurter)"
+ }
+}

@@ -11,8 +11,9 @@
     { "label": "Miners", "url": "https://hub.stx.pub/" },
     { "label": "Bitcoin staking", "url": "https://staking.stacks.co/" },
     { "label": "Staking tracker", "url": "https://www.stacking-tracker.com/" },
-    { "label": "Tax", "url": "https://fatstx.github.io/",
+    { "label": "Tax", "url": "https://stx.fan/zero_to/tax-export/",
       "more": [
+        { "label": "Zero to Stacks Tax Export", "url": "https://stx.fan/zero_to/tax-export/" },
         { "label": "fatSTX", "url": "https://fatstx.github.io/" },
         { "label": "Koinly", "url": "https://koinly.io/integrations/stacks/" },
         { "label": "CoinLedger", "url": "https://coinledger.io/integrations/stacks" },
@@ -38,7 +39,9 @@
     { "name": "sBTC Deposit Recovery", "url": "sbtc-deposit-recovery/", "meta": "no wallet, no keys, mainnet",
       "description": "A confirmed BTC deposit that never minted sBTC. Paste the txid: the page proves the recipient and re-registers the deposit with the signers." },
     { "name": "BNS Lookup", "url": "bnslookup/", "meta": "no wallet, no keys, mainnet and testnet",
-      "description": "Which names an address holds, or which address holds a name. Paste either one; every result is a link you can share." }
+      "description": "Which names an address holds, or which address holds a name. Paste either one; every result is a link you can share." },
+    { "name": "Zero to Stacks Tax Export", "url": "tax-export/", "meta": "wallet optional, signs nothing, mainnet",
+      "description": "Every token movement and fee of one address for a year, as CSV and Excel. USD or EUR prices where a price is known." }
   ],
   "skills": [
     { "id": "static-first-architecture", "label": "static-first-architecture" },
