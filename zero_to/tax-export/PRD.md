@@ -300,6 +300,39 @@ data proves them:
 | reconciliation mismatch | The token movements do not match the balance change. Check this transaction in the explorer. |
 | incomplete stage touched this transaction | The data for this transaction is incomplete. |
 
+## 7c. Several addresses (decided 2026-10-15)
+
+- Step 1 has a collapsed option "Several addresses" below the address field: a
+  text box for a paste of any shape (spaces, commas, lines, explorer links, an
+  export). The page keeps every mainnet standard address that passes the
+  checksum, without duplicates, and ignores all other text. A match followed by
+  `.name` is a contract principal (for example a token) and is ignored. One line
+  reports what was found and what was ignored (testnet, failed checksum,
+  contract). Each found address has a remove control.
+- BNS names in a paste: only `.btc` and `.stx` (other namespaces collide with
+  ordinary words in pasted text; the single address field takes every namespace).
+  Each name resolves like a typed name and shows "name belongs to address" with a
+  checkbox "Confirmed". Loading starts only when every name is confirmed or
+  removed.
+- Key material: a paste with a seed phrase (8 or more consecutive BIP39 words,
+  spaced or joined) or a private key (WIF, extended private key) is discarded
+  whole and never shown: "The paste looked like a seed phrase or a private key.
+  It was removed." (the classifier of sBTC Deposit Recovery `src/parse.js`).
+- No cap. The copy recommends 20 addresses or fewer: each address costs its own
+  requests at the same 45 per minute.
+- One combined export. Two new first columns: "Address" and "BNS name" (the
+  address's primary BNS-V2 name, read with the connect-wallet reader, empty when
+  none), so a spreadsheet can sort by either. Rows of all addresses are in time
+  order. A movement between two listed addresses appears once per side and gets
+  the note "Between two addresses in this export." The page does not merge or
+  classify these.
+- Balances per address and a total per token ("All addresses"); the check runs
+  per address. File names use `{n}-addresses` in place of the address; the
+  About sheet lists every address with its name.
+- Loading runs the addresses one after the other through the same gate. The Load
+  step shows "Address 2 of 5" with the stages of the current address and the
+  state of every address; Retry continues each unfinished address.
+
 ## 7a. Balances and the reconciliation check (decided 2026-10-15)
 
 A year export also needs what the address held. Per asset, the export gives the
@@ -442,12 +475,20 @@ Shown on the review step and the About sheet.
 
 ## 10. URL and state
 
-Zero persistence: every input is public, so the URL is the whole state and
-browser storage is not used (the harness asserts `localStorage.length === 0`).
-Loaded data lives in memory; a reload starts over, and the Load step says so.
+The URL holds the inputs; loaded data is kept on the device (decided 2026-10-15,
+replacing the first version's zero persistence, which made a refresh cost a full
+load of several minutes). Each address's load is saved in IndexedDB, keyed by
+address, year, currency, read host and fixture, while it runs (at most every 5
+seconds) and when it ends. A refresh with the same inputs restores the loads: a
+finished load opens on Review, an unfinished one on Load, where Retry continues.
+Nothing goes to localStorage or sessionStorage. Review shows when the data was
+loaded and which block it stops at, with "Load Again" to read it fresh. The
+footer control is "Clear Cache and Reset": it deletes the saved loads on this
+device and clears the URL, after a confirm. The data is public chain data.
 
 Order, always visible at the current value:
 `?address=SP...&year=2025&currency=USD&api=https://api.hiro.so&rpm=45`.
+Several addresses: `address=SP1,SP2,SP3` (resolved addresses, not names).
 `year` is a year (`2025`) or `all`. `?fixture=` runs
 the whole app offline (section 13).
 
