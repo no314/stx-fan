@@ -25,8 +25,7 @@ Non-goals:
 - No tax classification. The export never says "income", "gain", "disposal" or
   "taxable". It records movements; a person or tax software classifies them.
 - No cost basis, no gains, no portfolio view (FatStx made the same choice).
-- No signing and no wallet request other than reading addresses. No BNS name
-  input (link to BNS Lookup).
+- No signing and no wallet request other than reading addresses.
 - No testnet. Mainnet only, mainnet accent.
 - No pending (mempool) transactions.
 - No analytics or tracking (FatStx loads Google Analytics; this app does not).
@@ -58,7 +57,12 @@ Four steps, numbered from 1. All steps are re-enterable after Load finishes.
 
 1. **Address.** Inputs: address, year, currency. The address comes from the
    input field or from "Connect Wallet" (section 10a); both paths fill the same
-   field. The address must pass a
+   field. The field also takes a BNS-V2 name (`stillearly.btc`): half a second
+   after typing stops, the page reads the owner with BNS-V2 `get-bns-info`
+   (api.bnsv2.com `/names/{name}` as the fallback) and shows "stillearly.btc
+   belongs to SP..."; the export is for that address and the About sheet names
+   the name (decided 2026-10-15). An unregistered name gives "No address holds
+   the name ... Check the name." The URL keeps what was typed. The address must pass a
    c32check checksum and the mainnet prefix check; errors are inline. Year:
    dropdown, as in FatStx, from 2019 to the current year, default the previous
    year; one calendar year in UTC, 1 January 00:00:00 to 31 December 23:59:59.
@@ -105,6 +109,8 @@ and v2 address endpoint is deprecated; the app reads v3 (API v9.6.0, checked
 | NFT legs, and any transaction that fails reconciliation | `/extended/v3/transactions/{tx_id}/events` | 100 events, paged to `event_count` |
 | STX locks (not in the v3 index when another address sent the lock, e.g. a pool operator) | `/extended/v1/tx/events?address={p}&type=stx_lock` | 100, offset (deprecated, no v3 replacement) |
 | summaries of lock transactions missing from the index | `/extended/v3/transactions/batch?tx_id=...` | 20 per request |
+| owner of a typed BNS-V2 name | call-read `BNS-V2::get-bns-info`, then `api.bnsv2.com/names/{name}` | one or two |
+| STX per stSTX at a transaction's block | call-read with `?tip={index_block_hash}`: `reserve-v1::get-total-stx`, `ststxbtc-token` and `ststxbtc-token-v2::get-total-supply`, `ststx-token::get-total-supply` | four per stSTX transaction |
 | token name, symbol, decimals | `/metadata/v1/ft/{contract_id}`; 404 (unknown) and 422 (metadata that does not parse) are answers, not failures | one per FT contract |
 | decimals when the metadata has none | `/v2/contracts/interface/{addr}/{name}` then call-read `get-decimals`, only when the contract defines exactly this one fungible token | two per such token |
 
@@ -294,6 +300,57 @@ data proves them:
 | reconciliation mismatch | The token movements do not match the balance change. Check this transaction in the explorer. |
 | incomplete stage touched this transaction | The data for this transaction is incomplete. |
 
+## 7a. Balances and the reconciliation check (decided 2026-10-15)
+
+A year export also needs what the address held. Per asset, the export gives the
+opening balance (state after the last block before 1 January 00:00 UTC) and the
+closing balance (state after the last block at or before 31 December 23:59:59
+UTC, or the newest block when loading starts, for the current year and "All
+years"; transactions after that block are left out of the load so the two agree).
+"All years" opens at 0.
+
+- Source: `/extended/v1/address/{p}/balances?until_block={height}`, one request
+  per date (deprecated, no v3 equivalent with a height). Its STX balance includes
+  locked STX (checked 2026-10-15: 354,221.958679 STX of which 354,000 locked, where
+  the node's `/v2/accounts` reports only the unlocked part); the export gives the
+  total as the balance and the locked part in its own column.
+- Check per asset: opening + In - Out - fees paid by this address (STX only) must
+  equal the closing balance, in base units. "Matches", or "Differs by {amount}",
+  or "Not checked" when the load is incomplete. A difference marks the review
+  and the About sheet. NFTs are counted per collection.
+- Prices and values on both dates use the same lookup as rows (stSTX ratio read at
+  the opening or closing block, the user's 1:1 choices included).
+- Excel: a third sheet "Balances". CSV: a second file
+  `stacks-export_{address}_{year}_{currency}_balances.csv`, with the incomplete
+  label like the main file. Columns: Asset identifier, Token name, Token symbol,
+  Decimals, Opening time (UTC), Opening balance, Opening price, Opening value, In,
+  Out, Fees paid, Closing time (UTC), Closing balance, Locked (STX), Closing price,
+  Closing value, Check, Price source, Export status.
+
+## 7b. Pegged tokens chosen by the user (decided 2026-10-15)
+
+Tokens meant to hold 1 USD (later also 1 BTC) whose peg the app does not
+assume. On the Review step, a section "Pegged tokens without a price" lists the
+tokens of the list that occur in this export and have rows without a price; a
+master checkbox (mixed state when some are on) and one checkbox per token. Default
+off. A market price always wins; the choice only fills rows that have none. The
+choice recomputes prices in memory, no reload. URL: `&peg=aeusdc,susdt,usdh`, an
+explicit list, never "all"; unknown keys are ignored.
+
+- List: aeUSDC (`SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc::aeUSDC`,
+  USDC bridged by Allbridge), sUSDT
+  (`SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK.token-susdt::bridged-usdt`, USDT
+  bridged to Stacks), USDh (`SPN5AKG35QZSK2M8GAMR4AFX45659RJHDW353HSG.usdh-token-v1::usdh`,
+  synthetic dollar from Hermetica). Never: USDA (has traded well below 1 USD and
+  has a market price table), sUSDh (earns yield, not 1:1). Bridged BTC (aBTC,
+  aeWBTC, pBTC, bxlBTC) only after each bridge is confirmed redeemable.
+- Rows: Price available `1:1 by user`; Price source "User choice: 1 aeUSDC = 1
+  USD. Not a market price."; note "The price assumes 1:1. The user chose this."
+- Review: "Rows with a price" counts market prices only; "Rows with a 1:1 price
+  you chose" when above 0; status line "{n} rows use a 1:1 price that you chose.
+  Check these rates before you file." Step 4 repeats the line. About sheet: "1:1
+  prices chosen by the user", always present, "None" when none.
+
 ## 8. Prices
 
 Currency dropdown on step 1, USD (default) or EUR, as in FatStx. A price also
@@ -323,6 +380,29 @@ works as a filter: tokens without a market price show "No" in "Price available".
 - **Refresh.** `scripts/update-prices.mjs` appends the Leather daily series and
   the Frankfurter rates to the tables up to the build date; run it before each
   deploy. The About sheet states each table's date range.
+- **On chain, not from FatStx (decided 2026-10-15).** stSTXbtc (`ststxbtc-token`
+  and `ststxbtc-token-v2`) uses the STX price: it is backed 1:1 by STX in the
+  StackingDAO reserve, which is why `data-core-v3` `get-stx-per-ststx` subtracts
+  its supply. stSTX uses the STX price times STX per stSTX at the transaction's own
+  block (call-read with `?tip=`), from the contract StackingDAO itself used at
+  that block. StackingDAO moved its STX twice for PoX-5, so: from block 8712127
+  (`migration-v3::cutover`, tx `0x4e09ab67...`) `data-stx-v2::get-stx-per-ststx`;
+  from block 8668379 (`migration-v2::cutover`, tx `0xba58cbd6...`)
+  `data-stx-v1::get-stx-per-ststx`; before that the formula of
+  `data-core-v3::get-stx-per-ststx` ((reserve-v1 STX minus stSTXbtc supply) times
+  1e6 divided by stSTX supply, integer division) from four reads, where a contract
+  that did not exist yet counts as 0. Checked 2026-10-15: the old formula goes
+  negative after the first cutover, so the periods matter. A ratio that is not
+  positive gives no price. The price source names the ratio, the contract and the
+  block. Transactions in one block share one read. sbtc-token-locked uses BTC like sBTC.
+- **USDCx at 1 USD (decided 2026-10-15).** `SP120SBRBQJ00MCWS7TM5R8WJNTTKD5K0HFRC2CNE.usdcx::usdcx-token`
+  is Circle's USDC on Stacks (launched 2025-12-18, listed in Circle's launch post),
+  backed 1:1 by USDC in Circle xReserve. The price source says so and that USDC is
+  taken as 1 USD. Other dollar and bridged-BTC tokens stay unpriced: their peg is
+  an assumption the app does not make for the user.
+- **CoinMarketCap: not used.** Its API needs a key for every call (HTTP 401
+  without one), sends no CORS header, and the free plan has at most about a
+  month of history (checked 2026-10-15). A key in a static page is public.
 - **Later, not v1.** Leather has a 1-year daily series for its top SIP-010 tokens
   (`/v1/market/prices/sip10s/{principal}/history`). It is undocumented and has no
   history before one year, so v1 does not depend on it.
@@ -504,6 +584,12 @@ affiliation.
 
 ## 14. Acceptance criteria
 
+- For every recorded load, every asset passes the balance check (opening + In -
+  Out - fees = closing), and the Balances sheet and CSV say "Matches".
+- Pegged tokens are listed only when they occur without a price, all off; turning
+  one on marks its rows "1:1 by user", adds `peg=` to the URL and the About line;
+  turning it off restores the export.
+
 - A valid address with "All years" loads every transaction of the index; a
   year loads exactly the transactions of that UTC year and no index page after it;
   the row count per transaction matches the fixtures.
@@ -536,6 +622,10 @@ affiliation.
 - Connect Wallet fills the field with the mainnet Stacks address; a testnet
   account gives the inline error; no method other than `getAddresses` is ever
   called.
+- Typing `stillearly.btc` shows the owner SP3TB3AJ0XMZ9S6CGY2CQ6R06H1Z6DJQ1SH15ZP2H
+  and enables loading; an unregistered name gives the inline error.
+- Every stSTX row has a price whose source names the ratio and the block of
+  its own transaction; stSTXbtc rows are priced as STX.
 - After connecting the `stillearly.btc` owner, the name shows beside the
   address; with the Hiro reads failing, the bnsv2 fallback supplies it; with
   both failing, no name shows and loading still works.
