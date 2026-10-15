@@ -233,37 +233,41 @@ responses; output is the row list.
 
 Same columns, same order, in CSV and Excel. Times are UTC, ISO 8601 with a `Z`.
 
-1. Time (UTC)
-2. Transaction ID
-3. Explorer link (`https://explorer.hiro.so/txid/{tx_id}?chain=mainnet`)
-4. Status (`Success`, `Failed`)
-5. Transaction type (`STX transfer`, `Contract call`, `Contract deploy`,
-   `Coinbase`, `Tenure change`, `Other`)
-6. Contract function (`ADDRESS.contract::function`, contract calls only)
-7. Row in transaction (`1 of 3`)
-8. Direction (`In`, `Out`, `Self`, `Locked`, `None`)
-9. Token name
-10. Token symbol
-11. Asset identifier
-12. Amount
-13. Amount (base units)
-14. Decimals
-15. NFT ID
-16. From
-17. To
-18. Memo
-19. Price ({currency})
-20. Value ({currency})
-21. Price date (UTC)
-22. Price source
-23. Price available (`Yes`, `No`)
-24. Network fee (STX)
-25. Fee token
-26. Fee payer
-27. Fee paid by this address (STX)
-28. Fee value ({currency})
-29. Notes
-30. Export status (`Complete`, `Incomplete`)
+1. Address
+2. BNS name (primary BNS-V2 name of the address)
+3. Time (UTC)
+4. Direction (`In`, `Out`, `Self`, `Locked`, `None`)
+5. Amount
+6. Token symbol
+7. Token name
+8. NFT ID
+9. Value ({currency})
+10. Price ({currency})
+11. Price date (UTC)
+12. Price source
+13. Price available (`Yes`, `No`, `1:1 by user`)
+14. Fee paid by this address (STX)
+15. Fee value ({currency})
+16. Network fee (STX)
+17. Fee token
+18. Fee payer
+19. Memo
+20. Notes
+21. From
+22. To
+23. Transaction ID
+24. Explorer link (`https://explorer.hiro.so/txid/{tx_id}?chain=mainnet`)
+25. Status (`Success`, `Failed`)
+26. Transaction type (`STX transfer`, `Contract call`, `Contract deploy`, `Coinbase`, `Tenure change`, `Other`)
+27. Contract function (`ADDRESS.contract::function`, contract calls only)
+28. Row in transaction (`1 of 3`)
+29. Asset identifier
+30. Amount (base units)
+31. Decimals
+32. Export status (`Complete`, `Incomplete`)
+
+Order (decided 2026-10-15): who and when, what moved, its value, the fee this
+address paid, then the context of the row, then the reference data.
 
 File names: `stacks-export_{address}_{year}_{currency}.csv` and `.xlsx`,
 with `_INCOMPLETE` before the extension when incomplete. Year is `2025` or
@@ -355,10 +359,10 @@ years"; transactions after that block are left out of the load so the two agree)
   the opening or closing block, the user's 1:1 choices included).
 - Excel: a third sheet "Balances". CSV: a second file
   `stacks-export_{address}_{year}_{currency}_balances.csv`, with the incomplete
-  label like the main file. Columns: Asset identifier, Token name, Token symbol,
-  Decimals, Opening time (UTC), Opening balance, Opening price, Opening value, In,
-  Out, Fees paid, Closing time (UTC), Closing balance, Locked (STX), Closing price,
-  Closing value, Check, Price source, Export status.
+  label like the main file. Columns: Address, BNS name, Token symbol, Token name,
+  Opening time (UTC), Opening balance, Opening value, Opening price, In, Out, Fees
+  paid, Closing time (UTC), Closing balance, Locked (STX), Closing value, Closing
+  price, Check, Price source, Asset identifier, Decimals, Export status.
 
 ## 7b. Pegged tokens chosen by the user (decided 2026-10-15)
 
