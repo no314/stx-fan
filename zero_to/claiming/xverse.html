@@ -5,45 +5,45 @@
 <meta name="viewport" content="width=1200">
 <title>Why Xverse isn't supported · Zero To Claiming</title>
 <link rel="icon" type="image/png" href="./favicon.png">
-  <script type="module" crossorigin src="./assets/app-CmSXyoXn.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/app-DR_hBv6A.css">
+  <script type="module" crossorigin src="./assets/app-ljqfizOM.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/app-D-he0IKe.css">
   <link rel="stylesheet" crossorigin href="./assets/xverse-C1nfGaik.css">
 </head>
 <body>
 <div class="wrap xv">
-  <h1 class="heading-sm" style="margin:40px 0 8px">Why Xverse isn't supported (yet)</h1>
-  <p class="xv-lead">This app currently works with <strong>Leather</strong> only. Xverse can't be used yet: not a preference, a safety limit. Here is exactly why, read from Xverse's own sources, and what would change it.</p>
+  <h1 class="heading-sm" style="margin:40px 0 8px">Why Xverse is not supported yet</h1>
+  <p class="xv-lead">This app works with <strong>Leather</strong> only, because Xverse cannot sign its calls safely today. The reasons below are read from Xverse's own sources, with what would change them.</p>
 
   <div class="xv-card">
     <h2 class="heading-xs">What this app needs from a wallet</h2>
-    <p>Two capabilities are non-negotiable, because they are what keep your funds safe when you sign:</p>
-    <div class="xv-need"><span class="k">network on connect</span><span>The app passes the target network to <code>connect()</code> so the wallet connects to the network you intend. Without it, a wallet can silently default to mainnet when its active account differs from the one you are connecting: a dangerous mismatch when real STX is involved.</span></div>
-    <div class="xv-need"><span class="k">originator mode on every call</span><span>Every call this app sends (<code>claim-rewards</code>, <code>claim-staker-rewards</code>, <code>settle-staker-rewards</code>, <code>payout</code>, <code>withdraw-fees</code>, the batch helpers' <code>claim-many</code>, <code>settle-many</code>, <code>payout-many</code>) runs in <strong>originator post-condition mode</strong> on <code>stx_callContract</code>: nothing can leave the caller's wallet, while the manager and pox-5 contracts are still allowed to move the sBTC reward to the staker. Plain <code>deny</code> with no conditions would abort every claim at the manager's own transfer; <code>allow</code> would leave the caller unprotected. The mode is declared by the app and enforced by the protocol, but only if the wallet actually passes it through; a wallet that rejects or rewrites it cannot sign these calls safely.</span></div>
+    <p>Two capabilities keep your funds safe when you sign, and the app requires both.</p>
+    <div class="xv-need"><span class="k">network on connect</span><span>The app passes the target network to <code>connect()</code>, so the wallet connects to the network you intend. Without it, a wallet can default to mainnet while its active account differs from the one you are connecting. With real STX that mismatch is dangerous.</span></div>
+    <div class="xv-need"><span class="k">originator mode on every call</span><span>Each call this app sends runs in <strong>originator post-condition mode</strong> on <code>stx_callContract</code>. The calls are <code>claim-rewards</code>, <code>claim-staker-rewards</code>, <code>settle-staker-rewards</code>, <code>payout</code>, <code>withdraw-fees</code> and the batch helpers' <code>claim-many</code>, <code>settle-many</code> and <code>payout-many</code>. In that mode nothing can leave the caller's wallet, while the manager and pox-5 may still move the sBTC reward to the staker. Plain <code>deny</code> with no conditions would abort every claim at the manager's own transfer, and <code>allow</code> would leave the caller unprotected. The app declares the mode and the protocol enforces it, but only when the wallet passes it through. A wallet that rejects or rewrites it cannot sign these calls safely.</span></div>
   </div>
 
   <div class="xv-card">
     <h2 class="heading-xs">Where Xverse falls short today</h2>
-    <p>Read from Xverse's own method documentation and the request schema in its <code>sats-connect-core</code> library (its <code>SIP030_COMPARISON.md</code> and <code>stx_callContract</code> request schema, repository state of 2026-09-15), not from third-party compatibility tables:</p>
-    <p><strong class="bad">No originator mode.</strong> Xverse does accept post-conditions on <code>stx_callContract</code> and <code>stx_deployContract</code> (as hex-encoded strings) and a <code>postConditionMode</code>, but its schema defines that mode as <code>'allow' | 'deny'</code> and nothing else. This app sends <code>originator</code> on every call. A request that Xverse's schema does not accept is refused before signing, and the only alternatives, <code>allow</code> (unprotected) or <code>deny</code> (every claim reverts), are not ones this app will send. So it blocks Xverse rather than quietly dropping your protection. Whether the extension itself enforces exactly what its published schema accepts cannot be checked, since the extension is closed source; the schema is the contract an app can rely on.</p>
-    <p><strong class="bad">No network parameter.</strong> Xverse's own comparison lists "No network parameter support" as an open gap: neither connect nor the transaction methods take the target network, so the first safety requirement above cannot be met either.</p>
-    <p>For completeness, the same comparison states that Xverse implements <code>stx_getAddresses</code>, and that it lacks <code>stx_transferSip10Ft</code>, <code>stx_transferSip9Nft</code>, <code>stx_getNetworks</code> and <code>stx_updateProfile</code>. None of those four is used by this app.</p>
+    <p>The findings come from Xverse's own method documentation and from its <code>sats-connect-core</code> library, not from third-party compatibility tables. The library files are <code>SIP030_COMPARISON.md</code> and the <code>stx_callContract</code> request schema, repository state of 2026-09-15.</p>
+    <p><strong class="bad">No originator mode.</strong> Xverse accepts post-conditions on <code>stx_callContract</code> and <code>stx_deployContract</code> as hex-encoded strings, and a <code>postConditionMode</code>. Its schema defines that mode as <code>'allow' | 'deny'</code> and nothing else. This app sends <code>originator</code> on every call. Xverse's schema refuses that request before signing. The alternatives, <code>allow</code> (unprotected) and <code>deny</code> (every claim reverts), are ones this app never sends, so it blocks Xverse instead of dropping your protection. Whether the closed-source extension enforces exactly what its published schema accepts cannot be checked. The schema is the contract an app can rely on.</p>
+    <p><strong class="bad">No network parameter.</strong> Xverse's own comparison lists "No network parameter support" as an open gap. Neither connect nor the transaction methods take the target network, so the first requirement above cannot be met either.</p>
+    <p>The same comparison states that Xverse implements <code>stx_getAddresses</code> and lacks <code>stx_transferSip10Ft</code>, <code>stx_transferSip9Nft</code>, <code>stx_getNetworks</code> and <code>stx_updateProfile</code>. This app uses none of those four.</p>
   </div>
 
   <div class="xv-card">
     <h2 class="heading-xs">What would change it</h2>
-    <p><a href="https://github.com/stacksgov/sips/blob/main/sips/sip-030/sip-030-wallet-interface.md" target="_blank" rel="noopener">SIP-030</a> lists <code>postConditions</code>, a <code>postConditionMode</code> of <code>'allow' | 'deny'</code> and a <code>network</code> parameter among its general transaction parameters. The originator mode this app relies on is the protocol's newer, caller-scoped mode: it is what makes a claim safe for the person signing it without listing every transfer the manager and pox-5 make on the way. To be usable by apps like this one, Xverse would need to:</p>
+    <p><a href="https://github.com/stacksgov/sips/blob/main/sips/sip-030/sip-030-wallet-interface.md" target="_blank" rel="noopener">SIP-030</a> lists <code>postConditions</code>, a <code>postConditionMode</code> of <code>'allow' | 'deny'</code> and a <code>network</code> parameter among its general transaction parameters. The originator mode this app relies on is the protocol's newer, caller-scoped mode. It makes a claim safe for the person signing it without listing every transfer the manager and pox-5 make on the way. Two changes in Xverse would make it usable by apps like this one.</p>
     <p>1. <strong>Accept <code>originator</code> as a <code>postConditionMode</code></strong> on <code>stx_callContract</code> and <code>stx_deployContract</code>, next to <code>allow</code> and <code>deny</code>, and pass it through unchanged to the signed transaction.<br>
     2. <strong>Accept the <code>network</code> parameter</strong> on connect and on the transaction methods, as SIP-030 lists it, so an app can name the network it intends.</p>
-    <p>Once those land, enabling Xverse here is a small change on this side.</p>
+    <p>Once both land, enabling Xverse here is a small change on this side.</p>
     <p class="xv-links">Sources: <a href="https://docs.xverse.app/sats-connect/stacks-methods/stx_callcontract" target="_blank" rel="noopener">Xverse docs, stx_callContract</a> · <a href="https://github.com/secretkeylabs/sats-connect-core/blob/main/src/request/rpc/objects/namespaces/stacks/SIP030_COMPARISON.md" target="_blank" rel="noopener">sats-connect-core SIP030_COMPARISON.md</a> · <a href="https://github.com/secretkeylabs/sats-connect-core/blob/main/src/request/rpc/objects/namespaces/stacks/methods/callContract/request.ts" target="_blank" rel="noopener">sats-connect-core stx_callContract request schema</a></p>
   </div>
 
   <div class="xv-card">
     <h2 class="heading-xs">Why this matters beyond this app</h2>
-    <p>Leather and Xverse are the two most-used Stacks wallets. When the two accept different post-condition modes, every builder faces the same bad choice: drop safety to reach both wallets, or support only one and lose half the users. A single, fully-implemented wallet standard that keeps up with the protocol's post-condition modes is what lets one app run <em>safely</em> in every wallet.</p>
+    <p>Leather and Xverse are the two most-used Stacks wallets. When the two accept different post-condition modes, each builder faces the same choice. Drop safety to reach both wallets, or support one and lose the other's users. One wallet standard that keeps up with the protocol's post-condition modes lets one app run safely in every wallet.</p>
   </div>
 
-  <p class="xv-foot">For now, connect with <strong>Leather</strong> to use this app. <a href="./index.html">Back to Zero to Claiming</a></p>
+  <p class="xv-foot">Until then, this app connects with <strong>Leather</strong>. <a href="./index.html">Back to Zero to Claiming</a></p>
 </div>
 </body>
 </html>
