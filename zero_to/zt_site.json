@@ -1,6 +1,8 @@
 {
   "reviewed": "2026-10-19",
   "quick": [
+    { "label": "stx.fan Dapps", "url": "zero_to/", "front": true },
+    { "sep": true, "front": true },
     { "label": "Explorer", "url": "https://explorer.hiro.so/",
       "more": [
         { "label": "Hiro Explorer", "url": "https://explorer.hiro.so/" },
@@ -46,6 +48,7 @@
   "skills": [
     { "id": "static-first-architecture", "label": "static-first-architecture" },
     { "id": "stacks-dapp-architecture", "label": "stacks-dapp-architecture" },
-    { "id": "stacks-labs-dapp-design", "label": "design skill" }
+    { "id": "stacks-labs-dapp-design", "label": "design skill" },
+    { "id": "merge-prompt", "label": "evolution" }
   ]
 }
