@@ -28,16 +28,20 @@
 <header class="site-header">
   <div class="wrap bar">
     <a class="wordmark" href="./">stx.fan</a>
-    <nav class="site-nav" aria-label="Site">
-      <a href="#start">Start Here</a>
-      <a href="#tools">Tools</a>
-      <a href="#staking">Staking</a>
-      <a href="#links">Links</a>
-      <a href="history/">History</a>
-      <a href="#about">About</a>
-    </nav>
+    <nav class="quick" id="quick" aria-label="Ecosystem quick links"></nav>
   </div>
 </header>
+
+<nav class="page-nav" aria-label="On this page">
+  <div class="wrap">
+    <a href="#start">Start Here</a>
+    <a href="#tools">Tools</a>
+    <a href="#staking">Staking</a>
+    <a href="#links">Links</a>
+    <a href="history/">History</a>
+    <a href="#about">About</a>
+  </div>
+</nav>
 
 <main>
 
@@ -199,5 +203,9 @@
   </div>
 </footer>
 
+<script type="module">
+  import { initFrontNav } from "./zero_to/zt_site.js";
+  initFrontNav(document.getElementById("quick"));
+</script>
 </body>
 </html>

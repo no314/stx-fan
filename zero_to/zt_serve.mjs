@@ -1,4 +1,5 @@
-// Minimal static server for the harness and the screenshot script: serves the zero_to folder.
+// Minimal static server for the harness and the screenshot script: serves one folder (zero_to, or the
+// repo root for the stx.fan front page).
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { join, extname, dirname } from "node:path";
@@ -7,10 +8,10 @@ import { fileURLToPath } from "node:url";
 export const ROOT = dirname(fileURLToPath(import.meta.url));
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".md": "text/markdown", ".woff2": "font/woff2", ".png": "image/png", ".svg": "image/svg+xml" };
 
-export function serve(port) {
+export function serve(port, root) {
   const server = createServer(async (req, res) => {
     let path = decodeURIComponent(new URL(req.url, "http://x").pathname);
-    let file = join(ROOT, path);
+    let file = join(root, path);
     try {
       if ((await stat(file)).isDirectory()) file = join(file, "index.html");
       const body = await readFile(file);

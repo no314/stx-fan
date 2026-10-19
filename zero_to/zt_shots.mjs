@@ -7,7 +7,7 @@ import { serve, ROOT, LAUNCH, POX } from "./zt_serve.mjs";
 const PORT = 4174, BASE = `http://127.0.0.1:${PORT}/`;
 const shot = (n) => join(ROOT, "zt_shot-" + n);
 
-const server = await serve(PORT);
+const server = await serve(PORT, ROOT);
 const browser = await chromium.launch(LAUNCH);
 const page = await browser.newPage({ viewport: { width: 1200, height: 900 }, deviceScaleFactor: 2 });
 const fixture = { pox: { ...POX, next_cycle: { ...POX.next_cycle } }, down: false };

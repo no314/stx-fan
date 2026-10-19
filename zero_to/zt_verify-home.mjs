@@ -7,11 +7,12 @@ import { join } from "node:path";
 import { serve, ROOT, LAUNCH, POX } from "./zt_serve.mjs";
 import { SKILLS } from "./zt_skills-data.js";
 
-const PORT = 4173, BASE = `http://127.0.0.1:${PORT}/`;
+const PORT = 4173, BASE = `http://127.0.0.1:${PORT}/`, FRONT = "http://127.0.0.1:4175/";
 let pass = 0, fail = 0;
 const check = (name, ok, detail = "") => { if (ok) pass++; else { fail++; console.log("FAIL", name, detail); } };
 
-const server = await serve(PORT);
+const server = await serve(PORT, ROOT);
+const frontServer = await serve(4175, join(ROOT, ".."));
 const browser = await chromium.launch(LAUNCH);
 const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
 
@@ -35,11 +36,12 @@ const label = () => page.textContent(".cb-label");
 await page.goto(BASE);
 await page.waitForSelector(".cb-track");
 check("title", (await page.title()) === "stx.fan · Zero to Home");
-const quickWords = site.quick.filter((q) => !q.sep);
+// Entries marked front appear only on the stx.fan front page, never on the zero_to pages.
+const quickWords = site.quick.filter((q) => !q.sep && !q.front);
 check("quick links rendered", (await page.$$eval(".quick .item > a", (a) => a.length)) === quickWords.length);
 check("quick link hrefs", (await page.$$eval(".quick .item > a", (a) => a.map((x) => x.href))).join() === quickWords.map((q) => q.url).join());
 check("one caret per entry with alternatives", (await page.$$(".quick .chev")).length === quickWords.filter((q) => q.more).length);
-check("separators rendered", (await page.$$(".quick .sep")).length === site.quick.filter((q) => q.sep).length);
+check("separators rendered", (await page.$$(".quick .sep")).length === site.quick.filter((q) => q.sep && !q.front).length);
 
 // caret menu: opens with exactly the alternatives, Escape closes, click-away closes
 await page.click(".quick .chev");
@@ -189,7 +191,25 @@ check("no console errors on the skills page", consoleErrors.length === 0, consol
 check("skills page nothing in localStorage", (await page.evaluate(() => localStorage.length)) === 0);
 check("still no external requests", external.every((u) => u === "https://api.hiro.so/v2/pox"));
 
+// ---- stx.fan front page: the same quick links plus the front entries, section links one row lower
+await page.goto(FRONT);
+await page.waitForSelector("#quick .item");
+const frontWords = site.quick.filter((q) => !q.sep);
+check("front page quick links include the front entries", (await page.$$eval("#quick .item > a", (a) => a.map((x) => x.textContent + "|" + x.getAttribute("href")))).join() === frontWords.map((q) => q.label + "|" + q.url).join());
+check("front page separators", (await page.$$("#quick .sep")).length === site.quick.filter((q) => q.sep).length);
+check("front page has one wordmark", (await page.$$eval(".wordmark", (w) => w.map((x) => x.textContent))).join() === "stx.fan");
+check("section links sit in the page nav", (await page.$$eval(".page-nav a", (a) => a.map((x) => x.getAttribute("href")))).join() === "#start,#tools,#staking,#links,history/,#about");
+await page.click("#quick .chev");
+check("front page caret menu opens", (await page.$$eval("#quick .menu a", (a) => a.length)) === explorer.more.length);
+await page.keyboard.press("Escape");
+await page.click("#quick .item > a[href='zero_to/']");
+await page.waitForSelector(".tile");
+check("stx.fan Dapps opens Zero to Home", page.url() === FRONT + "zero_to/");
+check("no console errors on the front page", consoleErrors.length === 0, consoleErrors.join(" | "));
+check("front page makes no external requests", external.every((u) => u === "https://api.hiro.so/v2/pox"));
+
 await browser.close();
 server.close();
+frontServer.close();
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

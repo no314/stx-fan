@@ -74,9 +74,16 @@ export async function initSite() {
   const r = await fetch("zt_site.json");
   if (!r.ok) throw new Error("zt_site.json " + r.status);
   const site = await r.json();
-  renderQuick(document.getElementById("quick"), site.quick);
+  renderQuick(document.getElementById("quick"), site.quick.filter((q) => !q.front));
   bindSearch(site.search || []);
   const rev = document.getElementById("reviewed");
   if (rev) rev.textContent = "last reviewed " + site.reviewed;
   return site;
+}
+
+// The stx.fan front page: the same quick links, plus the entries marked front.
+export async function initFrontNav(nav) {
+  const r = await fetch(new URL("zt_site.json", import.meta.url));
+  if (!r.ok) throw new Error("zt_site.json " + r.status);
+  renderQuick(nav, (await r.json()).quick);
 }
