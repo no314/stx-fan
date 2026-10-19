@@ -64,3 +64,5 @@ main{padding-top:28px}
 .tab.active{background:var(--accent-soft);color:var(--accent-hover);border-color:var(--accent)}
 .revtag{margin-top:12px;font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;max-width:72ch;text-wrap:pretty}
 .mdblock{margin-top:12px;background:var(--surface-fourth);border:1px solid var(--border-secondary);border-radius:var(--radius-md);padding:14px 16px;overflow:auto;min-height:200px;max-height:560px;font:400 12px/1.55 var(--font-mono);white-space:pre-wrap;word-break:break-word;color:var(--text-secondary)}
+.reffiles{margin-top:10px;font:400 12px/1.7 var(--font-mono);color:var(--text-tertiary)}
+.reffiles:empty{display:none}

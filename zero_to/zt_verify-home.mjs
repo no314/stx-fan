@@ -2,7 +2,7 @@
 // every state of the homepage and the skills page, and records every request so nothing
 // leaves localhost except the intercepted read.
 import { chromium } from "playwright-core";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { serve, ROOT, LAUNCH, POX } from "./zt_serve.mjs";
 import { SKILLS } from "./zt_skills-data.js";
@@ -158,12 +158,31 @@ for (const s of SKILLS) for (const v of s.versions) {
   const r = await fetch(BASE + v.file);
   check("version file served: " + v.file, r.ok && (await r.text()).length > 500);
 }
+for (const s of SKILLS) for (const v of s.versions) for (const f of [...(v.refs ?? []), ...(v.assets ?? [])]) {
+  check("file named in zt_skills-data.js exists: " + f.file, existsSync(join(ROOT, f.file)));
+}
+// The installed v3 skills name their hosted reference files and stylesheets, a reference as
+// zt_skill-ref-<skill>-<name>.zero_to-v3.md followed by "(names a, b, c)". Each must exist here.
+for (const id of ["static-first-architecture", "stacks-dapp-architecture", "stacks-labs-dapp-design"]) {
+  const text = readFileSync(join(ROOT, "zt_skill-" + id + ".zero_to-v3.md"), "utf8");
+  const named = [];
+  for (const m of text.matchAll(/(zt_skill-(?:ref|asset)-[a-z-]+?)(<name>)?(\.zero_to-v3\.(?:md|css))(?:` \(names ([a-z, ]+)\))?/g)) {
+    for (const n of m[2] ? m[4].split(", ") : [""]) named.push(m[1] + n + m[3]);
+  }
+  check("v3 skill text names its hosted files: " + id, named.length > 0);
+  for (const f of named) check("hosted file named in " + id + " exists: " + f, existsSync(join(ROOT, f)));
+}
+for (const s of SKILLS) {
+  const v = s.versions[0], files = [...(v.refs ?? []), ...(v.assets ?? [])];
+  check("newest version links its files: " + s.id, (await page.$$eval("#" + s.id + " .reffiles a", (a) => a.map((x) => x.getAttribute("href")))).join() === files.map((f) => f.file).join());
+}
 const card = SKILLS[0];
 const before = await page.textContent("#" + card.id + " .revtag");
 await page.click(`#${card.id} .tab:nth-child(${card.versions.length})`);
 await page.waitForFunction((id) => document.querySelector("#" + id + " .tab.active").textContent === "Original", card.id);
 await page.waitForFunction((id) => document.querySelector("#" + id + " .mdblock").textContent.length > 100, card.id);
 check("tab changes the revision note", (await page.textContent("#" + card.id + " .revtag")) !== before);
+check("version without reference files shows no file links", (await page.$$("#" + card.id + " .reffiles a")).length === 0);
 check("tab loads that version verbatim", (await page.textContent("#" + card.id + " .mdblock")).includes("name: static-first-architecture"));
 check("no em dash outside the quoted documents", !(await page.evaluate(() => { const c = document.body.cloneNode(true); c.querySelectorAll(".mdblock").forEach((b) => b.remove()); return c.innerText; })).includes("—"));
 check("no console errors on the skills page", consoleErrors.length === 0, consoleErrors.join(" | "));
