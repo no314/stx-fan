@@ -26,21 +26,21 @@ node scripts/compare-live.mjs <fixture> <count> [txid prefix ...] # rows against
 | `src/address.js` | c32check address check, mainnet only, exact round trip |
 | `src/year.js` | year options and UTC bounds |
 | `src/gate.js` | the read gate: 45 requests per minute, 429 cooldown, backoff 15/30/60/120 s, Retry-After when readable, five attempts |
-| `src/loader.js` | the six stages; v3 index, balance changes, transfer feeds, events, lock events, token metadata, prices; resume after cancel or failure; BNS name |
+| `src/loader.js` | the seven stages; v3 index, balance changes, transfer feeds, events, lock events, token metadata, prices; resume after cancel or failure; BNS name |
 | `src/rows.js` | API data to export rows: dedupe by (transaction, event), fees on the first row, reconciliation against the balance change, notes |
 | `src/units.js`, `src/prices.js` | exact amounts (BigInt), decimal money, the price lookup with the 24 hour guard and EUR via the ECB rate; stSTXbtc as STX, stSTX as STX times the on-chain ratio |
 | `src/paste.js` | the Several addresses paste: addresses and .btc/.stx names out of any text, key material discarded |
 | `src/store.js` | the device cache of loads (IndexedDB); Clear Cache and Reset deletes it |
 | `src/balances.js` | opening and closing balances per asset and the check opening + In - Out - fees = closing |
 | `src/clarity.js`, `src/bns.js` | Clarity value decoder; BNS-V2 name to owner, address to primary name |
-| `src/exportfmt.js`, `src/xlsxfile.js` | the 30 columns, CSV with the formula guard, Excel cells and the frozen header |
+| `src/exportfmt.js`, `src/xlsxfile.js` | the 32 columns, CSV with the formula guard, Excel cells and the frozen header |
 | `src/app.jsx`, `src/steps.jsx`, `src/core.jsx` | the page |
 | `src/clients.js` | live gates per host, and the fixture mode (`?fixture=`, `?fail=<stage>`) |
 | `src/vendor/connect.js` | the pinned `@stacks/connect` bundle of Zero to Signing, loaded only by Connect Wallet |
 | `public/prices/` | price series as JSON, with `manifest.json` |
 | `fixtures/` | recorded live responses: stillearly.btc 2025 USD and 2026 EUR (golden tests, harness), SP1EQGZT0WN75N5AMJH2C40N5GBJTEVY9E6ZY8EH3 all years (1,705 transactions, smoke test); not deployed |
 | `test/` | node tests; `golden.test.js` replays the fixtures |
-| `scripts/verify-app.mjs` | 94 browser checks; screenshots in `screenshots/` |
+| `scripts/verify-app.mjs` | 101 browser checks; screenshots in `screenshots/` |
 | `scripts/record.mjs`, `scripts/resume-live.mjs`, `scripts/compare-live.mjs`, `scripts/record-names.mjs` | live smoke test and fixture recorder, live resume of a recorded load, rows against the v1 records, BNS name lookups into a fixture |
 
 ## URL

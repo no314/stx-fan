@@ -167,8 +167,9 @@ Stages, in order, each with its own line:
 2. Read balance changes. "340 of 1,204 transactions."
 3. Read token movements (STX and FT feeds, then NFT and reconciliation events).
 4. Read stacking locks.
-5. Read token details. "4 of 12 tokens."
-6. Read prices. "2 of 3 price series."
+5. Read opening and closing balances (section 7a). "1 of 2 reads."
+6. Read token details. "4 of 12 tokens."
+7. Read prices. "2 of 3 price series."
 
 Counts only; a progress bar appears only when the total is known, and it floors.
 The constraint line under the stage list says the limit and the time left:
@@ -614,8 +615,8 @@ affiliation.
 - Browser harness against `dist/` (pattern of sBTC Deposit Recovery): every step
   and stage state, cancel, retry, incomplete labels, both exports parsed back
   and compared to the golden rows, zero external requests in fixture mode, no
-  em dash, no storage, no wallet request other than `getAddresses`. Committed
-  screenshot script.
+  em dash, no storage, no wallet request other than `getAddresses`. The
+  harness also takes the screenshots.
 - Live smoke tests: the fixture addresses compared row by row against the
   explorer; a complete history of an address with more than 1,000 transactions;
   a run that hits the limit on purpose to observe a real 429.
