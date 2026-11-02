@@ -3,7 +3,7 @@
   "relays": [
     {
       "url": "https://sbtc-gas-relay.labs2.workers.dev",
-      "operator": "Stacks Labs (Werner)",
+      "operator": "Stacks Labs",
       "since": "2026-09-06"
     }
   ]
