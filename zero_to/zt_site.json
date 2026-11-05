@@ -40,6 +40,8 @@
       "description": "Swap sBTC for STX gas in one signature, starting from zero STX. The sponsor is repaid inside the same transaction." },
     { "name": "sBTC Deposit Recovery", "url": "sbtc-deposit-recovery/", "meta": "no wallet, no keys, mainnet",
       "description": "A confirmed BTC deposit that never minted sBTC. Paste the txid: the page proves the recipient and re-registers the deposit with the signers." },
+    { "name": "USDCx Deposit Recovery", "url": "usdcx-deposit-recovery/", "meta": "wallet signs, mainnet",
+      "description": "A USDCx deposit from Ethereum that never minted on Stacks. Paste the Ethereum txid: the page checks Circle's attestation and lets you mint it from your own wallet." },
     { "name": "BNS Lookup", "url": "bnslookup/", "meta": "no wallet, no keys, mainnet and testnet",
       "description": "Which names an address holds, or which address holds a name. Paste either one; every result is a link you can share." },
     { "name": "Zero to Stacks Tax Export", "url": "tax-export/", "meta": "wallet optional, signs nothing, mainnet",
