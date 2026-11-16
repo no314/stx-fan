@@ -204,7 +204,7 @@ check("front page caret menu opens", (await page.$$eval("#quick .menu a", (a) =>
 await page.keyboard.press("Escape");
 await page.click("#quick .item > a[href='zero_to/']");
 await page.waitForSelector(".tile");
-check("stx.fan Dapps opens Zero to Home", page.url() === FRONT + "zero_to/");
+check("Dapps opens Zero to Home", page.url() === FRONT + "zero_to/");
 check("no console errors on the front page", consoleErrors.length === 0, consoleErrors.join(" | "));
 check("front page makes no external requests", external.every((u) => u === "https://api.hiro.so/v2/pox"));
 

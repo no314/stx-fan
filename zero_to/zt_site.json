@@ -1,7 +1,7 @@
 {
   "reviewed": "2026-10-19",
   "quick": [
-    { "label": "stx.fan Dapps", "url": "zero_to/", "front": true },
+    { "label": "Dapps", "url": "zero_to/", "front": true },
     { "sep": true, "front": true },
     { "label": "Explorer", "url": "https://explorer.hiro.so/",
       "more": [
@@ -11,7 +11,12 @@
     { "label": "STX-only staking", "url": "https://app.leather.io/staking" },
     { "label": "Signers", "url": "https://explorer.hiro.so/signers?chain=mainnet" },
     { "label": "Miners", "url": "https://hub.stx.pub/" },
-    { "label": "Bitcoin staking", "url": "https://staking.stacks.co/" },
+    { "label": "Bitcoin staking", "url": "https://explorer.hiro.so/staking?chain=mainnet",
+      "more": [
+        { "label": "Stacks Bitcoin staking", "url": "https://staking.stacks.co/" },
+        { "label": "Hiro Explorer staking", "url": "https://explorer.hiro.so/staking?chain=mainnet" },
+        { "label": "Slotwatch", "url": "https://slotwatch.dev/" }
+      ] },
     { "label": "Staking tracker", "url": "https://www.stacking-tracker.com/" },
     { "label": "Tax", "url": "https://stx.fan/zero_to/tax-export/",
       "more": [
