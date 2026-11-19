@@ -67,9 +67,16 @@ await page.press("#q-stacks", "Enter");
 check("empty search opens nothing", (await page.evaluate(() => window.__opened.length)) === site.search.length);
 
 // tiles
+// The expected order comes from the page's own orderApps, called on the already loaded module.
+const ordered = await page.evaluate(async (apps) => (await import("./zt_home.js")).orderApps(apps), site.apps);
+const firstDemo = ordered.findIndex((a) => a.demo);
 check("one tile per app", (await page.$$(".tile")).length === site.apps.length);
-check("tile names", (await page.$$eval(".tile h2", (h) => h.map((x) => x.textContent))).join() === site.apps.map((a) => a.name).join());
-check("tile hrefs are relative mainnet app links", (await page.$$eval(".tile", (t) => t.map((x) => x.getAttribute("href")))).join() === site.apps.map((a) => a.url).join());
+check("tile names", (await page.$$eval(".tile h2", (h) => h.map((x) => x.textContent))).join() === ordered.map((a) => a.name).join());
+check("tile hrefs are relative mainnet app links", (await page.$$eval(".tile", (t) => t.map((x) => x.getAttribute("href")))).join() === ordered.map((a) => a.url).join());
+check("each demo tile has one Demo pill, no other tile has one", (await page.$$eval(".tile", (t) => t.map((x) => [...x.querySelectorAll(".demo")].map((p) => p.textContent).join("|")))).join() === ordered.map((a) => (a.demo ? "Demo" : "")).join());
+check("no demo tile before a tile that is not a demo", firstDemo === -1 || ordered.slice(firstDemo).every((a) => a.demo));
+check("demos in reverse array order", ordered.filter((a) => a.demo).map((a) => a.url).join() === site.apps.filter((a) => a.demo).reverse().map((a) => a.url).join());
+check("each tile is one link", (await page.$$(".tile a")).length === 0);
 for (const a of site.apps) check("app folder exists: " + a.url, existsSync(join(ROOT, a.url, "index.html")));
 check("footer skill links into skills.html", (await page.$$eval(".site-foot .built a", (t) => t.map((x) => x.getAttribute("href") + "|" + x.textContent))).join() === site.skills.map((s) => "skills.html#" + s.id + "|" + s.label).join());
 check("design skill is named only as such on the homepage", !(await page.evaluate(() => document.body.innerText)).includes("stacks-labs-dapp-design"));

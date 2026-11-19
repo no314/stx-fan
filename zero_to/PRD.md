@@ -67,7 +67,7 @@ The old stx.fan navbar (repo history, index.html before commit dee5b82 of 2026-0
 
 ## Tiles (manual, decided 2026-10-02)
 
-No generator, no build. The tiles are an `apps` array in `zero_to/site.json`, one object per app (`name`, `description`, `url`, `meta` such as "wallet signs, mainnet and testnet"). Adding an app is adding one object; the page renders tiles in array order. A fixture test asserts every `url` in the array resolves to an existing `zero_to/<folder>/index.html`, so a typo or a missing folder fails the check before deploy.
+No generator, no build. The tiles are an `apps` array in `zero_to/site.json`, one object per app (`name`, `description`, `url`, `meta` such as "wallet signs, mainnet and testnet"). Adding an app is adding one object. The page renders the apps that are not demos in array order, then the demo apps (`"demo": true`), as decided under Ordering. A fixture test asserts every `url` in the array resolves to an existing `zero_to/<folder>/index.html`, so a typo or a missing folder fails the check before deploy.
 
 ## Ordering
 
@@ -77,6 +77,8 @@ Click-ranked ordering needs somewhere to count clicks, and a static host has non
 - A hosted counter (GoatCounter, Cloudflare Web Analytics) would work with a scheduled Action rewriting `order`, but it adds a runtime third-party script, which the design skill forbids, and a second service to operate.
 
 Decided 2026-10-02: no click ranking and no per-visitor ordering. Array order in `site.json` is the order. The page touches no browser storage; the harness asserts `localStorage.length === 0`.
+
+Decided 2026-11-19: demo apps always sort at the end. An app with `"demo": true` shows a Demo pill on its tile. The apps that are not demos come first, in array order. The demo apps follow, newest first, so the oldest demo is the last tile. The array stays in the order apps were added. `orderApps` in `zt_home.js` holds the rule, and the harness computes the expected order with the same function.
 
 ## Cycle bar
 
@@ -89,6 +91,7 @@ Port `cycleView` and `CycleBar` from Zero to Signing `src/steps.jsx` to plain JS
 - Zero to BNS: Search, register, renew, transfer, list and buy BNSv2 names. Every price, window and default is read from the deployed contract.
 - sBTC to Stacks gas: Swap a little sBTC for STX gas in one signature, starting from zero STX. The sponsor is repaid inside the same transaction.
 - sBTC Deposit Recovery: A confirmed BTC deposit that never minted sBTC. Paste the txid: the page proves the recipient and re-registers the deposit with the signers.
+- Zero to Batch Tx (demo, added 2026-11-19): Two transfers or two contract calls, signed one after the other from one button. A demo of the sign queue, with the code to copy.
 
 Order: Signing, Claiming, BNS, gas, Deposit Recovery (assumed from the accepted mock).
 

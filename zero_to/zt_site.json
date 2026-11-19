@@ -1,5 +1,5 @@
 {
-  "reviewed": "2026-10-19",
+  "reviewed": "2026-11-19",
   "quick": [
     { "label": "Dapps", "url": "zero_to/", "front": true },
     { "sep": true, "front": true },
@@ -50,7 +50,9 @@
     { "name": "Zero to Stacks Tax Export", "url": "tax-export/", "meta": "wallet optional, signs nothing, mainnet",
       "description": "Every token movement and fee of one address for a year, as CSV and Excel. USD or EUR prices where a price is known." },
     { "name": "USDCx Deposit Recovery", "url": "usdcx-deposit-recovery/", "meta": "wallet signs, mainnet and testnet",
-      "description": "A USDCx deposit from Ethereum that never minted on Stacks. Paste the Ethereum txid: the page checks Circle's attestation and lets you mint it from your own wallet." }
+      "description": "A USDCx deposit from Ethereum that never minted on Stacks. Paste the Ethereum txid: the page checks Circle's attestation and lets you mint it from your own wallet." },
+    { "name": "Zero to Batch Tx", "url": "batch-tx/", "meta": "wallet signs, mainnet and testnet", "demo": true,
+      "description": "Two transfers or two contract calls, signed one after the other from one button. A demo of the sign queue, with the code to copy." }
   ],
   "skills": [
     { "id": "static-first-architecture", "label": "static-first-architecture" },

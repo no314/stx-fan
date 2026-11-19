@@ -45,6 +45,9 @@ main{padding-top:28px}
 .tile h2{font:400 24px/1.15 var(--font-display);letter-spacing:var(--ls-slight)}
 .tile p{margin-top:10px;font-size:var(--fs-sm);line-height:1.5;color:var(--text-secondary);text-wrap:pretty;flex:1}
 .tile .meta{margin-top:16px;font:400 12px var(--font-mono);color:var(--text-tertiary)}
+/* demo pill: quieter than the network pill, so it never reads as the call to action */
+.tile .head{display:flex;align-items:center;gap:10px}
+.tile .demo{flex:none;padding:0 8px;border:1px solid var(--border-secondary);border-radius:999px;font:500 11px/16px var(--font-body);letter-spacing:.04em;color:var(--text-secondary)}
 
 /* footer: "Built with" and one quiet link per skill, same tone as the other footer links */
 .site-foot .built{display:inline-flex;gap:16px;margin-left:8px}

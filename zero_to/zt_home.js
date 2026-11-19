@@ -4,10 +4,19 @@ import { assertPox, cycleView } from "./zt_cycle.js";
 const POX_URL = "https://api.hiro.so/v2/pox";
 const READ_EVERY_MS = 60_000;
 
+// Apps that are not demos keep their array order. Demos come after them, newest first, so the
+// oldest demo is the last tile. The array lists apps in the order they were added.
+export function orderApps(apps) {
+  return [...apps.filter((a) => !a.demo), ...apps.filter((a) => a.demo).reverse()];
+}
+
 function renderTiles(root, apps) {
-  for (const a of apps) {
+  for (const a of orderApps(apps)) {
     const t = link(a.url, undefined, "tile");
-    t.appendChild(el("h2", null, a.name));
+    const head = el("div", "head");
+    head.appendChild(el("h2", null, a.name));
+    if (a.demo) head.appendChild(el("span", "demo", "Demo"));
+    t.appendChild(head);
     t.appendChild(el("p", null, a.description));
     t.appendChild(el("div", "meta", a.meta));
     root.appendChild(t);
