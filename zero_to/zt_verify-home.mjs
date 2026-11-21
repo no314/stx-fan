@@ -170,16 +170,21 @@ for (const s of SKILLS) for (const v of s.versions) {
 for (const s of SKILLS) for (const v of s.versions) for (const f of [...(v.refs ?? []), ...(v.assets ?? [])]) {
   check("file named in zt_skills-data.js exists: " + f.file, existsSync(join(ROOT, f.file)));
 }
-// The installed v3 skills name their hosted reference files and stylesheets, a reference as
-// zt_skill-ref-<skill>-<name>.zero_to-v3.md followed by "(names a, b, c)". Each must exist here.
-for (const id of ["static-first-architecture", "stacks-dapp-architecture", "stacks-labs-dapp-design"]) {
-  const text = readFileSync(join(ROOT, "zt_skill-" + id + ".zero_to-v3.md"), "utf8");
+// The v3 and v4 skills name their hosted reference files and stylesheets, a reference as
+// zt_skill-ref-<skill>-<name>.zero_to-vN.md, mostly followed by "(names a, b, c)". Where the
+// list is missing (the v4 design skill), the names are the version's refs in zt_skills-data.js.
+// Each must exist here.
+for (const ver of ["v3", "v4"]) for (const id of ["static-first-architecture", "stacks-dapp-architecture", "stacks-labs-dapp-design"]) {
+  const text = readFileSync(join(ROOT, "zt_skill-" + id + ".zero_to-" + ver + ".md"), "utf8");
+  const refs = SKILLS.find((s) => s.id === id).versions.find((v) => v.label === "zero_to " + ver).refs;
+  const listed = refs.map((r) => r.label.replace("references/", "").replace(".md", ""));
   const named = [];
-  for (const m of text.matchAll(/(zt_skill-(?:ref|asset)-[a-z-]+?)(<name>)?(\.zero_to-v3\.(?:md|css))(?:` \(names ([a-z, ]+)\))?/g)) {
-    for (const n of m[2] ? m[4].split(", ") : [""]) named.push(m[1] + n + m[3]);
+  const re = new RegExp("(zt_skill-(?:ref|asset)-[a-z-]+?)(<name>)?(\\.zero_to-" + ver + "\\.(?:md|css))(?:` \\(names ([a-z, ]+)\\))?", "g");
+  for (const m of text.matchAll(re)) {
+    for (const n of m[2] ? (m[4] ? m[4].split(", ") : listed) : [""]) named.push(m[1] + n + m[3]);
   }
-  check("v3 skill text names its hosted files: " + id, named.length > 0);
-  for (const f of named) check("hosted file named in " + id + " exists: " + f, existsSync(join(ROOT, f)));
+  check(ver + " skill text names its hosted files: " + id, named.length > 0);
+  for (const f of named) check("hosted file named in " + id + " " + ver + " exists: " + f, existsSync(join(ROOT, f)));
 }
 for (const s of SKILLS) {
   const v = s.versions[0], files = [...(v.refs ?? []), ...(v.assets ?? [])];
@@ -193,6 +198,12 @@ await page.waitForFunction((id) => document.querySelector("#" + id + " .mdblock"
 check("tab changes the revision note", (await page.textContent("#" + card.id + " .revtag")) !== before);
 check("version without reference files shows no file links", (await page.$$("#" + card.id + " .reffiles a")).length === 0);
 check("tab loads that version verbatim", (await page.textContent("#" + card.id + " .mdblock")).includes("name: static-first-architecture"));
+// A hash-only goto is a same-document navigation, so reload to get a fresh load of the anchor.
+await page.goto(BASE + "skills.html#static-first-architecture");
+await page.reload();
+await page.waitForFunction(() => document.querySelector("#static-first-architecture .mdblock")?.textContent.length > 100);
+check("anchor #static-first-architecture shows zero_to v4 first", (await page.textContent("#static-first-architecture .tab.active")) === "zero_to v4");
+check("anchor #static-first-architecture loads the v4 text", (await page.textContent("#static-first-architecture .mdblock")).includes("zero_to v4, merged 2026-11-21"));
 check("no em dash outside the quoted documents", !(await page.evaluate(() => { const c = document.body.cloneNode(true); c.querySelectorAll(".mdblock").forEach((b) => b.remove()); return c.innerText; })).includes("—"));
 check("no console errors on the skills page", consoleErrors.length === 0, consoleErrors.join(" | "));
 check("skills page nothing in localStorage", (await page.evaluate(() => localStorage.length)) === 0);
