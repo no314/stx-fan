@@ -3,8 +3,11 @@ export const SKILLS = [
   {
     id: "static-first-architecture", title: "Static-first architecture", filetag: "skill: static-first-architecture",
     versions: [
+      { label: "zero_to v4", file: "zt_skill-static-first-architecture.zero_to-v4.md",
+        note: "zero_to v4: the currently installed skill, merged 2026-11-21. It adds: record what the app was built against, persisted records matched by run, verify against something you did not write, a check must be able to fail, and a TypeScript runner fork. Candidates cut from 15 to 3.",
+        refs: [{ file: "zt_skill-ref-static-first-architecture-constants.zero_to-v4.md", label: "references/constants.md" }, { file: "zt_skill-ref-static-first-architecture-incidents.zero_to-v4.md", label: "references/incidents.md" }, { file: "zt_skill-ref-static-first-architecture-scaffold.zero_to-v4.md", label: "references/scaffold.md" }] },
       { label: "zero_to v3", file: "zt_skill-static-first-architecture.zero_to-v3.md",
-        note: "zero_to v3: the currently installed skill, merged 2026-10-19, with every rule tagged with the apps it was observed in, a candidates section for rules seen in one app only, and its detail moved into reference files.",
+        note: "zero_to v3: installed from 2026-10-19 to 2026-11-21, with every rule tagged with the apps it was observed in, a candidates section for rules seen in one app only, and its detail moved into reference files.",
         refs: [{ file: "zt_skill-ref-static-first-architecture-constants.zero_to-v3.md", label: "references/constants.md" }, { file: "zt_skill-ref-static-first-architecture-incidents.zero_to-v3.md", label: "references/incidents.md" }, { file: "zt_skill-ref-static-first-architecture-scaffold.zero_to-v3.md", label: "references/scaffold.md" }] },
       { label: "zero_to v2", file: "zt_skill-static-first-architecture.zero_to-v2.md",
         note: "zero_to v2: installed from 2026-09-05 to 2026-10-19, merged from the Zero to Signing, Zero to Claiming and sBTC Deposit Recovery hand-offs. Adds the copy-by-path scaffold list, test-first for the pure domain layer, the offline harness as the centre of regression (fixtures with real proportions, golden pre-fix fixtures, fixture mode shipped behind a URL flag), and deploy only the contents of dist. Vendoring is now stated as load-bearing for correctness, not only hygiene." },
@@ -19,8 +22,11 @@ export const SKILLS = [
   {
     id: "stacks-dapp-architecture", title: "Stacks dApp architecture", filetag: "skill: stacks-dapp-architecture",
     versions: [
+      { label: "zero_to v4", file: "zt_skill-stacks-dapp-architecture.zero_to-v4.md",
+        note: "zero_to v4: the currently installed skill, merged 2026-11-21. It adds: a sequential signing section, submitted is not confirmed, address inputs with an exact c32 round trip, a wallet layer that passes the provider on every request, and the SIP-030 transfer methods taking no post-conditions. Candidates cut from 18 to 7.",
+        refs: [{ file: "zt_skill-ref-stacks-dapp-architecture-constants.zero_to-v4.md", label: "references/constants.md" }, { file: "zt_skill-ref-stacks-dapp-architecture-wallets.zero_to-v4.md", label: "references/wallets.md" }, { file: "zt_skill-ref-stacks-dapp-architecture-incidents.zero_to-v4.md", label: "references/incidents.md" }, { file: "zt_skill-ref-stacks-dapp-architecture-scaffold.zero_to-v4.md", label: "references/scaffold.md" }] },
       { label: "zero_to v3", file: "zt_skill-stacks-dapp-architecture.zero_to-v3.md",
-        note: "zero_to v3: the currently installed skill, merged 2026-10-19, with every rule tagged with the apps it was observed in, a candidates section for rules seen in one app only, and its detail moved into reference files.",
+        note: "zero_to v3: installed from 2026-10-19 to 2026-11-21, with every rule tagged with the apps it was observed in, a candidates section for rules seen in one app only, and its detail moved into reference files.",
         refs: [{ file: "zt_skill-ref-stacks-dapp-architecture-constants.zero_to-v3.md", label: "references/constants.md" }, { file: "zt_skill-ref-stacks-dapp-architecture-wallets.zero_to-v3.md", label: "references/wallets.md" }, { file: "zt_skill-ref-stacks-dapp-architecture-incidents.zero_to-v3.md", label: "references/incidents.md" }, { file: "zt_skill-ref-stacks-dapp-architecture-scaffold.zero_to-v3.md", label: "references/scaffold.md" }] },
       { label: "zero_to v2", file: "zt_skill-stacks-dapp-architecture.zero_to-v2.md",
         note: "zero_to v2: installed from 2026-09-05 to 2026-10-19. Adds read resilience against the public API (the per-minute rate limit, one gate for every read, never cache a transient failure, a failed read renders as unavailable), print events versus indexer state, the on-chain batch reader, contract families that share a name but not an interface, lookup-and-verify over search, the no-wallet tier 2 with anti-phishing by negative capability, the three-way post-condition fork (who moves the asset decides the mode), and a section of verified reference constants." },
@@ -35,8 +41,12 @@ export const SKILLS = [
   {
     id: "stacks-labs-dapp-design", title: "Design and tone of voice", filetag: "skill: stacks-labs-dapp-design",
     versions: [
+      { label: "zero_to v4", file: "zt_skill-stacks-labs-dapp-design.zero_to-v4.md",
+        note: "zero_to v4: the currently installed skill, merged 2026-11-21 and approved 2026-11-22. It adds: identifiers always written in full, transaction stage beside every txid, sign queues that count the plan once, and the Demo pill on the home page. Candidates cut from 18 to 8.",
+        refs: [{ file: "zt_skill-ref-stacks-labs-dapp-design-components.zero_to-v4.md", label: "references/components.md" }, { file: "zt_skill-ref-stacks-labs-dapp-design-scaffold.zero_to-v4.md", label: "references/scaffold.md" }, { file: "zt_skill-ref-stacks-labs-dapp-design-incidents.zero_to-v4.md", label: "references/incidents.md" }, { file: "zt_skill-ref-stacks-labs-dapp-design-constants.zero_to-v4.md", label: "references/constants.md" }],
+        assets: [{ file: "zt_skill-asset-tokens.zero_to-v4.css", label: "assets/tokens.css" }, { file: "zt_skill-asset-app.zero_to-v4.css", label: "assets/app.css" }] },
       { label: "zero_to v3", file: "zt_skill-stacks-labs-dapp-design.zero_to-v3.md",
-        note: "zero_to v3: the currently installed skill, merged 2026-10-19, with every rule tagged with the apps it was observed in, a candidates section for rules seen in one app only, and its detail moved into reference files and the shared stylesheets.",
+        note: "zero_to v3: installed from 2026-10-19 to 2026-11-22, with every rule tagged with the apps it was observed in, a candidates section for rules seen in one app only, and its detail moved into reference files and the shared stylesheets.",
         refs: [{ file: "zt_skill-ref-stacks-labs-dapp-design-components.zero_to-v3.md", label: "references/components.md" }, { file: "zt_skill-ref-stacks-labs-dapp-design-scaffold.zero_to-v3.md", label: "references/scaffold.md" }, { file: "zt_skill-ref-stacks-labs-dapp-design-incidents.zero_to-v3.md", label: "references/incidents.md" }, { file: "zt_skill-ref-stacks-labs-dapp-design-constants.zero_to-v3.md", label: "references/constants.md" }],
         assets: [{ file: "zt_skill-asset-tokens.zero_to-v3.css", label: "assets/tokens.css" }, { file: "zt_skill-asset-app.zero_to-v3.css", label: "assets/app.css" }] },
       { label: "zero_to v2", file: "zt_skill-stacks-labs-dapp-design.zero_to-v2.md",
@@ -62,15 +72,19 @@ export const SKILLS = [
   {
     id: "zero-to-capture", title: "Capture during a build", filetag: "skill: zero-to-capture",
     versions: [
+      { label: "v2", file: "zt_skill-zero-to-capture.v2.md",
+        note: "v2, the currently installed skill, revised 2026-11-22: one entry format, optional lines for origin, live observation, refutation and owner decision, a Candidates used section, and an owner review pass." },
       { label: "v1", file: "zt_skill-zero-to-capture.v1.md",
-        note: "v1, the currently installed skill: keeps a running hand-off file in the app root during a build, written whenever something surprises, breaks, is corrected, or contradicts a skill as written. It never edits a skill." },
+        note: "v1, installed from 2026-10-19 to 2026-11-22: keeps a running hand-off file in the app root during a build, written whenever something surprises, breaks, is corrected, or contradicts a skill as written. It never edits a skill." },
     ],
   },
   {
     id: "zero-to-merge", title: "Merge into the next version", filetag: "skill: zero-to-merge",
     versions: [
+      { label: "v2", file: "zt_skill-zero-to-merge.v2.md",
+        note: "v2, the currently installed skill, revised 2026-11-22: triage before proposals, promotion inside a scope, retirement only by builds that could have used a candidate, a body budget of 1,950 words, and a publish handoff." },
       { label: "v1", file: "zt_skill-zero-to-merge.v1.md",
-        note: "v1, the currently installed skill: reads the hand-off files, updates a living ledger of rules with the apps behind each, and proposes the next version of each skill within its word budget." },
+        note: "v1, installed from 2026-10-19 to 2026-11-22: reads the hand-off files, updates a living ledger of rules with the apps behind each, and proposes the next version of each skill within its word budget." },
     ],
   },
 ];
